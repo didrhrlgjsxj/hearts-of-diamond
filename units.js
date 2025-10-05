@@ -52,6 +52,9 @@ class Unit {
         this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
         this.formationRadius = 0; // 전투 부대 배치 반경
         this.tracers = []; // 예광탄 효과 배열
+        this.maxOrganization = 100; // 최대 조직력
+        this.organization = 100; // 현재 조직력
+        this.organizationRecoveryRate = 5; // 초당 조직력 회복량
     }
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
@@ -190,11 +193,22 @@ class Unit {
      * @param {number} amount 피해량
      */
     takeDamage(amount) {
-        const integerDamage = Math.floor(amount);
-        if (integerDamage <= 0) return;
+        // 조직력이 0보다 높을 때, 피해는 조직력과 병력에 분산됩니다.
+        // 조직력이 낮을수록 병력에 가해지는 피해 비율이 높아집니다.
+        const orgDamageMultiplier = 0.8; // 피해의 80%는 조직력에 우선 적용
+        const orgDamage = Math.min(this.organization, amount * orgDamageMultiplier);
+        this.organization -= orgDamage;
 
-        this.damageTaken += integerDamage;
+        // 조직력이 막아주지 못한 나머지 피해 + 조직력 저하로 인한 추가 피해
+        const strengthDamageRatio = 1 - (this.organization / this.maxOrganization); // 조직력이 0이면 1, 100이면 0
+        const remainingDamage = amount * (1 - orgDamageMultiplier);
+        const bonusDamage = amount * strengthDamageRatio;
+        const totalStrengthDamage = remainingDamage + bonusDamage;
 
+        const integerDamage = Math.floor(totalStrengthDamage);
+        if (integerDamage > 0) {
+            this.damageTaken += integerDamage;
+        }
         // 피해량 텍스트 생성
         this.floatingTexts.push({
             text: `-${integerDamage}`,
@@ -355,6 +369,14 @@ class Unit {
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
+        // 4. 조직력 바 (주황색)
+        const orgBarY = barY + barHeight + 2;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, orgBarY, barWidth, barHeight);
+        const orgRatio = this.organization / this.maxOrganization;
+        ctx.fillStyle = '#ff8c00'; // DarkOrange
+        ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
+        ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
         // 전투 중일 때 아이콘을 깜빡이게 표시
         if (this.isInCombat) {
             // 1초에 두 번 깜빡이는 효과

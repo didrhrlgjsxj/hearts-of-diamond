@@ -123,6 +123,11 @@ function update(currentTime) {
         if (attackerUnit.destination) {
             attackerUnit.updateMovement(deltaTime);
         }
+
+        // --- 조직력 회복 로직 ---
+        if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
+            attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);
+        }
     }
 
     // --- 부대 제거 로직 ---
