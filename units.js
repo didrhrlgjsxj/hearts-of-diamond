@@ -8,15 +8,33 @@ const UNIT_STRENGTHS = {
     CORPS: 12 * 3 * 3 * 3 * 3 * 3 * 3, // 8748
 };
 
+const UNIT_TYPES = {
+    INFANTRY: '보병',
+    RECON: '정찰',
+    ARMOR: '기갑',
+    ARTILLERY: '포병',
+    ENGINEER: '공병',
+};
+
+// NATO APP-6A 표준을 단순화한 유닛 타입 아이콘
+const UNIT_TYPE_ICONS = {
+    [UNIT_TYPES.INFANTRY]: '✕', // 보병 (교차 소총)
+    [UNIT_TYPES.RECON]: '◇',   // 정찰 (기병)
+    [UNIT_TYPES.ARMOR]: '⬬',   // 기갑 (궤도)
+    [UNIT_TYPES.ARTILLERY]: '●', // 포병 (포탄)
+    [UNIT_TYPES.ENGINEER]: 'E',   // 공병
+};
+
 /**
  * 모든 군사 유닛의 기본이 되는 클래스입니다.
  * 이름, 위치, 하위 유닛 목록을 가집니다.
  */
 class Unit {
-    constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue') {
+    constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue', type = null) {
         this.name = name;
         this._x = x; // 유닛의 절대 또는 상대 X 좌표
         this._y = y; // 유닛의 절대 또는 상대 Y 좌표
+        this.type = type; // 유닛 타입 (보병, 기갑 등)
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
         this.parent = null; // 상위 유닛 참조
@@ -310,11 +328,31 @@ class Unit {
         ctx.fillStyle = this.team === 'blue' ? 'rgba(100, 149, 237, 0.7)' : 'rgba(255, 99, 71, 0.7)'; // CornflowerBlue / Tomato
         ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
 
+        // 유닛 타입 아이콘을 그립니다.
+        if (this.type && UNIT_TYPE_ICONS[this.type]) {
+            ctx.font = `bold ${this.size * 1.5}px "Segoe UI Symbol"`; // 아이콘 폰트 지정
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle'; // 텍스트를 수직 중앙에 정렬
+            ctx.fillText(UNIT_TYPE_ICONS[this.type], this.x, this.y);
+            // 다른 텍스트를 위해 textBaseline을 원래대로 되돌립니다.
+            ctx.textBaseline = 'alphabetic';
+        }
+
         // 각 유닛을 사각형으로 표현하고, 선택되었을 때 테두리 색을 변경합니다.
         ctx.strokeStyle = 'black';
         ctx.lineWidth = this.isSelected ? 2 : 1;
         ctx.strokeStyle = this.isSelected ? 'white' : 'black';
         ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+
+        // 선택된 유닛의 교전 범위를 표시합니다.
+        if (this.isSelected) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.engagementRange, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // 반투명 노란색
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
 
         // 유닛 이름을 표시합니다.
         ctx.fillStyle = 'black';
@@ -424,8 +462,8 @@ class Battalion extends Unit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         // 객체 존재 규칙: 중대는 하위 부대를 객체로 갖지 않습니다.
-        // 대신, 미리 정의된 상수 값을 사용하여 자신의 기본 병력을 설정합니다.
-        super(name, x, y, UNIT_STRENGTHS.COMPANY, 7, team);
+        // 대신, 미리 정의된 상수 값을 사용하여 자신의 기본 병력을 설정하고, 기본 타입을 '보병'으로 지정합니다.
+        super(name, x, y, UNIT_STRENGTHS.COMPANY, 7, team, UNIT_TYPES.INFANTRY);
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
