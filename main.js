@@ -6,23 +6,10 @@ const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
 
-// --- 유닛 생성 및 추가 ---
-// 블루팀 군단 생성
-const blueCorps = new Corps("I Corps", 400, 300, 'blue');
-topLevelUnits.push(blueCorps);
-
-// 레드팀 군단 생성
-const redCorps = new Corps("II Corps", 600, 500, 'red');
-topLevelUnits.push(redCorps);
-
-// --- 증강 예시 ---
-// 첫 번째 사단의 첫 번째 여단 증강
-blueCorps.subUnits[0].subUnits[0].reinforce(3);
-// 두 번째 사단의 두 번째 여단 증강
-blueCorps.subUnits[1].subUnits[1].reinforce(2);
-
 let mouseX = 0;
 let mouseY = 0;
+let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
+
 
 function resize() {
     canvas.width = window.innerWidth;
@@ -59,12 +46,67 @@ canvas.addEventListener('click', (e) => {
     }
 });
 
-function update() {
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
+
+    if (selectedUnit) {
+        const worldCoords = camera.screenToWorld(mouseX, mouseY);
+        selectedUnit.moveTo(worldCoords.x, worldCoords.y);
+    }
+});
+
+function update(currentTime) {
+    if (!lastTime) {
+        lastTime = currentTime;
+    }
+    const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
+    lastTime = currentTime;
+
     camera.update(mouseX, mouseY);
+
+
+    // --- 전투 로직 ---
+    // 모든 유닛의 전투 상태를 초기화합니다.
+    topLevelUnits.forEach(unit => unit.isInCombat = false);
+
+    // 각 유닛이 범위 내의 적을 찾아 공격합니다.
+    for (const unit of topLevelUnits) {
+        // 병력이 0 이하면 행동 불가
+        // 시각 효과는 계속 업데이트
+        unit.updateVisuals(deltaTime);
+
+        if (unit.currentStrength <= 0) continue;
+
+        const enemy = unit.findEnemyInRange(topLevelUnits);
+        if (enemy) {
+            unit.attack(enemy);
+            enemy.isInCombat = true; // 공격받는 대상도 전투 상태로 변경
+        }
+
+        // --- 이동 로직 ---
+        if (unit.destination) {
+            unit.updateMovement(deltaTime);
+        }
+    }
+
+    // --- 부대 제거 로직 ---
+    // 병력이 0이 된 부대를 배열에서 제거합니다.
+    // 배열을 역순으로 순회해야 삭제 시 인덱스 문제가 발생하지 않습니다.
+    for (let i = topLevelUnits.length - 1; i >= 0; i--) {
+        const unit = topLevelUnits[i];
+        if (unit.currentStrength <= 0) {
+            // 파괴된 유닛이 선택된 유닛이라면, 선택을 해제합니다.
+            if (selectedUnit === unit) {
+                selectedUnit = null;
+            }
+            topLevelUnits.splice(i, 1);
+        }
+    }
 }
 
 function draw() {
     ctx.save();
+    ctx.canvas.deltaTime = (performance.now() - lastTime) / 1000; // draw에서도 deltaTime 사용 가능하도록
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
     camera.applyTransform(ctx); // 카메라 변환 적용
 
@@ -89,10 +131,12 @@ function draw() {
     ctx.restore();
 }
 
-function loop() {
-    update();
+function loop(currentTime) {
+    update(currentTime);
     draw();
     requestAnimationFrame(loop);
 }
 
+// UI 초기화
+new GameUI(camera, topLevelUnits);
 loop();

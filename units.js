@@ -15,15 +15,42 @@ const UNIT_STRENGTHS = {
 class Unit {
     constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue') {
         this.name = name;
-        this.x = x;
-        this.y = y;
+        this._x = x; // 유닛의 절대 또는 상대 X 좌표
+        this._y = y; // 유닛의 절대 또는 상대 Y 좌표
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
+        this.parent = null; // 상위 유닛 참조
         this.size = size; // 유닛 아이콘의 크기 (반지름)
         this.team = team; // 유닛의 팀 ('blue' 또는 'red')
         this.reinforcementLevel = 0; // 증강 레벨
         this.isSelected = false; // 유닛 선택 여부
+        this.damageTaken = 0; // 받은 피해량
+        this.engagementRange = 70; // 교전 범위
+        this.isInCombat = false; // 전투 상태 여부
+        this.destination = null; // 이동 목표 지점 {x, y}
+        this.moveSpeed = 30; // 초당 이동 속도
+        this.floatingTexts = []; // 피해량 표시 텍스트 배열
+        this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
     }
+
+    // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
+    get x() {
+        return this.parent ? this.parent.x + this._x : this._x;
+    }
+
+    // 부모가 있으면 상대 위치를, 없으면 절대 위치를 설정
+    set x(value) {
+        this._x = this.parent ? value - this.parent.x : value;
+    }
+
+    get y() {
+        return this.parent ? this.parent.y + this._y : this._y;
+    }
+
+    set y(value) {
+        this._y = this.parent ? value - this.parent.y : value;
+    }
+
 
     /**
      * 현재 병력을 계산합니다.
@@ -31,9 +58,11 @@ class Unit {
      */
     get currentStrength() {
         if (this.subUnits.length > 0) {
-            return this.subUnits.reduce((total, unit) => total + unit.currentStrength, 0);
+            const subUnitsStrength = this.subUnits.reduce((total, unit) => total + unit.currentStrength, 0);
+            // 하위 유닛의 총합에서 이 유닛이 직접 받은 피해를 차감합니다.
+            return Math.max(0, subUnitsStrength - this.damageTaken);
         }
-        return Math.floor(this._baseStrength * (1 + (1/6) * this.reinforcementLevel));
+        return Math.max(0, Math.floor(this._baseStrength * (1 + (1/6) * this.reinforcementLevel)) - this.damageTaken);
     }
 
     /**
@@ -48,6 +77,7 @@ class Unit {
      * @param {Unit} unit 추가할 유닛
      */
     addUnit(unit) {
+        unit.parent = this;
         this.subUnits.push(unit);
     }
 
@@ -57,6 +87,108 @@ class Unit {
      */
     reinforce(level) {
         this.reinforcementLevel = level;
+    }
+
+    /**
+     * 유닛의 이동 목표를 설정합니다.
+     * @param {number} x 목표 x 좌표
+     * @param {number} y 목표 y 좌표
+     */
+    moveTo(x, y) {
+        this.destination = { x, y };
+    }
+
+    /**
+     * 유닛의 이동을 처리합니다.
+     * @param {number} deltaTime 프레임 간 시간 간격 (초)
+     */
+    updateMovement(deltaTime) {
+        if (!this.destination) return;
+
+        const dx = this.destination.x - this.x;
+        const dy = this.destination.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        const moveDistance = this.moveSpeed * deltaTime;
+
+        if (distance < moveDistance) {
+            // 목표에 도달함
+            this.x = this.destination.x;
+            this.y = this.destination.y;
+            this.destination = null;
+        } else {
+            // 목표를 향해 이동
+            const moveX = (dx / distance) * moveDistance;
+            const moveY = (dy / distance) * moveDistance;
+            this.x += moveX;
+            this.y += moveY;
+        }
+    }
+
+    /**
+     * 대상 유닛을 공격하여 피해를 입힙니다.
+     * @param {Unit} target 공격할 대상 유닛
+     */
+    attack(target) {
+        // 피해량은 현재 병력의 일부로 계산 (예: 1%)
+        const damage = this.currentStrength * 0.01;
+        target.takeDamage(damage);
+        this.isInCombat = true;
+    }
+
+    /**
+     * 피해를 받습니다.
+     * @param {number} amount 피해량
+     */
+    takeDamage(amount) {
+        const integerDamage = Math.floor(amount);
+        if (integerDamage <= 0) return;
+
+        this.damageTaken += integerDamage;
+
+        // 피해량 텍스트 생성
+        this.floatingTexts.push({
+            text: `-${integerDamage}`,
+            life: 1.5, // 1.5초 동안 표시
+            alpha: 1.0,
+            x: this.x,
+            y: this.y - this.size - 10,
+        });
+    }
+
+    /**
+     * 유닛의 시각 효과(피해량 텍스트 등)를 업데이트합니다.
+     * @param {number} deltaTime
+     */
+    updateVisuals(deltaTime) {
+        // 떠다니는 텍스트 업데이트
+        this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+        this.floatingTexts.forEach(t => {
+            t.life -= deltaTime;
+            t.y -= 10 * deltaTime; // 위로 떠오르는 효과
+            t.alpha = Math.max(0, t.life / 1.5);
+        });
+    }
+
+    /**
+     * 교전 범위 내의 적 유닛을 찾습니다.
+     * @param {Unit[]} allUnits 모든 최상위 유닛 목록
+     * @returns {Unit|null} 가장 가까운 적 유닛 또는 null
+     */
+    findEnemyInRange(allUnits) {
+        let closestEnemy = null;
+        let minDistance = this.engagementRange;
+
+        for (const otherUnit of allUnits) {
+            if (otherUnit.team !== this.team) {
+                const distance = Math.sqrt(Math.pow(this.x - otherUnit.x, 2) + Math.pow(this.y - otherUnit.y, 2));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEnemy = otherUnit;
+                }
+            }
+        }
+        return closestEnemy;
     }
 
     /**
@@ -126,8 +258,16 @@ class Unit {
 
         // 2. 현재 병력 바
         // baseStrength가 0인 경우(하위 유닛이 없는 최상위 유닛)를 대비해 0으로 나누는 것을 방지합니다.
+        if (this.displayStrength === -1) {
+            this.displayStrength = this.currentStrength;
+        } else {
+            // 표시되는 체력이 실제 체력보다 높으면 서서히 감소시켜 따라잡게 함
+            if (this.displayStrength > this.currentStrength) {
+                this.displayStrength = Math.max(this.currentStrength, this.displayStrength - this.baseStrength * 0.5 * ctx.canvas.deltaTime);
+            }
+        }
         const currentBaseStrength = this.baseStrength;
-        const strengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
+        const strengthRatio = currentBaseStrength > 0 ? this.displayStrength / currentBaseStrength : 0;
         
         // 2a. 기본 병력 바 (최대 100%까지, 녹색)
         const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
@@ -140,12 +280,29 @@ class Unit {
             ctx.fillStyle = '#f0e68c'; // Khaki
             ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
         }
+
+        // 2c. 피해 받은 부분 표시 (붉은색)
+        const actualStrengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
+        if (strengthRatio > actualStrengthRatio) {
+            const damageBarStart = barWidth * actualStrengthRatio;
+            const damageBarWidth = barWidth * (strengthRatio - actualStrengthRatio);
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Red
+            ctx.fillRect(barX + damageBarStart, barY, damageBarWidth, barHeight);
+        }
         
         // 3. 병력 바 테두리
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
+        // 전투 중일 때 아이콘을 깜빡이게 표시
+        if (this.isInCombat) {
+            // 1초에 두 번 깜빡이는 효과
+            if (Math.floor(Date.now() / 500) % 2 === 0) {
+                ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // 노란색 하이라이트
+                ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+            }
+        }
         // 부대 종류별 심볼을 그립니다.
         this.drawEchelonSymbol(ctx);
 
@@ -165,6 +322,14 @@ class Unit {
         ctx.font = '10px sans-serif';
         ctx.fillText(`${this.name} [${this.currentStrength}]`, this.x, this.y + 20);
 
+        // 피해량 텍스트 그리기
+        ctx.font = 'bold 12px sans-serif';
+        this.floatingTexts.forEach(t => {
+            ctx.fillStyle = `rgba(255, 100, 100, ${t.alpha})`;
+            ctx.strokeStyle = `rgba(0, 0, 0, ${t.alpha})`;
+            ctx.strokeText(t.text, t.x, t.y);
+            ctx.fillText(t.text, t.x, t.y);
+        });
         // 자신이 선택되었을 때만 하위 유닛을 그립니다.
         if (this.isSelected) {
             // 최적화 규칙: 증강된 하위 부대만 그립니다.
@@ -196,9 +361,9 @@ class Corps extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 14, team); // 기본 병력은 하위 유닛의 합이므로 0으로 시작
         // 3개의 사단을 자동으로 생성
-        this.addUnit(new Division(`${name}-1`, x - 50, y + 50, team));
-        this.addUnit(new Division(`${name}-2`, x + 50, y + 50, team));
-        this.addUnit(new Division(`${name}-3`, x, y - 50, team));
+        this.addUnit(new Division(`${name}-1`, -50, 50, team));
+        this.addUnit(new Division(`${name}-2`, 50, 50, team));
+        this.addUnit(new Division(`${name}-3`, 0, -50, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -212,9 +377,9 @@ class Division extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 12, team);
         // 3개의 여단을 자동으로 생성
-        this.addUnit(new Brigade(`${name}-1`, x - 30, y + 30, team));
-        this.addUnit(new Brigade(`${name}-2`, x + 30, y + 30, team));
-        this.addUnit(new Brigade(`${name}-3`, x, y - 30, team));
+        this.addUnit(new Brigade(`${name}-1`, -30, 30, team));
+        this.addUnit(new Brigade(`${name}-2`, 30, 30, team));
+        this.addUnit(new Brigade(`${name}-3`, 0, -30, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -228,9 +393,9 @@ class Brigade extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 10, team);
         // 3개의 대대를 자동으로 생성
-        this.addUnit(new Battalion(`${name}-1`, x - 20, y + 20, team));
-        this.addUnit(new Battalion(`${name}-2`, x + 20, y + 20, team));
-        this.addUnit(new Battalion(`${name}-3`, x, y - 20, team));
+        this.addUnit(new Battalion(`${name}-1`, -20, 20, team));
+        this.addUnit(new Battalion(`${name}-2`, 20, 20, team));
+        this.addUnit(new Battalion(`${name}-3`, 0, -20, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -244,9 +409,9 @@ class Battalion extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 8, team);
         // 3개의 중대를 자동으로 생성
-        this.addUnit(new Company(`${name}-1`, x - 15, y + 15, team));
-        this.addUnit(new Company(`${name}-2`, x + 15, y + 15, team));
-        this.addUnit(new Company(`${name}-3`, x, y - 15, team));
+        this.addUnit(new Company(`${name}-1`, -15, 15, team));
+        this.addUnit(new Company(`${name}-2`, 15, 15, team));
+        this.addUnit(new Company(`${name}-3`, 0, -15, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
@@ -274,9 +439,9 @@ class Platoon extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 6, team);
         // 3개의 분대를 자동으로 생성
-        this.addUnit(new Squad(`${name}-1`, x - 5, y + 5, team));
-        this.addUnit(new Squad(`${name}-2`, x + 5, y + 5, team));
-        this.addUnit(new Squad(`${name}-3`, x, y - 5, team));
+        this.addUnit(new Squad(`${name}-1`, -5, 5, team));
+        this.addUnit(new Squad(`${name}-2`, 5, 5, team));
+        this.addUnit(new Squad(`${name}-3`, 0, -5, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
