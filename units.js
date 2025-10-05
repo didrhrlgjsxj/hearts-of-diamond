@@ -49,6 +49,9 @@ class Unit {
         this.moveSpeed = 30; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
+        this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
+        this.formationRadius = 0; // 전투 부대 배치 반경
+        this.tracers = []; // 예광탄 효과 배열
     }
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
@@ -88,6 +91,18 @@ class Unit {
      */
     get baseStrength() {
         return this.subUnits.length > 0 ? this.subUnits.reduce((total, unit) => total + unit.baseStrength, 0) : this._baseStrength;
+    }
+
+    /**
+     * 이 유닛의 최상위 부모 유닛을 찾습니다.
+     * @returns {Unit} 최상위 유닛
+     */
+    getTopLevelParent() {
+        let top = this;
+        while (top.parent) {
+            top = top.parent;
+        }
+        return top;
     }
 
     /**
@@ -141,6 +156,22 @@ class Unit {
             this.x += moveX;
             this.y += moveY;
         }
+        this.updateCombatSubUnitPositions();
+    }
+
+    /**
+     * 가상 전투 부대들의 위치를 부모 유닛 주변에 원형으로 배치합니다.
+     */
+    updateCombatSubUnitPositions() {
+        const count = this.combatSubUnits.length;
+        if (count <= 1) return;
+
+        this.combatSubUnits.forEach((subUnit, i) => {
+            const angle = (i / count) * 2 * Math.PI; // 0 to 2PI
+            // 이 부대들은 상위 계층 구조에 속해 있으므로, 절대 좌표를 직접 설정합니다.
+            subUnit._x = this.formationRadius * Math.cos(angle);
+            subUnit._y = this.formationRadius * Math.sin(angle);
+        });
     }
 
     /**
@@ -186,6 +217,14 @@ class Unit {
             t.y -= 10 * deltaTime; // 위로 떠오르는 효과
             t.alpha = Math.max(0, t.life / 1.5);
         });
+
+        // 예광탄 효과 업데이트
+        this.tracers = this.tracers.filter(t => t.life > 0);
+        this.tracers.forEach(t => {
+            t.life -= deltaTime;
+            t.alpha = Math.max(0, t.life / 0.5);
+        });
+
     }
 
     /**
@@ -194,19 +233,22 @@ class Unit {
      * @returns {Unit|null} 가장 가까운 적 유닛 또는 null
      */
     findEnemyInRange(allUnits) {
-        let closestEnemy = null;
-        let minDistance = this.engagementRange;
+        // 이 메서드는 이제 main.js의 새로운 전투 로직으로 대체됩니다.
+        // 개별 유닛이 아닌, combatSubUnit을 기준으로 적을 찾습니다.
+        // 호환성을 위해 빈 메서드로 남겨둘 수 있습니다.
+        return null;
+    }
 
-        for (const otherUnit of allUnits) {
-            if (otherUnit.team !== this.team) {
-                const distance = Math.sqrt(Math.pow(this.x - otherUnit.x, 2) + Math.pow(this.y - otherUnit.y, 2));
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestEnemy = otherUnit;
-                }
-            }
-        }
-        return closestEnemy;
+    /**
+     * 특정 좌표에 가장 가까운 가상 전투 부대를 찾습니다.
+     * @param {number} x 월드 X 좌표
+     * @param {number} y 월드 Y 좌표
+     */
+    getClosestCombatSubUnit(x, y) {
+        return this.combatSubUnits.reduce((closest, unit) => {
+            const dist = Math.hypot(unit.x - x, unit.y - y);
+            return dist < closest.dist ? { unit, dist } : closest;
+        }, { unit: null, dist: Infinity }).unit;
     }
 
     /**
@@ -354,6 +396,15 @@ class Unit {
             ctx.stroke();
         }
 
+        // 전투 부대 위치 시각화 (선택 시)
+        if (this.isSelected && this.combatSubUnits.length > 1) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            this.combatSubUnits.forEach(subUnit => {
+                ctx.strokeRect(subUnit.x - subUnit.size, subUnit.y - subUnit.size, subUnit.size * 2, subUnit.size * 2);
+            });
+        }
+
         // 유닛 이름을 표시합니다.
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
@@ -368,6 +419,18 @@ class Unit {
             ctx.strokeText(t.text, t.x, t.y);
             ctx.fillText(t.text, t.x, t.y);
         });
+
+        // 예광탄 그리기
+        this.tracers.forEach(t => {
+            ctx.beginPath();
+            ctx.moveTo(t.from.x, t.from.y);
+            ctx.lineTo(t.to.x, t.to.y);
+            ctx.strokeStyle = `rgba(255, 255, 150, ${t.alpha})`; // 밝은 노란색
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+        });
+
+
         // 자신이 선택되었을 때만 하위 유닛을 그립니다.
         if (this.isSelected) {
             // 최적화 규칙: 증강된 하위 부대만 그립니다.
@@ -398,10 +461,19 @@ class Unit {
 class Corps extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 14, team); // 기본 병력은 하위 유닛의 합이므로 0으로 시작
-        // 3개의 사단을 자동으로 생성
-        this.addUnit(new Division(`${name}-1`, -50, 50, team));
-        this.addUnit(new Division(`${name}-2`, 50, 50, team));
-        this.addUnit(new Division(`${name}-3`, 0, -50, team));
+        this.formationRadius = 80;
+
+        // 3개의 사단을 추가하고, 각 사단은 3개의 여단을 가집니다. 총 9개의 여단.
+        for (let i = 0; i < 3; i++) {
+            const division = new Division(`${name}-${i + 1}`, 0, 0, team);
+            this.addUnit(division);
+        }
+
+        // 전투 단위인 여단(2단계 아래)을 combatSubUnits에 추가합니다.
+        this.subUnits.forEach(division => {
+            this.combatSubUnits.push(...division.subUnits);
+        });
+        this.updateCombatSubUnitPositions();
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -414,10 +486,17 @@ class Corps extends Unit {
 class Division extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 12, team);
-        // 3개의 여단을 자동으로 생성
-        this.addUnit(new Brigade(`${name}-1`, -30, 30, team));
-        this.addUnit(new Brigade(`${name}-2`, 30, 30, team));
-        this.addUnit(new Brigade(`${name}-3`, 0, -30, team));
+        this.formationRadius = 60;
+        for (let i = 0; i < 3; i++) {
+            const brigade = new Brigade(`${name}-${i + 1}`, 0, 0, team);
+            this.addUnit(brigade);
+        }
+
+        // 전투 단위인 대대(2단계 아래)를 combatSubUnits에 추가합니다.
+        this.subUnits.forEach(brigade => {
+            this.combatSubUnits.push(...brigade.subUnits);
+        });
+        this.updateCombatSubUnitPositions();
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -430,10 +509,16 @@ class Division extends Unit {
 class Brigade extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 10, team);
-        // 3개의 대대를 자동으로 생성
-        this.addUnit(new Battalion(`${name}-1`, -20, 20, team));
-        this.addUnit(new Battalion(`${name}-2`, 20, 20, team));
-        this.addUnit(new Battalion(`${name}-3`, 0, -20, team));
+        this.formationRadius = 40;
+        for (let i = 0; i < 3; i++) {
+            const battalion = new Battalion(`${name}-${i + 1}`, 0, 0, team);
+            this.addUnit(battalion);
+        }
+        // 전투 단위인 중대(2단계 아래)를 combatSubUnits에 추가합니다.
+        this.subUnits.forEach(battalion => {
+            this.combatSubUnits.push(...battalion.subUnits);
+        });
+        this.updateCombatSubUnitPositions();
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -446,10 +531,13 @@ class Brigade extends Unit {
 class Battalion extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 8, team);
-        // 3개의 중대를 자동으로 생성
-        this.addUnit(new Company(`${name}-1`, -15, 15, team));
-        this.addUnit(new Company(`${name}-2`, 15, 15, team));
-        this.addUnit(new Company(`${name}-3`, 0, -15, team));
+        this.formationRadius = 20;
+        for (let i = 0; i < 3; i++) {
+            const company = new Company(`${name}-${i + 1}`, 0, 0, team);
+            this.addUnit(company);
+            this.combatSubUnits.push(company); // 대대의 전투 단위는 중대입니다.
+        }
+        this.updateCombatSubUnitPositions();
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
@@ -464,6 +552,7 @@ class Company extends Unit {
         // 객체 존재 규칙: 중대는 하위 부대를 객체로 갖지 않습니다.
         // 대신, 미리 정의된 상수 값을 사용하여 자신의 기본 병력을 설정하고, 기본 타입을 '보병'으로 지정합니다.
         super(name, x, y, UNIT_STRENGTHS.COMPANY, 7, team, UNIT_TYPES.INFANTRY);
+        this.combatSubUnits.push(this); // 중대 자신을 전투 단위로 설정합니다.
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
@@ -476,6 +565,10 @@ class Company extends Unit {
 class Platoon extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 6, team);
+        this.formationRadius = 10;
+        // 전투 단위는 분대입니다.
+        this.combatSubUnits.push(...this.subUnits);
+        this.updateCombatSubUnitPositions();
         // 3개의 분대를 자동으로 생성
         this.addUnit(new Squad(`${name}-1`, -5, 5, team));
         this.addUnit(new Squad(`${name}-2`, 5, 5, team));
@@ -501,7 +594,10 @@ class Platoon extends Unit {
 
 /** 분대 (Squad) */
 class Squad extends Unit {
-    constructor(name, x, y, team) { super(name, x, y, UNIT_STRENGTHS.SQUAD, 5, team); }
+    constructor(name, x, y, team) {
+        super(name, x, y, UNIT_STRENGTHS.SQUAD, 5, team, UNIT_TYPES.INFANTRY);
+        this.combatSubUnits.push(this); // 분대 자신을 전투 단위로 설정합니다.
+    }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
         const dotSize = 2;

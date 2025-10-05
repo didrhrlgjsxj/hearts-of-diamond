@@ -69,23 +69,59 @@ function update(currentTime) {
     // 모든 유닛의 전투 상태를 초기화합니다.
     topLevelUnits.forEach(unit => unit.isInCombat = false);
 
-    // 각 유닛이 범위 내의 적을 찾아 공격합니다.
-    for (const unit of topLevelUnits) {
+    // --- 새로운 전투 로직 ---
+    // 모든 최상위 유닛에 대해 반복합니다.
+    // 예광탄 효과를 위해 모든 유닛의 예광탄 목록을 초기화합니다.
+    for (const attackerUnit of topLevelUnits) {
+        attackerUnit.tracers = [];
+
         // 병력이 0 이하면 행동 불가
-        // 시각 효과는 계속 업데이트
-        unit.updateVisuals(deltaTime);
+        attackerUnit.updateVisuals(deltaTime);
+        if (attackerUnit.currentStrength <= 0) continue;
 
-        if (unit.currentStrength <= 0) continue;
+        // 각 유닛의 '전투 부대'들이 개별적으로 적을 찾고 공격합니다.
+        for (const combatSubUnit of attackerUnit.combatSubUnits) {
+            let closestEnemySubUnit = null;
+            let minDistance = combatSubUnit.engagementRange;
 
-        const enemy = unit.findEnemyInRange(topLevelUnits);
-        if (enemy) {
-            unit.attack(enemy);
-            enemy.isInCombat = true; // 공격받는 대상도 전투 상태로 변경
+            // 다른 모든 유닛들을 순회하며 가장 가까운 적 '전투 부대'를 찾습니다.
+            for (const targetUnit of topLevelUnits) {
+                if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
+
+                // 적의 '전투 부대' 중 가장 가까운 것을 찾습니다.
+                const closestTargetSubUnit = targetUnit.getClosestCombatSubUnit(combatSubUnit.x, combatSubUnit.y);
+                const distance = Math.hypot(combatSubUnit.x - closestTargetSubUnit.x, combatSubUnit.y - closestTargetSubUnit.y);
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestEnemySubUnit = closestTargetSubUnit;
+                }
+            }
+
+            // 사거리 내에 적을 찾았다면 공격합니다.
+            if (closestEnemySubUnit) {
+                const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
+
+                // 공격은 '전투 부대'가 하지만, 피해는 적의 최상위 부대가 받습니다.
+                const damage = combatSubUnit.currentStrength * 0.01;
+                targetTopLevelUnit.takeDamage(damage);
+
+                // 공격자와 피격자 모두 전투 상태로 변경
+                attackerUnit.isInCombat = true;
+                targetTopLevelUnit.isInCombat = true;
+
+                // 예광탄 효과를 생성합니다.
+                attackerUnit.tracers.push({
+                    from: combatSubUnit,
+                    to: closestEnemySubUnit,
+                    life: 0.5, // 0.5초 동안 표시
+                });
+            }
         }
 
         // --- 이동 로직 ---
-        if (unit.destination) {
-            unit.updateMovement(deltaTime);
+        if (attackerUnit.destination) {
+            attackerUnit.updateMovement(deltaTime);
         }
     }
 
