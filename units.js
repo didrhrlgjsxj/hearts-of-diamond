@@ -13,13 +13,14 @@ const UNIT_STRENGTHS = {
  * 이름, 위치, 하위 유닛 목록을 가집니다.
  */
 class Unit {
-    constructor(name, x = 0, y = 0, baseStrength = 0, size = 5) {
+    constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue') {
         this.name = name;
         this.x = x;
         this.y = y;
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
         this.size = size; // 유닛 아이콘의 크기 (반지름)
+        this.team = team; // 유닛의 팀 ('blue' 또는 'red')
         this.reinforcementLevel = 0; // 증강 레벨
         this.isSelected = false; // 유닛 선택 여부
     }
@@ -148,6 +149,10 @@ class Unit {
         // 부대 종류별 심볼을 그립니다.
         this.drawEchelonSymbol(ctx);
 
+        // 팀 색상에 따라 아이콘 배경을 칠합니다.
+        ctx.fillStyle = this.team === 'blue' ? 'rgba(100, 149, 237, 0.7)' : 'rgba(255, 99, 71, 0.7)'; // CornflowerBlue / Tomato
+        ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+
         // 각 유닛을 사각형으로 표현하고, 선택되었을 때 테두리 색을 변경합니다.
         ctx.strokeStyle = 'black';
         ctx.lineWidth = this.isSelected ? 2 : 1;
@@ -188,12 +193,12 @@ class Unit {
 
 /** 군단 (Corps) */
 class Corps extends Unit {
-    constructor(name, x, y) {
-        super(name, x, y, 0, 14); // 기본 병력은 하위 유닛의 합이므로 0으로 시작
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 14, team); // 기본 병력은 하위 유닛의 합이므로 0으로 시작
         // 3개의 사단을 자동으로 생성
-        this.addUnit(new Division(`${name}-1`, x - 50, y + 50));
-        this.addUnit(new Division(`${name}-2`, x + 50, y + 50));
-        this.addUnit(new Division(`${name}-3`, x, y - 50));
+        this.addUnit(new Division(`${name}-1`, x - 50, y + 50, team));
+        this.addUnit(new Division(`${name}-2`, x + 50, y + 50, team));
+        this.addUnit(new Division(`${name}-3`, x, y - 50, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -204,12 +209,12 @@ class Corps extends Unit {
 
 /** 사단 (Division) */
 class Division extends Unit {
-    constructor(name, x, y) {
-        super(name, x, y, 0, 12);
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 12, team);
         // 3개의 여단을 자동으로 생성
-        this.addUnit(new Brigade(`${name}-1`, x - 30, y + 30));
-        this.addUnit(new Brigade(`${name}-2`, x + 30, y + 30));
-        this.addUnit(new Brigade(`${name}-3`, x, y - 30));
+        this.addUnit(new Brigade(`${name}-1`, x - 30, y + 30, team));
+        this.addUnit(new Brigade(`${name}-2`, x + 30, y + 30, team));
+        this.addUnit(new Brigade(`${name}-3`, x, y - 30, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -220,12 +225,12 @@ class Division extends Unit {
 
 /** 여단 (Brigade) */
 class Brigade extends Unit {
-    constructor(name, x, y) {
-        super(name, x, y, 0, 10);
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 10, team);
         // 3개의 대대를 자동으로 생성
-        this.addUnit(new Battalion(`${name}-1`, x - 20, y + 20));
-        this.addUnit(new Battalion(`${name}-2`, x + 20, y + 20));
-        this.addUnit(new Battalion(`${name}-3`, x, y - 20));
+        this.addUnit(new Battalion(`${name}-1`, x - 20, y + 20, team));
+        this.addUnit(new Battalion(`${name}-2`, x + 20, y + 20, team));
+        this.addUnit(new Battalion(`${name}-3`, x, y - 20, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -236,12 +241,12 @@ class Brigade extends Unit {
 
 /** 대대 (Battalion) */
 class Battalion extends Unit {
-    constructor(name, x, y) {
-        super(name, x, y, 0, 8);
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 8, team);
         // 3개의 중대를 자동으로 생성
-        this.addUnit(new Company(`${name}-1`, x - 15, y + 15));
-        this.addUnit(new Company(`${name}-2`, x + 15, y + 15));
-        this.addUnit(new Company(`${name}-3`, x, y - 15));
+        this.addUnit(new Company(`${name}-1`, x - 15, y + 15, team));
+        this.addUnit(new Company(`${name}-2`, x + 15, y + 15, team));
+        this.addUnit(new Company(`${name}-3`, x, y - 15, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
@@ -252,10 +257,10 @@ class Battalion extends Unit {
 
 /** 중대 (Company) */
 class Company extends Unit {
-    constructor(name, x, y) {
+    constructor(name, x, y, team) {
         // 객체 존재 규칙: 중대는 하위 부대를 객체로 갖지 않습니다.
         // 대신, 미리 정의된 상수 값을 사용하여 자신의 기본 병력을 설정합니다.
-        super(name, x, y, UNIT_STRENGTHS.COMPANY, 7);
+        super(name, x, y, UNIT_STRENGTHS.COMPANY, 7, team);
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 14px sans-serif';
@@ -266,12 +271,12 @@ class Company extends Unit {
 
 /** 소대 (Platoon) */
 class Platoon extends Unit {
-    constructor(name, x, y) {
-        super(name, x, y, 0, 6);
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 6, team);
         // 3개의 분대를 자동으로 생성
-        this.addUnit(new Squad(`${name}-1`, x - 5, y + 5));
-        this.addUnit(new Squad(`${name}-2`, x + 5, y + 5));
-        this.addUnit(new Squad(`${name}-3`, x, y - 5));
+        this.addUnit(new Squad(`${name}-1`, x - 5, y + 5, team));
+        this.addUnit(new Squad(`${name}-2`, x + 5, y + 5, team));
+        this.addUnit(new Squad(`${name}-3`, x, y - 5, team));
     }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
@@ -293,7 +298,7 @@ class Platoon extends Unit {
 
 /** 분대 (Squad) */
 class Squad extends Unit {
-    constructor(name, x, y) { super(name, x, y, UNIT_STRENGTHS.SQUAD, 5); }
+    constructor(name, x, y, team) { super(name, x, y, UNIT_STRENGTHS.SQUAD, 5, team); }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
         const dotSize = 2;

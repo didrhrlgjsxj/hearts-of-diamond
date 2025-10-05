@@ -4,22 +4,25 @@ const ctx = canvas.getContext('2d');
 // --- 게임 월드 설정 ---
 const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
+const camera = new Camera(canvas); // 카메라 인스턴스 생성
 
 // --- 유닛 생성 및 추가 ---
-const firstCorps = new Corps("I Corps", 400, 300);
-topLevelUnits.push(firstCorps);
+// 블루팀 군단 생성
+const blueCorps = new Corps("I Corps", 400, 300, 'blue');
+topLevelUnits.push(blueCorps);
+
+// 레드팀 군단 생성
+const redCorps = new Corps("II Corps", 600, 500, 'red');
+topLevelUnits.push(redCorps);
 
 // --- 증강 예시 ---
 // 첫 번째 사단의 첫 번째 여단 증강
-firstCorps.subUnits[0].subUnits[0].reinforce(3);
+blueCorps.subUnits[0].subUnits[0].reinforce(3);
 // 두 번째 사단의 두 번째 여단 증강
-firstCorps.subUnits[1].subUnits[1].reinforce(2);
+blueCorps.subUnits[1].subUnits[1].reinforce(2);
 
 let mouseX = 0;
 let mouseY = 0;
-let camera = { x: 0, y: 0, zoom: 1 };
-const edgeSize = 30; // pixels from edge to start moving
-const moveSpeed = 5; // camera move speed
 
 function resize() {
     canvas.width = window.innerWidth;
@@ -27,13 +30,6 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 resize();
-
-canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-    camera.zoom *= zoomFactor;
-    camera.zoom = Math.max(0.5, Math.min(camera.zoom, 5));
-});
 
 canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
@@ -43,13 +39,12 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('click', (e) => {
     // 마우스 클릭 위치를 월드 좌표로 변환
-    const worldX = (mouseX / camera.zoom) + camera.x;
-    const worldY = (mouseY / camera.zoom) + camera.y;
+    const worldCoords = camera.screenToWorld(mouseX, mouseY);
 
     let clickedUnit = null;
     // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
     for (const unit of topLevelUnits) {
-        clickedUnit = unit.getUnitAt(worldX, worldY);
+        clickedUnit = unit.getUnitAt(worldCoords.x, worldCoords.y);
         if (clickedUnit) break;
     }
 
@@ -65,23 +60,13 @@ canvas.addEventListener('click', (e) => {
 });
 
 function update() {
-    if (mouseX < edgeSize) {
-        camera.x -= moveSpeed / camera.zoom;
-    } else if (mouseX > canvas.width - edgeSize) {
-        camera.x += moveSpeed / camera.zoom;
-    }
-    if (mouseY < edgeSize) {
-        camera.y -= moveSpeed / camera.zoom;
-    } else if (mouseY > canvas.height - edgeSize) {
-        camera.y += moveSpeed / camera.zoom;
-    }
+    camera.update(mouseX, mouseY);
 }
 
 function draw() {
     ctx.save();
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
-    ctx.translate(-camera.x * camera.zoom, -camera.y * camera.zoom);
-    ctx.scale(camera.zoom, camera.zoom);
+    camera.applyTransform(ctx); // 카메라 변환 적용
 
     const tileSize = 50;
     const mapWidth = 20;
