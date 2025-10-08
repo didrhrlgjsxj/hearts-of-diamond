@@ -10,11 +10,10 @@ class GameUI {
         this.camera = camera;
         this.topLevelUnits = unitList;
         this.unitClasses = {
-            Corps,
-            Division,
             Brigade,
             Battalion,
             Company,
+            Platoon,
         };
         this.createControlPanel();
     }
@@ -34,11 +33,10 @@ class GameUI {
 
         // 유닛 타입 선택
         const unitTypeSelect = this.createSelect('unit-type-select', '부대 단위:', {
-            Corps: '군단 (Corps)',
-            Division: '사단 (Division)',
             Brigade: '여단 (Brigade)',
             Battalion: '대대 (Battalion)',
             Company: '중대 (Company)',
+            Platoon: '소대 (Platoon)',
         });
 
         // 소환 버튼

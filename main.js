@@ -87,14 +87,16 @@ function update(currentTime) {
             // 다른 모든 유닛들을 순회하며 가장 가까운 적 '전투 부대'를 찾습니다.
             for (const targetUnit of topLevelUnits) {
                 if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
-
+                if (targetUnit.combatSubUnits.length === 0) continue;
                 // 적의 '전투 부대' 중 가장 가까운 것을 찾습니다.
                 const closestTargetSubUnit = targetUnit.getClosestCombatSubUnit(combatSubUnit.x, combatSubUnit.y);
-                const distance = Math.hypot(combatSubUnit.x - closestTargetSubUnit.x, combatSubUnit.y - closestTargetSubUnit.y);
-
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    closestEnemySubUnit = closestTargetSubUnit;
+                if (closestTargetSubUnit) {
+                    const distance = Math.hypot(combatSubUnit.x - closestTargetSubUnit.x, combatSubUnit.y - closestTargetSubUnit.y);
+    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestEnemySubUnit = closestTargetSubUnit;
+                    }
                 }
             }
 
@@ -104,7 +106,7 @@ function update(currentTime) {
 
                 // 공격은 '전투 부대'가 하지만, 피해는 적의 최상위 부대가 받습니다.
                 const damage = combatSubUnit.currentStrength * 0.01;
-                targetTopLevelUnit.takeDamage(damage);
+                targetTopLevelUnit.takeDamage(damage, { x: combatSubUnit.x, y: combatSubUnit.y });
 
                 // 공격자와 피격자 모두 전투 상태로 변경
                 attackerUnit.isInCombat = true;
@@ -122,6 +124,7 @@ function update(currentTime) {
         // --- 이동 로직 ---
         if (attackerUnit.destination) {
             attackerUnit.updateMovement(deltaTime);
+            attackerUnit.updateCombatSubUnitPositions(); // 이동 시 하위 부대 진형 유지
         }
 
         // --- 조직력 회복 로직 ---
