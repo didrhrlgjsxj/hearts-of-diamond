@@ -10,6 +10,9 @@ let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
 
+// UI 인스턴스를 저장할 변수
+let gameUI;
+
 
 function resize() {
     canvas.width = window.innerWidth;
@@ -44,6 +47,9 @@ canvas.addEventListener('click', (e) => {
     if (selectedUnit) {
         selectedUnit.setSelected(true);
     }
+
+    // 부대 구성 UI를 업데이트합니다.
+    gameUI.updateCompositionPanel(selectedUnit);
 });
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -220,5 +226,5 @@ function loop(currentTime) {
 }
 
 // UI 초기화
-new GameUI(camera, topLevelUnits);
+gameUI = new GameUI(camera, topLevelUnits);
 loop();

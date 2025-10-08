@@ -9,13 +9,13 @@ class GameUI {
     constructor(camera, unitList) {
         this.camera = camera;
         this.topLevelUnits = unitList;
-        this.unitClasses = {
-            Brigade,
-            Battalion,
-            Company,
-            Platoon,
-        };
         this.createControlPanel();
+
+        // 부대 구성 정보 패널 생성
+        this.compositionPanel = document.createElement('div');
+        this.compositionPanel.id = 'composition-panel';
+        document.body.appendChild(this.compositionPanel);
+        this.updateCompositionPanel(null); // 처음에는 숨김
     }
 
     /**
@@ -32,12 +32,11 @@ class GameUI {
         });
 
         // 유닛 타입 선택
-        const unitTypeSelect = this.createSelect('unit-type-select', '부대 단위:', {
-            Brigade: '여단 (Brigade)',
-            Battalion: '대대 (Battalion)',
-            Company: '중대 (Company)',
-            Platoon: '소대 (Platoon)',
+        const templateOptions = {};
+        Object.keys(DIVISION_TEMPLATES).forEach(key => {
+            templateOptions[key] = DIVISION_TEMPLATES[key].name;
         });
+        const unitTypeSelect = this.createSelect('unit-type-select', '부대 설계:', templateOptions);
 
         // 소환 버튼
         const spawnButton = document.createElement('button');
@@ -66,15 +65,48 @@ class GameUI {
 
     spawnUnit() {
         const team = document.getElementById('team-select').value;
-        const unitType = document.getElementById('unit-type-select').value;
-        const UnitClass = this.unitClasses[unitType];
+        const templateKey = document.getElementById('unit-type-select').value;
+        const template = DIVISION_TEMPLATES[templateKey];
 
         // 카메라 중앙 위치에 유닛을 소환합니다.
         const spawnPos = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
 
-        if (UnitClass) {
-            const newUnit = new UnitClass(`New ${unitType}`, spawnPos.x, spawnPos.y, team);
+        if (template && template.build) {
+            const newUnit = template.build(`New ${template.name}`, spawnPos.x, spawnPos.y, team);
             this.topLevelUnits.push(newUnit);
         }
+    }
+
+    /**
+     * 선택된 유닛의 분대 구성 정보를 UI에 업데이트합니다.
+     * @param {Unit | null} unit 선택된 유닛 또는 null
+     */
+    updateCompositionPanel(unit) {
+        if (!unit) {
+            this.compositionPanel.innerHTML = '';
+            this.compositionPanel.style.display = 'none';
+            return;
+        }
+
+        const activeSquads = unit.getAllSquads().filter(s => s.currentStrength > 0);
+        const composition = {};
+
+        for (const squad of activeSquads) {
+            composition[squad.type] = (composition[squad.type] || 0) + 1;
+        }
+
+        let html = `<h3>부대 구성 (${activeSquads.length}개 분대)</h3>`;
+        if (Object.keys(composition).length > 0) {
+            html += '<ul>';
+            // UNIT_TYPES 순서대로 정렬하여 표시
+            Object.values(UNIT_TYPES).forEach(type => {
+                if (composition[type]) {
+                    html += `<li>${type}: ${composition[type]}</li>`;
+                }
+            });
+            html += '</ul>';
+        }
+        this.compositionPanel.innerHTML = html;
+        this.compositionPanel.style.display = 'block';
     }
 }

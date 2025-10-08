@@ -34,12 +34,26 @@
             margin-bottom: 10px;
             width: 100%;
         }
+        #composition-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: sans-serif;
+            min-width: 150px;
+        }
+        #composition-panel ul {
+            padding-left: 20px;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <script src="camera.js"></script>
     <script src="units.js"></script>
+    <script src="division_templates.js"></script>
     <script src="ui.js"></script>
     <script src="main.js"></script>
 </body>

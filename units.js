@@ -620,21 +620,8 @@ class Unit {
 class Brigade extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 10, team);
-        this.formationRadius = 40;
-        this.setupDefaultFormation();
-        this.combatSubUnits = this.getAllSquads();
-        this.updateCombatSubUnitPositions();
-
-        // 여단 특성: 정찰 분대 1개 추가
-        const allSquads = this.getAllSquads();
-        if (allSquads.length > 0) {
-            allSquads[0].setType(UNIT_TYPES.RECON);
-        }
-    }
-    setupDefaultFormation() {
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Battalion(`${this.name}-${i + 1}`, 0, 0, this.team));
-        }
+        this.formationRadius = 40; // 진형 반경 설정
+        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -647,18 +634,8 @@ class Battalion extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 8, team);
         this.formationRadius = 30;
-        // 상위 부대에서 생성하므로, 여기서는 하위 부대를 직접 생성하지 않습니다.
-        // 만약 대대가 최상위 유닛으로 생성될 경우를 대비해 setup을 호출할 수 있습니다.
-        if (!this.parent) {
-            this.setupDefaultFormation();
-            this.combatSubUnits = this.getAllSquads();
-            this.updateCombatSubUnitPositions();
-        }
-    }
-    setupDefaultFormation() {
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Company(`${this.name}-${i + 1}`, 0, 0, this.team));
-        }
+        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
+
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -671,16 +648,7 @@ class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
         this.formationRadius = 20;
-        if (!this.parent) {
-            this.setupDefaultFormation();
-            this.combatSubUnits = this.getAllSquads();
-            this.updateCombatSubUnitPositions();
-        }
-    }
-    setupDefaultFormation() {
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Platoon(`${this.name}-${i + 1}`, 0, 0, this.team));
-        }
+        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -693,16 +661,7 @@ class Platoon extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 6, team, UNIT_TYPES.INFANTRY);
         this.formationRadius = 10;
-        if (!this.parent) {
-            this.setupDefaultFormation();
-            this.combatSubUnits = this.getAllSquads();
-            this.updateCombatSubUnitPositions();
-        }
-    }
-    setupDefaultFormation() {
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Squad(`${this.name}-${i + 1}`, 0, 0, this.team));
-        }
+        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
