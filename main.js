@@ -67,7 +67,10 @@ function update(currentTime) {
 
     // --- 전투 로직 ---
     // 모든 유닛의 전투 상태를 초기화합니다.
-    topLevelUnits.forEach(unit => unit.isInCombat = false);
+    topLevelUnits.forEach(unit => {
+        unit.isInCombat = false;
+        unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
+    });
 
     // --- 새로운 전투 로직 ---
     // 모든 최상위 유닛에 대해 반복합니다.
@@ -78,6 +81,28 @@ function update(currentTime) {
         // 병력이 0 이하면 행동 불가
         attackerUnit.updateVisuals(deltaTime);
         if (attackerUnit.currentStrength <= 0) continue;
+
+        // --- 적 탐지 로직 ---
+        // 이 최상위 부대(attackerUnit)가 적을 탐지했는지 여부를 결정합니다.
+        let detectedAnyEnemy = false;
+        for (const combatSubUnit of attackerUnit.combatSubUnits) {
+            if (detectedAnyEnemy) break; // 이미 탐지했으면 더 이상 하위 부대를 확인할 필요 없음
+
+            for (const targetUnit of topLevelUnits) {
+                if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
+                if (targetUnit.combatSubUnits.length === 0) continue;
+
+                for (const targetCombatSubUnit of targetUnit.combatSubUnits) {
+                    const distance = Math.hypot(combatSubUnit.x - targetCombatSubUnit.x, combatSubUnit.y - targetCombatSubUnit.y);
+                    if (distance < combatSubUnit.detectionRange) { // combatSubUnit의 인식 범위 사용
+                        attackerUnit.isEnemyDetected = true; // 최상위 부대에 적 발견 상태 설정
+                        detectedAnyEnemy = true;
+                        break; // 이 전투 부대가 적을 탐지했으므로, 더 이상 적 전투 부대를 확인할 필요 없음
+                    }
+                }
+                if (detectedAnyEnemy) break; // 이 최상위 부대가 적을 탐지했으므로, 더 이상 다른 최상위 적 부대를 확인할 필요 없음
+            }
+        }
 
         // 각 유닛의 '전투 부대'들이 개별적으로 적을 찾고 공격합니다.
         for (const combatSubUnit of attackerUnit.combatSubUnits) {
@@ -104,9 +129,22 @@ function update(currentTime) {
             if (closestEnemySubUnit) {
                 const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
 
-                // 공격은 '전투 부대'가 하지만, 피해는 적의 최상위 부대가 받습니다.
-                const damage = combatSubUnit.currentStrength * 0.01;
-                targetTopLevelUnit.takeDamage(damage, { x: combatSubUnit.x, y: combatSubUnit.y });
+                // --- 새로운 피해 계산 로직 ---
+                const attacker = combatSubUnit;
+                const defender = targetTopLevelUnit;
+
+                // 병력 피해(Strength Damage) 계산
+                // - 장갑 관통 데미지: 대물 공격력이 장갑보다 높을 때 효과적
+                const piercingDamage = Math.max(0, attacker.hardAttack - defender.totalArmor);
+                // - 대인 데미지: 장갑에 의해 크게 감소
+                const nonPiercingDamage = attacker.softAttack * Math.max(0.1, 1 - (defender.totalArmor / 10)); // 장갑 10이면 0% 데미지, 최소 10% 보장
+                const strDamage = (piercingDamage + nonPiercingDamage) * 0.2; // 전체적인 병력 피해량 조절
+
+                // 조직력 피해(Organization Damage) 계산
+                // - 화력(firepower)에 기반하여 계산
+                const orgDamage = attacker.firepower * 1.5; // 화력 기반 조직력 피해량 조절
+
+                targetTopLevelUnit.takeDamage(orgDamage, strDamage, { x: combatSubUnit.x, y: combatSubUnit.y });
 
                 // 공격자와 피격자 모두 전투 상태로 변경
                 attackerUnit.isInCombat = true;

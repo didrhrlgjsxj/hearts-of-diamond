@@ -23,6 +23,25 @@ const UNIT_TYPE_ICONS = {
     [UNIT_TYPES.ENGINEER]: 'E',   // 공병
 };
 
+// 유닛 타입별 색상
+const UNIT_TYPE_COLORS = {
+    [UNIT_TYPES.INFANTRY]: 'rgba(100, 149, 237, 0.9)', // CornflowerBlue
+    [UNIT_TYPES.RECON]: 'rgba(255, 255, 0, 0.9)',      // Yellow
+    [UNIT_TYPES.ARMOR]: 'rgba(47, 79, 79, 0.9)',       // DarkSlateGray
+    [UNIT_TYPES.ARTILLERY]: 'rgba(255, 69, 0, 0.9)',   // OrangeRed
+    [UNIT_TYPES.ENGINEER]: 'rgba(139, 69, 19, 0.9)',   // SaddleBrown
+};
+
+// 유닛 타입별 기본 능력치 (분대 기준)
+const UNIT_TYPE_STATS = {
+    [UNIT_TYPES.INFANTRY]: { firepower: 1, softAttack: 2, hardAttack: 0.5, reconnaissance: 1, armor: 0, organizationBonus: 10 },
+    [UNIT_TYPES.RECON]:    { firepower: 0.5, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 2 },
+    [UNIT_TYPES.ARMOR]:    { firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 8, organizationBonus: 5 },
+    [UNIT_TYPES.ARTILLERY]:{ firepower: 8, softAttack: 3, hardAttack: 4, reconnaissance: 1, armor: 1, organizationBonus: 1 },
+    [UNIT_TYPES.ENGINEER]: { firepower: 1, softAttack: 1, hardAttack: 6, reconnaissance: 1, armor: 2, organizationBonus: 3 },
+};
+
+
 /**
  * 모든 군사 유닛의 기본이 되는 클래스입니다.
  * 이름, 위치, 하위 유닛 목록을 가집니다.
@@ -43,6 +62,8 @@ class Unit {
         this.damageTaken = 0; // 받은 피해량
         this.engagementRange = 70; // 교전 범위
         this.isInCombat = false; // 전투 상태 여부
+        this.detectionRange = 100; // 인식 범위 (교전 범위보다 넓게 설정)
+        this.isEnemyDetected = false; // 적 발견 상태 여부
         this.destination = null; // 이동 목표 지점 {x, y}
         this.moveSpeed = 30; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
@@ -53,6 +74,13 @@ class Unit {
         this.maxOrganization = 100; // 최대 조직력
         this.organization = 100; // 현재 조직력
         this.organizationRecoveryRate = 5; // 초당 조직력 회복량
+
+        // 신규 능력치
+        this.firepower = 0;
+        this.softAttack = 0;
+        this.hardAttack = 0;
+        this.reconnaissance = 0;
+        this.armor = 0;
     }
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
@@ -81,12 +109,46 @@ class Unit {
     get currentStrength() {
         if (this.subUnits.length > 0) {
             const subUnitsStrength = this.subUnits.reduce((total, unit) => total + unit.currentStrength, 0);
-            // 하위 유닛의 총합에서 이 유닛이 직접 받은 피해를 차감합니다.
-            return Math.max(0, subUnitsStrength - this.damageTaken);
+            return subUnitsStrength;
         }
-        return Math.max(0, Math.floor(this._baseStrength * (1 + (1/6) * this.reinforcementLevel)) - this.damageTaken);
+        return Math.max(0, Math.floor(this._baseStrength * (1 + (1/6) * this.reinforcementLevel) - this.damageTaken));
     }
 
+    // --- 능력치 Getter: 하위 유닛의 능력치를 재귀적으로 합산 ---
+    get totalFirepower() {
+        if (this.subUnits.length > 0) {
+            return this.subUnits.reduce((total, unit) => total + unit.totalFirepower, 0);
+        }
+        return this.firepower;
+    }
+    get totalSoftAttack() {
+        if (this.subUnits.length > 0) {
+            return this.subUnits.reduce((total, unit) => total + unit.totalSoftAttack, 0);
+        }
+        return this.softAttack;
+    }
+    get totalHardAttack() {
+        if (this.subUnits.length > 0) {
+            return this.subUnits.reduce((total, unit) => total + unit.totalHardAttack, 0);
+        }
+        return this.hardAttack;
+    }
+    get totalReconnaissance() {
+        if (this.subUnits.length > 0) {
+            return this.subUnits.reduce((total, unit) => total + unit.totalReconnaissance, 0);
+        }
+        return this.reconnaissance;
+    }
+    get totalArmor() {
+        // 장갑은 평균값으로 계산하는 것이 일반적입니다.
+        if (this.subUnits.length > 0) {
+            const combatUnits = this.getAllSquads().filter(s => s.currentStrength > 0);
+            if (combatUnits.length === 0) return 0;
+            const totalArmor = combatUnits.reduce((total, unit) => total + unit.armor, 0);
+            return totalArmor / combatUnits.length;
+        }
+        return this.armor;
+    }
     /**
      * 기본 편성 병력을 계산합니다. 하위 유닛이 있으면 그 유닛들의 기본 병력 총합을 반환합니다.
      */
@@ -227,35 +289,50 @@ class Unit {
      * 피해를 받습니다.
      * @param {number} amount 총 피해량
      * @param {{x: number, y: number}} fromCoords 공격자 위치
+     * @param {number} orgDamage 조직력에 가해지는 기본 피해
+     * @param {number} strDamage 병력에 가해지는 기본 피해
      */
-    takeDamage(amount, fromCoords) {
-        // 조직력이 0보다 높을 때, 피해는 조직력과 병력에 분산됩니다.
-        // 조직력이 낮을수록 병력에 가해지는 피해 비율이 높아집니다.
-        const orgDamageMultiplier = 0.8; // 피해의 80%는 조직력에 우선 적용
-        const orgDamage = Math.min(this.organization, amount * orgDamageMultiplier);
-        this.organization -= orgDamage;
+    takeDamage(orgDamage, strDamage, fromCoords) {
+        // 1. 조직력에 직접 피해를 적용합니다.
+        const actualOrgDamage = Math.min(this.organization, orgDamage);
+        this.organization -= actualOrgDamage;
 
-        // 조직력이 흡수하지 못한 나머지 피해 + 조직력 저하로 인한 추가 피해
-        const strengthDamageRatio = 1 - (this.organization / this.maxOrganization); // 조직력이 0이면 1, 100이면 0
-        const remainingDamage = amount * (1 - orgDamageMultiplier);
-        const bonusDamage = (amount * orgDamageMultiplier) * strengthDamageRatio; // 조직력에 갔어야 할 피해가 병력으로 전환되는 양
-        const totalStrengthDamage = remainingDamage + bonusDamage;
+        // 2. 병력 피해는 조직력 손실 정도에 따라 증폭됩니다.
+        // 조직력이 낮을수록(비율이 0에 가까울수록) 병력 피해가 커집니다.
+        const orgRatio = this.organization / this.maxOrganization;
+        const bonusDamageMultiplier = Math.pow(1 - orgRatio, 2); // 조직력이 0이면 1, 100이면 0. 제곱하여 초반 피해를 줄이고 후반 피해를 늘립니다.
+        
+        // 조직력이 0이 되어 막지 못한 조직력 피해도 병력 피해에 추가됩니다.
+        const orgSpilloverDamage = orgDamage - actualOrgDamage;
+        const totalStrengthDamage = strDamage + orgSpilloverDamage + (strDamage * bonusDamageMultiplier);
 
-        const integerDamage = Math.floor(totalStrengthDamage);
-        if (integerDamage > 0) {
+        if (totalStrengthDamage > 0) {
             // 공격 위치에서 가장 가까운 분대를 찾아 피해를 입힙니다.
             const targetSquad = this.findSquadToTakeDamage(fromCoords.x, fromCoords.y);
             if (targetSquad) {
-                targetSquad.damageTaken += integerDamage;
+                targetSquad.damageTaken += totalStrengthDamage;
+                // 상위 부대의 damageTaken은 currentStrength getter에서 재귀적으로 계산되므로 중복 누적하지 않습니다.
 
                 // 피해량 텍스트를 해당 분대 위치에 생성합니다.
                 this.floatingTexts.push({
-                    text: `-${integerDamage}`,
+                    text: `-${Math.floor(totalStrengthDamage)}`,
                     life: 1.5, // 1.5초 동안 표시
                     alpha: 1.0,
                     x: targetSquad.x,
                     y: targetSquad.y - targetSquad.size - 5,
                 });
+            }
+
+            // 피해를 입은 분대의 병력이 0 이하가 되면, 부모의 하위 유닛 목록과 최상위 부대의 전투 부대 목록에서 모두 제거합니다.
+            if (targetSquad && targetSquad.currentStrength <= 0) {
+                const topLevelParent = this.getTopLevelParent();
+
+                // 1. 직접적인 부모(소대)의 subUnits 목록에서 제거
+                if (targetSquad.parent) {
+                    targetSquad.parent.subUnits = targetSquad.parent.subUnits.filter(s => s !== targetSquad);
+                }
+                // 2. 최상위 부대의 combatSubUnits 목록에서도 제거
+                topLevelParent.combatSubUnits = topLevelParent.combatSubUnits.filter(s => s !== targetSquad);
             }
         }
     }
@@ -379,24 +456,27 @@ class Unit {
             // 표시되는 체력이 실제 체력보다 높으면 서서히 감소시켜 따라잡게 함
             if (this.displayStrength > this.currentStrength) {
                 this.displayStrength = Math.max(this.currentStrength, this.displayStrength - this.baseStrength * 0.5 * ctx.canvas.deltaTime);
+            } else {
+                // 표시되는 체력이 실제 체력보다 낮을 경우 (예: 회복), 즉시 따라잡게 함
+                this.displayStrength = this.currentStrength;
             }
         }
         const currentBaseStrength = this.baseStrength;
         const strengthRatio = currentBaseStrength > 0 ? this.displayStrength / currentBaseStrength : 0;
         
-        // 2a. 기본 병력 바 (최대 100%까지, 녹색)
+        // 2a. 기본 병력 바 (최대 100%까지, 주황색)
         const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
-        ctx.fillStyle = '#00ff00'; // Lime Green
+        ctx.fillStyle = '#ff8c00'; // DarkOrange
         ctx.fillRect(barX, barY, baseBarWidth, barHeight);
 
-        // 2b. 증강된 병력 바 (100% 초과분, 노란색)
+        // 2b. 증강된 병력 바 (100% 초과분, 카키색)
         if (strengthRatio > 1) {
             const reinforcedBarWidth = barWidth * (strengthRatio - 1);
             ctx.fillStyle = '#f0e68c'; // Khaki
             ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
         }
 
-        // 2c. 피해 받은 부분 표시 (붉은색)
+        // 2c. 피해 받은 부분 표시 (애니메이션용, 붉은색)
         const actualStrengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
         if (strengthRatio > actualStrengthRatio) {
             const damageBarStart = barWidth * actualStrengthRatio;
@@ -410,21 +490,22 @@ class Unit {
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-        // 4. 조직력 바 (주황색)
+        // 4. 조직력 바 (초록색)
         const orgBarY = barY + barHeight + 2;
         ctx.fillStyle = '#555';
         ctx.fillRect(barX, orgBarY, barWidth, barHeight);
         const orgRatio = this.organization / this.maxOrganization;
-        ctx.fillStyle = '#ff8c00'; // DarkOrange
+        ctx.fillStyle = '#00ff00'; // Lime Green
         ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
         ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
         // 소속된 분대들을 작은 사각형으로 항상 표시
         if (this.combatSubUnits.length > 0) {
             const squadBoxSize = 3;
-            ctx.fillStyle = this.team === 'blue' ? 'rgba(100, 149, 237, 0.9)' : 'rgba(255, 99, 71, 0.9)';
             this.combatSubUnits.forEach(squad => {
                 if (squad.currentStrength > 0) {
+                    // 분대 타입에 따라 색상 변경
+                    ctx.fillStyle = UNIT_TYPE_COLORS[squad.type] || 'grey';
                     ctx.fillRect(
                         squad.x - squadBoxSize / 2,
                         squad.y - squadBoxSize / 2,
@@ -442,6 +523,15 @@ class Unit {
             }
         }
         // 부대 종류별 심볼을 그립니다.
+
+        // 적 발견 상태일 때 초록색으로 빛나게 표시 (테두리)
+        if (this.isEnemyDetected) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // 초록색 테두리
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
         this.drawEchelonSymbol(ctx);
 
         // 팀 색상에 따라 아이콘 배경을 칠합니다.
@@ -478,7 +568,7 @@ class Unit {
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
         ctx.font = '10px sans-serif';
-        ctx.fillText(`${this.name} [${this.currentStrength}]`, this.x, this.y + 20);
+        ctx.fillText(`${this.name} [${this.currentStrength}]`, this.x, this.y + 25);
 
         // 피해량 텍스트 그리기
         ctx.font = 'bold 12px sans-serif';
@@ -531,12 +621,20 @@ class Brigade extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 10, team);
         this.formationRadius = 40;
-        for (let i = 0; i < 3; i++) {
-            const battalion = new Battalion(`${name}-${i + 1}`, 0, 0, team);
-            this.addUnit(battalion);
-        }
+        this.setupDefaultFormation();
         this.combatSubUnits = this.getAllSquads();
         this.updateCombatSubUnitPositions();
+
+        // 여단 특성: 정찰 분대 1개 추가
+        const allSquads = this.getAllSquads();
+        if (allSquads.length > 0) {
+            allSquads[0].setType(UNIT_TYPES.RECON);
+        }
+    }
+    setupDefaultFormation() {
+        for (let i = 0; i < 3; i++) {
+            this.addUnit(new Battalion(`${this.name}-${i + 1}`, 0, 0, this.team));
+        }
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -544,18 +642,23 @@ class Brigade extends Unit {
         ctx.fillText('X', this.x, this.y - this.size - 2);
     }
 }
-
 /** 대대 (Battalion) */
 class Battalion extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 8, team);
         this.formationRadius = 30;
-        for (let i = 0; i < 3; i++) {
-            const company = new Company(`${name}-${i + 1}`, 0, 0, team);
-            this.addUnit(company);
+        // 상위 부대에서 생성하므로, 여기서는 하위 부대를 직접 생성하지 않습니다.
+        // 만약 대대가 최상위 유닛으로 생성될 경우를 대비해 setup을 호출할 수 있습니다.
+        if (!this.parent) {
+            this.setupDefaultFormation();
+            this.combatSubUnits = this.getAllSquads();
+            this.updateCombatSubUnitPositions();
         }
-        this.combatSubUnits = this.getAllSquads();
-        this.updateCombatSubUnitPositions();
+    }
+    setupDefaultFormation() {
+        for (let i = 0; i < 3; i++) {
+            this.addUnit(new Company(`${this.name}-${i + 1}`, 0, 0, this.team));
+        }
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -563,17 +666,21 @@ class Battalion extends Unit {
         ctx.fillText('||', this.x, this.y - this.size - 2);
     }
 }
-
 /** 중대 (Company) */
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
         this.formationRadius = 20;
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Platoon(`${name}-${i + 1}`, 0, 0, team));
+        if (!this.parent) {
+            this.setupDefaultFormation();
+            this.combatSubUnits = this.getAllSquads();
+            this.updateCombatSubUnitPositions();
         }
-        this.combatSubUnits = this.getAllSquads();
-        this.updateCombatSubUnitPositions();
+    }
+    setupDefaultFormation() {
+        for (let i = 0; i < 3; i++) {
+            this.addUnit(new Platoon(`${this.name}-${i + 1}`, 0, 0, this.team));
+        }
     }
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
@@ -581,18 +688,21 @@ class Company extends Unit {
         ctx.fillText('|', this.x, this.y - this.size - 2);
     }
 }
-
 /** 소대 (Platoon) */
 class Platoon extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 6, team, UNIT_TYPES.INFANTRY);
         this.formationRadius = 10;
-        // 3개의 분대를 자동으로 생성
-        for (let i = 0; i < 3; i++) {
-            this.addUnit(new Squad(`${name}-${i + 1}`, 0, 0, team));
+        if (!this.parent) {
+            this.setupDefaultFormation();
+            this.combatSubUnits = this.getAllSquads();
+            this.updateCombatSubUnitPositions();
         }
-        this.combatSubUnits = this.getAllSquads();
-        this.updateCombatSubUnitPositions();
+    }
+    setupDefaultFormation() {
+        for (let i = 0; i < 3; i++) {
+            this.addUnit(new Squad(`${this.name}-${i + 1}`, 0, 0, this.team));
+        }
     }
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
@@ -611,13 +721,28 @@ class Platoon extends Unit {
         ctx.fill();
     }
 }
-
 /** 분대 (Squad) */
 class Squad extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, UNIT_TYPES.INFANTRY);
-        this.combatSubUnits.push(this); // 분대 자신을 전투 단위로 설정합니다.
+        this.setType(UNIT_TYPES.INFANTRY); // 기본 타입을 보병으로 설정
+
+        // 분대는 최하위 단위이므로, combatSubUnits는 상위에서 설정합니다.
+        // 만약 분대가 최상위로 생성되면, 자기 자신을 전투 단위로 가집니다.
+        if (!this.parent) {
+            this.combatSubUnits.push(this);
+        }
     }
+
+    // 분대의 타입을 설정하고, 해당 타입의 능력치를 적용하는 메서드
+    setType(type) {
+        this.type = type;
+        const stats = UNIT_TYPE_STATS[type];
+        Object.assign(this, stats); // stats 객체의 모든 속성을 this에 복사
+        this.maxOrganization = 100 + (stats.organizationBonus || 0);
+        this.organization = this.maxOrganization;
+    }
+
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
         const dotSize = 2;
