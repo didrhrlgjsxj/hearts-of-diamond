@@ -88,14 +88,17 @@ class GameUI {
             return;
         }
 
-        const activeSquads = unit.getAllSquads().filter(s => s.currentStrength > 0);
+        const activeCompanies = unit.getAllCompanies().filter(c => c.currentStrength > 0);
         const composition = {};
 
-        for (const squad of activeSquads) {
-            composition[squad.type] = (composition[squad.type] || 0) + 1;
+        // 각 중대의 하위 분대 타입을 집계합니다.
+        for (const company of activeCompanies) {
+            const squads = company.getAllSquads();
+            squads.forEach(squad => {
+                composition[squad.type] = (composition[squad.type] || 0) + 1;
+            });
         }
-
-        let html = `<h3>부대 구성 (${activeSquads.length}개 분대)</h3>`;
+        let html = `<h3>부대 구성 (${Object.values(composition).reduce((a, b) => a + b, 0)}개 분대)</h3>`;
         if (Object.keys(composition).length > 0) {
             html += '<ul>';
             // UNIT_TYPES 순서대로 정렬하여 표시
