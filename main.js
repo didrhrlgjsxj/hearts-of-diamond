@@ -74,154 +74,26 @@ function update(currentTime) {
     lastTime = currentTime;
 
     camera.update(mouseX, mouseY);
-
-
-    // --- 전투 로직 ---
-    // 모든 유닛의 전투 상태를 초기화합니다.
-    topLevelUnits.forEach(unit => {
-        unit.isInCombat = false;
-        unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
-    });
-
-    // --- 새로운 전투 로직 ---
-    // 모든 최상위 유닛에 대해 반복합니다.
-    // 예광탄 효과를 위해 모든 유닛의 예광탄 목록을 초기화합니다.
-    for (const attackerUnit of topLevelUnits) {
-        attackerUnit.tracers = [];
-
-        // 병력이 0 이하면 행동 불가
-        attackerUnit.updateVisuals(deltaTime);
-        if (attackerUnit.currentStrength <= 0) continue;
-
-        // --- 진형 방향 결정 로직 ---
-        if (attackerUnit.isInCombat || !attackerUnit.destination) {
-            // 전투 중이거나 정지 상태일 때: 가장 가까운 적 방향으로 진형 방향 설정
-            let closestEnemy = null;
-            let minDistance = Infinity;
-            for (const target of topLevelUnits) {
-                if (target.team === attackerUnit.team) continue;
-                const dist = Math.hypot(attackerUnit.x - target.x, attackerUnit.y - target.y);
-                if (dist < minDistance) {
-                    minDistance = dist;
-                    closestEnemy = target;
-                }
-            }
-            if (closestEnemy) {
-                attackerUnit.direction = Math.atan2(closestEnemy.y - attackerUnit.y, closestEnemy.x - attackerUnit.x);
-            }
-        }
-        // --- 적 탐지 로직 ---
-        // 상위 부대 단위로 적을 탐지합니다.
-        for (const targetUnit of topLevelUnits) {
-            if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
-
-            const distance = Math.hypot(attackerUnit.x - targetUnit.x, attackerUnit.y - targetUnit.y);
-            if (distance < attackerUnit.detectionRange) {
-                attackerUnit.isEnemyDetected = true;
-                break; // 적을 한 부대라도 발견하면 탐지를 멈춥니다.
-            }
-        }
-
-        // 각 유닛의 '전투 부대'들이 개별적으로 적을 찾고 공격합니다.
-        for (const combatSubUnit of attackerUnit.combatSubUnits) {
-            let closestEnemySubUnit = null;
-            let minDistance = combatSubUnit.engagementRange;
-
-            // 다른 모든 유닛들을 순회하며 가장 가까운 적 '전투 부대'를 찾습니다.
-            for (const targetUnit of topLevelUnits) {
-                if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
-                if (targetUnit.combatSubUnits.length === 0) continue;
-                // 적의 '전투 부대' 중 가장 가까운 것을 찾습니다.
-                const closestTargetSubUnit = targetUnit.getClosestCombatSubUnit(combatSubUnit.x, combatSubUnit.y);
-                if (closestTargetSubUnit) {
-                    const distance = Math.hypot(combatSubUnit.x - closestTargetSubUnit.x, combatSubUnit.y - closestTargetSubUnit.y);
     
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        closestEnemySubUnit = closestTargetSubUnit;
-                    }
-                }
-            }
+    // --- 유닛 로직 업데이트 ---
+    // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
+    updateUnits(topLevelUnits, deltaTime);
 
-            // 사거리 내에 적을 찾았다면 공격합니다.
-            if (closestEnemySubUnit) {
-                // 전투 중이고 후퇴 중이 아니라면, 중대는 목표를 향해 직접 이동합니다.
-                if (!combatSubUnit.isRetreating) {
-                    combatSubUnit.destination = { x: closestEnemySubUnit.x, y: closestEnemySubUnit.y };
-                }
+    // --- 파괴된 유닛 제거 ---
+    const cleanupResult = cleanupDestroyedUnits(topLevelUnits, selectedUnit);
+    // topLevelUnits 배열을 직접 수정하는 대신, 필터링된 새 배열을 할당합니다.
+    // 이렇게 하면 참조 문제를 피하고 더 안전하게 상태를 관리할 수 있습니다.
+    // topLevelUnits = cleanupResult.remainingUnits; // 이 방식은 전역 변수 참조 문제 발생 가능
+    
+    // 원래 배열의 내용을 변경하여 전역 참조를 유지합니다.
+    topLevelUnits.length = 0;
+    Array.prototype.push.apply(topLevelUnits, cleanupResult.remainingUnits);
+    
+    selectedUnit = cleanupResult.newSelectedUnit;
 
-                const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
-
-                // --- 새로운 피해 계산 로직 ---
-                const attacker = combatSubUnit;
-                const defender = targetTopLevelUnit;
-
-                // 병력 피해(Strength Damage) 계산
-                // - 장갑 관통 데미지: 대물 공격력이 장갑보다 높을 때 효과적
-                const piercingDamage = Math.max(0, attacker.hardAttack - defender.totalArmor);
-                // - 대인 데미지: 장갑에 의해 크게 감소
-                const nonPiercingDamage = attacker.softAttack * Math.max(0.1, 1 - (defender.totalArmor / 10)); // 장갑 10이면 0% 데미지, 최소 10% 보장
-                const strDamage = (piercingDamage + nonPiercingDamage) * 0.2; // 전체적인 병력 피해량 조절
-
-                // 조직력 피해(Organization Damage) 계산
-                // - 화력(firepower)에 기반하여 계산
-                const orgDamage = attacker.firepower * 1.5; // 화력 기반 조직력 피해량 조절
-
-                targetTopLevelUnit.takeDamage(orgDamage, strDamage, { x: combatSubUnit.x, y: combatSubUnit.y });
-
-                // 공격자와 피격자 모두 전투 상태로 변경
-                attackerUnit.isInCombat = true;
-                targetTopLevelUnit.isInCombat = true;
-
-                // 예광탄 효과를 생성합니다.
-                attackerUnit.tracers.push({
-                    from: combatSubUnit,
-                    to: closestEnemySubUnit,
-                    life: 0.5, // 0.5초 동안 표시
-                });
-            }
-        }
-
-        // 전투 중인 중대들은 각자 목표를 향해 이동합니다.
-        if (attackerUnit.isInCombat) {
-            attackerUnit.subUnits.forEach(c => c.updateMovement(deltaTime));
-        }
-
-        // --- 이동 로직 ---
-        // 적을 탐지하지 않았고, 후퇴 중이 아닐 때만 이동을 멈춥니다.
-        if (attackerUnit.isEnemyDetected && !attackerUnit.isRetreating) {
-            attackerUnit.subUnits.forEach(c => c.destination = null); // 모든 중대 이동 중지
-        } else if (!attackerUnit.isInCombat) { 
-            if (attackerUnit.hqUnit) {
-                // 지휘 부대는 본부 중대가 이동을 담당합니다.
-                attackerUnit.hqUnit.updateMovement(deltaTime);
-            } else if (attackerUnit.destination) {
-                // 본부가 없는 독립 유닛은 스스로 이동합니다.
-                attackerUnit.updateMovement(deltaTime);
-            }
-        }
-
-        // 모든 중대의 위치를 진형에 맞게 업데이트합니다.
-        attackerUnit.updateCombatSubUnitPositions();
-
-        // --- 조직력 회복 로직 ---
-        if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
-            attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);
-        }
-    }
-
-    // --- 부대 제거 로직 ---
-    // 병력이 0이 된 부대를 배열에서 제거합니다.
-    // 배열을 역순으로 순회해야 삭제 시 인덱스 문제가 발생하지 않습니다.
-    for (let i = topLevelUnits.length - 1; i >= 0; i--) {
-        const unit = topLevelUnits[i];
-        if (unit.currentStrength <= 0) {
-            // 파괴된 유닛이 선택된 유닛이라면, 선택을 해제합니다.
-            if (selectedUnit === unit) {
-                selectedUnit = null;
-            }
-            topLevelUnits.splice(i, 1);
-        }
+    // 선택된 유닛이 파괴되었다면 UI를 업데이트합니다.
+    if (selectedUnit !== cleanupResult.newSelectedUnit) {
+        gameUI.updateCompositionPanel(selectedUnit);
     }
 }
 

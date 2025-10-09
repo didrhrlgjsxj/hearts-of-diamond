@@ -297,7 +297,12 @@ class Unit {
             this.x += moveX;
             this.y += moveY;
         }
-        this.updateCombatSubUnitPositions();
+
+        // 이동 중 진형을 계속 업데이트합니다.
+        // hqUnit이 있는 상위 부대(여단/대대)만 이 메서드를 호출할 책임이 있습니다.
+        if (this.hqUnit) {
+            this.updateCombatSubUnitPositions();
+        }
     }
 
     /**
@@ -726,12 +731,25 @@ class Brigade extends Unit {
     }
 
     moveTo(x, y) {
-        // 여단 이동 시, 본부 중대를 이동시키고 나머지는 진형에 따라 따라갑니다.
-        // 모든 하위 중대에 이동 명령을 전파합니다.
-        this.subUnits.forEach(company => {
-            // 각 중대의 진형상 목표 위치를 계산하여 이동 명령을 내립니다.
-            company.moveTo(x + company._x, y + company._y);
-        });
+        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
+        // 나머지 중대들은 진형 시스템에 따라 본부를 따라갑니다.
+        if (this.hqUnit) {
+            const dx = x - this.x;
+            const dy = y - this.y;
+            this.direction = Math.atan2(dy, dx);
+            this.hqUnit.moveTo(x, y);
+        }
+    }
+
+    updateMovement(deltaTime) {
+        if (this.hqUnit) {
+            // 1. 본부 중대를 먼저 이동시킵니다.
+            this.hqUnit.updateMovement(deltaTime);
+            // 2. 본부가 이동한 후, 그 위치를 기준으로 전투 중대들의 진형을 업데이트합니다.
+            this.updateCombatSubUnitPositions();
+            // 3. 전투 중대들도 각자의 이동 로직을 수행합니다(예: 전투 시 적에게 접근).
+            this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
+        }
     }
 
     drawEchelonSymbol(ctx) {
@@ -764,9 +782,24 @@ class Battalion extends Unit {
     }
 
     moveTo(x, y) {
-        this.subUnits.forEach(company => {
-            company.moveTo(x + company._x, y + company._y);
-        });
+        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
+        if (this.hqUnit) {
+            const dx = x - this.x;
+            const dy = y - this.y;
+            this.direction = Math.atan2(dy, dx);
+            this.hqUnit.moveTo(x, y);
+        }
+    }
+
+    updateMovement(deltaTime) {
+        if (this.hqUnit) {
+            // 1. 본부 중대를 먼저 이동시킵니다.
+            this.hqUnit.updateMovement(deltaTime);
+            // 2. 본부가 이동한 후, 그 위치를 기준으로 전투 중대들의 진형을 업데이트합니다.
+            this.updateCombatSubUnitPositions();
+            // 3. 전투 중대들도 각자의 이동 로직을 수행합니다.
+            this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
+        }
     }
 
     drawEchelonSymbol(ctx) {
