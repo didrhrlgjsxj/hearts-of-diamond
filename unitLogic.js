@@ -79,7 +79,13 @@ function updateUnits(topLevelUnits, deltaTime) {
             attackerUnit.subUnits.forEach(c => c.destination = null);
         }
 
-        attackerUnit.updateMovement(deltaTime);
+        // 상위 부대(여단/대대)의 이동 로직을 먼저 업데이트합니다.
+        // 이 안에서 본부(HQ) 이동 및 진형 위치 재계산이 일어납니다.
+        if (attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
+            attackerUnit.updateMovement(deltaTime);
+        }
+        // 모든 하위 유닛(중대 등)들이 각자의 목표를 향해 움직이도록 업데이트합니다.
+        attackerUnit.getAllCompanies().forEach(c => c.updateMovement(deltaTime));
 
         // --- 조직력 회복 로직 ---
         if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {

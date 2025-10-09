@@ -51,24 +51,21 @@ class Unit {
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
     get x() {
-        // 본부(HQ) 유닛은 부모의 위치를 참조하지 않고 자신의 절대 좌표를 사용합니다.
-        // 다른 유닛들은 부모의 위치에 자신의 상대 좌표를 더합니다.
-        return this.isHQ ? this._x : (this.parent ? this.parent.x + this._x : this._x);
+        return this._x;
     }
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 설정
     set x(value) {
-        this._x = this.parent ? value - this.parent.x : value;
+        this._x = value;
     }
 
     get y() {
-        return this.isHQ ? this._y : (this.parent ? this.parent.y + this._y : this._y);
+        return this._y;
     }
 
     set y(value) {
-        this._y = this.parent ? value - this.parent.y : value;
+        this._y = value;
     }
-
 
     /**
      * 현재 병력을 계산합니다.
@@ -215,6 +212,10 @@ class Unit {
      */
     updateMovement(deltaTime) {
         if (!this.destination) return;
+        // 상위 부대(Brigade, Battalion)는 자체적으로 움직이지 않고, 하위 유닛의 움직임을 위임받아 처리합니다.
+        if (this instanceof Brigade || this instanceof Battalion) {
+            return;
+        }
 
         const dx = this.destination.x - this.x;
         const dy = this.destination.y - this.y;
@@ -275,15 +276,16 @@ class Unit {
      * 가상 전투 부대들의 위치를 부모 유닛 주변에 원형으로 배치합니다.
      */
     updateCombatSubUnitPositions() {
-        // 이제 분대들은 각자의 상위 부대(소대, 중대 등)에 상대적으로 위치하므로,
-        // 최상위 부대가 직접 모든 분대의 위치를 재조정하지 않습니다.
-        // 각 하위 부대의 updateMovement가 연쇄적으로 호출되며 위치가 결정됩니다.
-        // 하위 유닛들의 상대 위치를 업데이트합니다.
+        if (!this.hqUnit) return;
+
         const roles = {};
         this.combatSubUnits.forEach(c => {
             if (!roles[c.role]) roles[c.role] = [];
             roles[c.role].push(c);
         });
+
+        const hqX = this.hqUnit.x;
+        const hqY = this.hqUnit.y;
 
         Object.keys(roles).forEach(role => {
             const companiesInRole = roles[role];
@@ -291,13 +293,17 @@ class Unit {
             if (!offsetInfo) return;
 
             const count = companiesInRole.length;
-            companiesInRole.forEach((company, i) => {
-                // 역할 내에서의 좌우 위치 계산
+            companiesInRole.forEach((unit, i) => {
                 const sideOffsetAngle = this.direction + Math.PI / 2;
                 const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
 
-                company._x = (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
-                company._y = (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+                const destX = hqX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
+                const destY = hqY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+
+                // 전투 중이 아닐 때만 진형 유지 이동을 합니다.
+                if (!this.isInCombat) {
+                    unit.destination = { x: destX, y: destY };
+                }
             });
         });
     }

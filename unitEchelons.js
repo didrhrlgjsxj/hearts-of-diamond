@@ -7,26 +7,44 @@ class Brigade extends Unit {
     }
 
     // 여단의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit.x : this._x; }
+    get x() { return this.hqUnit ? this.hqUnit.x : this._x; } // hqUnit이 없으면 자신의 _x를 반환
     set x(value) {
-        if (this.hqUnit) this.hqUnit.x = value;
-        else this._x = value;
+        // 상위 부대의 위치는 직접 설정할 수 없고, 항상 hqUnit을 따라갑니다.
+        // 초기 위치 설정을 위해 _x는 변경을 허용합니다.
+        if (!this.hqUnit) this._x = value;
     }
-    get y() { return this.hqUnit ? this.hqUnit.y : this._y; }
+    get y() { return this.hqUnit ? this.hqUnit.y : this._y; } // hqUnit이 없으면 자신의 _y를 반환
     set y(value) {
-        if (this.hqUnit) this.hqUnit.y = value;
-        else this._y = value;
+        if (!this.hqUnit) this._y = value;
     }
 
     moveTo(x, y) {
-        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
-        // 나머지 중대들은 진형 시스템에 따라 본부를 따라갑니다.
+        // 1. 상위 부대 자체에 최종 목표 지점을 설정합니다.
+        this.destination = { x, y };
+
+        // 2. 이동 방향을 설정합니다.
+        const dx = x - this.x;
+        const dy = y - this.y;
+        this.direction = Math.atan2(dy, dx);
+    }
+
+    /**
+     * 여단의 이동 로직입니다. 본부를 이동시키고, 나머지 부대들이 진형을 유지하며 따라오게 합니다.
+     * @param {number} deltaTime 
+     */
+    updateMovement(deltaTime) {
         if (this.hqUnit) {
-            const dx = x - this.x;
-            const dy = y - this.y;
-            this.direction = Math.atan2(dy, dx);
-            this.hqUnit.moveTo(x, y);
+            // 1. 본부 중대는 최종 목표 지점을 향해 이동합니다.
+            this.hqUnit.destination = this.destination;
+            this.hqUnit.updateMovement(deltaTime);
+
+            // 2. 본부가 목표에 도달하면, 상위 부대의 목표도 null로 설정합니다.
+            if (this.hqUnit.destination === null) {
+                this.destination = null;
+            }
         }
+
+        this.updateCombatSubUnitPositions();
     }
 
     drawEchelonSymbol(ctx) {
@@ -49,22 +67,35 @@ class Battalion extends Unit {
     // 대대의 위치는 항상 본부 중대의 위치를 따릅니다.
     get x() { return this.hqUnit ? this.hqUnit.x : this._x; }
     set x(value) {
-        if (this.hqUnit) this.hqUnit.x = value;
-        else this._x = value;
+        if (!this.hqUnit) this._x = value;
     }
     get y() { return this.hqUnit ? this.hqUnit.y : this._y; }
     set y(value) {
-        if (this.hqUnit) this.hqUnit.y = value;
-        else this._y = value;
+        if (!this.hqUnit) this._y = value;
     }
 
     moveTo(x, y) {
+        this.destination = { x, y };
+
+        const dx = x - this.x;
+        const dy = y - this.y;
+        this.direction = Math.atan2(dy, dx);
+    }
+
+    /**
+     * 대대의 이동 로직입니다. 본부를 이동시키고, 나머지 부대들이 진형을 유지하며 따라오게 합니다.
+     * @param {number} deltaTime 
+     */
+    updateMovement(deltaTime) {
         if (this.hqUnit) {
-            const dx = x - this.x;
-            const dy = y - this.y;
-            this.direction = Math.atan2(dy, dx);
-            this.hqUnit.moveTo(x, y);
+            this.hqUnit.destination = this.destination;
+            this.hqUnit.updateMovement(deltaTime);
+
+            if (this.hqUnit.destination === null) {
+                this.destination = null;
+            }
         }
+        this.updateCombatSubUnitPositions();
     }
 
     drawEchelonSymbol(ctx) {
