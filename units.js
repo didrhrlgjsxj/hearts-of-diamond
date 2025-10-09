@@ -110,22 +110,20 @@ class Unit {
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 반환
     get x() {
-        // 본부(HQ) 유닛은 부모의 위치를 참조하지 않고 자신의 절대 좌표를 사용합니다.
-        // 다른 유닛들은 부모의 위치에 자신의 상대 좌표를 더합니다.
-        return this.isHQ ? this._x : (this.parent ? this.parent.x + this._x : this._x);
+        return this._x;
     }
 
     // 부모가 있으면 상대 위치를, 없으면 절대 위치를 설정
     set x(value) {
-        this._x = this.parent ? value - this.parent.x : value;
+        this._x = value;
     }
 
     get y() {
-        return this.isHQ ? this._y : (this.parent ? this.parent.y + this._y : this._y);
+        return this._y;
     }
 
     set y(value) {
-        this._y = this.parent ? value - this.parent.y : value;
+        this._y = value;
     }
 
 
@@ -279,6 +277,9 @@ class Unit {
         const dy = this.destination.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
+        // 이동 방향을 설정합니다.
+        if (distance > 1) this.direction = Math.atan2(dy, dx);
+
         const moveDistance = this.moveSpeed * deltaTime;
 
         if (distance < moveDistance) {
@@ -296,12 +297,6 @@ class Unit {
             const moveY = (dy / distance) * moveDistance;
             this.x += moveX;
             this.y += moveY;
-        }
-
-        // 이동 중 진형을 계속 업데이트합니다.
-        // hqUnit이 있는 상위 부대(여단/대대)만 이 메서드를 호출할 책임이 있습니다.
-        if (this.hqUnit) {
-            this.updateCombatSubUnitPositions();
         }
     }
 
@@ -340,30 +335,22 @@ class Unit {
      * 가상 전투 부대들의 위치를 부모 유닛 주변에 원형으로 배치합니다.
      */
     updateCombatSubUnitPositions() {
-        // 이제 분대들은 각자의 상위 부대(소대, 중대 등)에 상대적으로 위치하므로,
-        // 최상위 부대가 직접 모든 분대의 위치를 재조정하지 않습니다.
-        // 각 하위 부대의 updateMovement가 연쇄적으로 호출되며 위치가 결정됩니다.
-        // 하위 유닛들의 상대 위치를 업데이트합니다.
         const roles = {};
         this.combatSubUnits.forEach(c => {
             if (!roles[c.role]) roles[c.role] = [];
             roles[c.role].push(c);
         });
 
+        // 본부가 있으면 본부 위치를, 없으면(독립 중대 등) 자기 자신의 위치를 기준으로 삼습니다.
+        const hqX = this.hqUnit ? this.hqUnit.x : this.x;
+        const hqY = this.hqUnit ? this.hqUnit.y : this.y;
+
         Object.keys(roles).forEach(role => {
             const companiesInRole = roles[role];
             const offsetInfo = FORMATION_OFFSETS[role];
             if (!offsetInfo) return;
 
-            const count = companiesInRole.length;
-            companiesInRole.forEach((company, i) => {
-                // 역할 내에서의 좌우 위치 계산
-                const sideOffsetAngle = this.direction + Math.PI / 2;
-                const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
-
-                company._x = (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
-                company._y = (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
-            });
+            this.setFormationDestinations(companiesInRole, offsetInfo, hqX, hqY);
         });
     }
 
@@ -702,6 +689,28 @@ class Unit {
     }
 
     /**
+     * 주어진 역할의 중대들에게 진형에 맞는 목표 위치를 설정합니다.
+     * @param {Unit[]} units - 위치를 설정할 중대 배열
+     * @param {{distance: number, spread: number}} offsetInfo - 진형 오프셋 정보
+     * @param {number} baseX - 기준점 X 좌표 (보통 본부 위치)
+     * @param {number} baseY - 기준점 Y 좌표 (보통 본부 위치)
+     */
+    setFormationDestinations(units, offsetInfo, baseX, baseY) {
+        const count = units.length;
+        units.forEach((unit, i) => {
+            const sideOffsetAngle = this.direction + Math.PI / 2;
+            const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
+
+            const destX = baseX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
+            const destY = baseY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+
+            // 전투 중이 아닐 때만 진형 유지 이동을 합니다.
+            if (!this.isInCombat) {
+                unit.destination = { x: destX, y: destY };
+            }
+        });
+    }
+    /**
      * 부대 규모(Echelon) 심볼을 그립니다. 하위 클래스에서 오버라이드됩니다.
      * @param {CanvasRenderingContext2D} ctx
      */
@@ -719,37 +728,48 @@ class Brigade extends Unit {
     }
 
     // 여단의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit.x : this._x; }
+    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
     set x(value) {
-        if (this.hqUnit) this.hqUnit.x = value;
+        if (this.hqUnit) this.hqUnit._x = value;
         else this._x = value;
     }
-    get y() { return this.hqUnit ? this.hqUnit.y : this._y; }
+    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
     set y(value) {
-        if (this.hqUnit) this.hqUnit.y = value;
+        if (this.hqUnit) this.hqUnit._y = value;
         else this._y = value;
     }
 
     moveTo(x, y) {
-        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
-        // 나머지 중대들은 진형 시스템에 따라 본부를 따라갑니다.
-        if (this.hqUnit) {
-            const dx = x - this.x;
-            const dy = y - this.y;
-            this.direction = Math.atan2(dy, dx);
-            this.hqUnit.moveTo(x, y);
-        }
+        // 1. 상위 부대 자체에 최종 목표 지점을 설정합니다.
+        this.destination = { x, y };
+
+        // 2. 이동 방향을 설정합니다.
+        const dx = x - this.x;
+        const dy = y - this.y;
+        this.direction = Math.atan2(dy, dx);
     }
 
+    /**
+     * 여단의 이동 로직입니다. 본부를 이동시키고, 나머지 부대들이 진형을 유지하며 따라오게 합니다.
+     * @param {number} deltaTime 
+     */
     updateMovement(deltaTime) {
-        if (this.hqUnit) {
-            // 1. 본부 중대를 먼저 이동시킵니다.
-            this.hqUnit.updateMovement(deltaTime);
-            // 2. 본부가 이동한 후, 그 위치를 기준으로 전투 중대들의 진형을 업데이트합니다.
-            this.updateCombatSubUnitPositions();
-            // 3. 전투 중대들도 각자의 이동 로직을 수행합니다(예: 전투 시 적에게 접근).
-            this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
+        if (!this.hqUnit) return;
+
+        // 1. 본부 중대는 최종 목표 지점을 향해 이동합니다.
+        this.hqUnit.destination = this.destination;
+        this.hqUnit.updateMovement(deltaTime);
+
+        if (this.hqUnit.destination === null) {
+            this.destination = null;
         }
+
+        if (!this.isInCombat) {
+            this.updateCombatSubUnitPositions();
+        }
+
+        // 3. 모든 전투 중대들이 각자의 목표(진형 위치)를 향해 이동하도록 업데이트를 호출합니다.
+        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {
@@ -770,36 +790,45 @@ class Battalion extends Unit {
     }
 
     // 대대의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit.x : this._x; }
+    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
     set x(value) {
-        if (this.hqUnit) this.hqUnit.x = value;
+        if (this.hqUnit) this.hqUnit._x = value;
         else this._x = value;
     }
-    get y() { return this.hqUnit ? this.hqUnit.y : this._y; }
+    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
     set y(value) {
-        if (this.hqUnit) this.hqUnit.y = value;
+        if (this.hqUnit) this.hqUnit._y = value;
         else this._y = value;
     }
 
     moveTo(x, y) {
-        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
-        if (this.hqUnit) {
-            const dx = x - this.x;
-            const dy = y - this.y;
-            this.direction = Math.atan2(dy, dx);
-            this.hqUnit.moveTo(x, y);
-        }
+        this.destination = { x, y };
+
+        const dx = x - this.x;
+        const dy = y - this.y;
+        this.direction = Math.atan2(dy, dx);
     }
 
+    /**
+     * 대대의 이동 로직입니다. 본부를 이동시키고, 나머지 부대들이 진형을 유지하며 따라오게 합니다.
+     * @param {number} deltaTime 
+     */
     updateMovement(deltaTime) {
-        if (this.hqUnit) {
-            // 1. 본부 중대를 먼저 이동시킵니다.
-            this.hqUnit.updateMovement(deltaTime);
-            // 2. 본부가 이동한 후, 그 위치를 기준으로 전투 중대들의 진형을 업데이트합니다.
-            this.updateCombatSubUnitPositions();
-            // 3. 전투 중대들도 각자의 이동 로직을 수행합니다.
-            this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
+        if (!this.hqUnit) return;
+
+        this.hqUnit.destination = this.destination;
+        this.hqUnit.updateMovement(deltaTime);
+
+        if (this.hqUnit.destination === null) {
+            this.destination = null;
         }
+
+        if (!this.isInCombat) {
+            this.updateCombatSubUnitPositions();
+        }
+
+        // 3. 모든 전투 중대들이 각자의 목표(진형 위치)를 향해 이동하도록 업데이트를 호출합니다.
+        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {
