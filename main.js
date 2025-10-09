@@ -94,12 +94,7 @@ function update(currentTime) {
         if (attackerUnit.currentStrength <= 0) continue;
 
         // --- 진형 방향 결정 로직 ---
-        if (attackerUnit.destination && !attackerUnit.isInCombat) {
-            // 이동 중일 때: 목표 방향으로 진형 방향 설정
-            const dx = attackerUnit.destination.x - attackerUnit.x;
-            const dy = attackerUnit.destination.y - attackerUnit.y;
-            attackerUnit.direction = Math.atan2(dy, dx);
-        } else {
+        if (attackerUnit.isInCombat || !attackerUnit.destination) {
             // 전투 중이거나 정지 상태일 때: 가장 가까운 적 방향으로 진형 방향 설정
             let closestEnemy = null;
             let minDistance = Infinity;
@@ -196,9 +191,14 @@ function update(currentTime) {
         // 적을 탐지하지 않았고, 후퇴 중이 아닐 때만 이동을 멈춥니다.
         if (attackerUnit.isEnemyDetected && !attackerUnit.isRetreating) {
             attackerUnit.subUnits.forEach(c => c.destination = null); // 모든 중대 이동 중지
-        } else if (attackerUnit.destination && !attackerUnit.isInCombat) { 
-            // 전투 중이 아닐 때, 모든 중대가 각자의 목표로 이동합니다.
-            attackerUnit.subUnits.forEach(c => c.updateMovement(deltaTime));
+        } else if (!attackerUnit.isInCombat) { 
+            if (attackerUnit.hqUnit) {
+                // 지휘 부대는 본부 중대가 이동을 담당합니다.
+                attackerUnit.hqUnit.updateMovement(deltaTime);
+            } else if (attackerUnit.destination) {
+                // 본부가 없는 독립 유닛은 스스로 이동합니다.
+                attackerUnit.updateMovement(deltaTime);
+            }
         }
 
         // 모든 중대의 위치를 진형에 맞게 업데이트합니다.

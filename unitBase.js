@@ -238,7 +238,6 @@ class Unit {
             this.x += moveX;
             this.y += moveY;
         }
-        this.updateCombatSubUnitPositions();
     }
 
     /**

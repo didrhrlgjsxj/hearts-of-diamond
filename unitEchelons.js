@@ -19,12 +19,14 @@ class Brigade extends Unit {
     }
 
     moveTo(x, y) {
-        // 여단 이동 시, 본부 중대를 이동시키고 나머지는 진형에 따라 따라갑니다.
-        // 모든 하위 중대에 이동 명령을 전파합니다.
-        this.subUnits.forEach(company => {
-            // 각 중대의 진형상 목표 위치를 계산하여 이동 명령을 내립니다.
-            company.moveTo(x + company._x, y + company._y);
-        });
+        // 상위 부대의 이동 명령은 본부(HQ) 중대에 직접 전달됩니다.
+        // 나머지 중대들은 진형 시스템에 따라 본부를 따라갑니다.
+        if (this.hqUnit) {
+            const dx = x - this.x;
+            const dy = y - this.y;
+            this.direction = Math.atan2(dy, dx);
+            this.hqUnit.moveTo(x, y);
+        }
     }
 
     drawEchelonSymbol(ctx) {
@@ -57,9 +59,12 @@ class Battalion extends Unit {
     }
 
     moveTo(x, y) {
-        this.subUnits.forEach(company => {
-            company.moveTo(x + company._x, y + company._y);
-        });
+        if (this.hqUnit) {
+            const dx = x - this.x;
+            const dy = y - this.y;
+            this.direction = Math.atan2(dy, dx);
+            this.hqUnit.moveTo(x, y);
+        }
     }
 
     drawEchelonSymbol(ctx) {
