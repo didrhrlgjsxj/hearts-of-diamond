@@ -12,9 +12,20 @@ const DIVISION_TEMPLATES = {
         build: (name, x, y, team) => {
             const brigade = new Brigade(name, x, y, team);
 
-            // 4개의 보병 중대 추가
+            // 1개 본부, 1개 정찰, 2개 타격, 1개 유지 중대 (총 5개)
             for (let i = 0; i < 4; i++) {
                 const company = new Company(`${name}-${i+1}`, 0, 0, team);
+                if (i === 0) { // 첫 번째 중대를 본부로 지정
+                    company.isHQ = true;
+                    company.role = COMPANY_ROLES.HQ;
+                    brigade.hqUnit = company;
+                } else if (i === 1) {
+                    company.role = COMPANY_ROLES.RECON;
+                } else {
+                    // 나머지는 타격대로 설정
+                    company.role = COMPANY_ROLES.STRIKE;
+                }
+
                 for (let j = 0; j < 3; j++) {
                     const platoon = new Platoon(`${company.name}-${j+1}`, 0, 0, team);
                     for (let k = 0; k < 3; k++) {
@@ -26,8 +37,8 @@ const DIVISION_TEMPLATES = {
                 brigade.addUnit(company);
             }
 
-            // 편제 생성 후, 전체 분대 목록을 다시 계산합니다.
-            brigade.combatSubUnits = brigade.getAllCompanies();
+            // 전투 부대는 본부(HQ)를 제외한 중대들입니다.
+            brigade.combatSubUnits = brigade.subUnits.filter(u => !u.isHQ);
 
             brigade.updateCombatSubUnitPositions();
             return brigade;
@@ -39,9 +50,17 @@ const DIVISION_TEMPLATES = {
         build: (name, x, y, team) => {
             const battalion = new Battalion(name, x, y, team);
 
-            // 3개의 보병 중대 추가
+            // 1개 본부, 2개 유지 중대
             for (let i = 0; i < 3; i++) {
                 const company = new Company(`${name}-${i+1}`, 0, 0, team);
+                if (i === 0) { // 첫 번째 중대를 본부로 지정
+                    company.isHQ = true;
+                    company.role = COMPANY_ROLES.HQ;
+                    battalion.hqUnit = company;
+                } else {
+                    // 나머지는 유지대로 설정
+                    company.role = COMPANY_ROLES.SUPPORT;
+                }
                 const platoon = new Platoon(`${company.name}-1`, 0, 0, team);
                 for (let k = 0; k < 3; k++) {
                     const squad = new Squad(`${platoon.name}-${k+1}`, 0, 0, team);
@@ -51,7 +70,7 @@ const DIVISION_TEMPLATES = {
                 battalion.addUnit(company);
             }
 
-            battalion.combatSubUnits = battalion.getAllCompanies();
+            battalion.combatSubUnits = battalion.subUnits.filter(u => !u.isHQ);
             battalion.updateCombatSubUnitPositions();
             return battalion;
         }

@@ -57,7 +57,12 @@ canvas.addEventListener('contextmenu', (e) => {
 
     if (selectedUnit) {
         const worldCoords = camera.screenToWorld(mouseX, mouseY);
-        selectedUnit.moveTo(worldCoords.x, worldCoords.y);
+        // Shift 키를 누르고 우클릭하면 후퇴, 아니면 일반 이동
+        if (e.shiftKey) {
+            selectedUnit.retreatTo(worldCoords.x, worldCoords.y);
+        } else {
+            selectedUnit.moveTo(worldCoords.x, worldCoords.y);
+        }
     }
 });
 
@@ -88,25 +93,37 @@ function update(currentTime) {
         attackerUnit.updateVisuals(deltaTime);
         if (attackerUnit.currentStrength <= 0) continue;
 
-        // --- 적 탐지 로직 ---
-        // 이 최상위 부대(attackerUnit)가 적을 탐지했는지 여부를 결정합니다.
-        let detectedAnyEnemy = false;
-        for (const combatSubUnit of attackerUnit.combatSubUnits) {
-            if (detectedAnyEnemy) break; // 이미 탐지했으면 더 이상 하위 부대를 확인할 필요 없음
-
-            for (const targetUnit of topLevelUnits) {
-                if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
-                if (targetUnit.combatSubUnits.length === 0) continue;
-
-                for (const targetCombatSubUnit of targetUnit.combatSubUnits) {
-                    const distance = Math.hypot(combatSubUnit.x - targetCombatSubUnit.x, combatSubUnit.y - targetCombatSubUnit.y);
-                    if (distance < combatSubUnit.detectionRange) { // combatSubUnit의 인식 범위 사용
-                        attackerUnit.isEnemyDetected = true; // 최상위 부대에 적 발견 상태 설정
-                        detectedAnyEnemy = true;
-                        break; // 이 전투 부대가 적을 탐지했으므로, 더 이상 적 전투 부대를 확인할 필요 없음
-                    }
+        // --- 진형 방향 결정 로직 ---
+        if (attackerUnit.destination && !attackerUnit.isInCombat) {
+            // 이동 중일 때: 목표 방향으로 진형 방향 설정
+            const dx = attackerUnit.destination.x - attackerUnit.x;
+            const dy = attackerUnit.destination.y - attackerUnit.y;
+            attackerUnit.direction = Math.atan2(dy, dx);
+        } else {
+            // 전투 중이거나 정지 상태일 때: 가장 가까운 적 방향으로 진형 방향 설정
+            let closestEnemy = null;
+            let minDistance = Infinity;
+            for (const target of topLevelUnits) {
+                if (target.team === attackerUnit.team) continue;
+                const dist = Math.hypot(attackerUnit.x - target.x, attackerUnit.y - target.y);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                    closestEnemy = target;
                 }
-                if (detectedAnyEnemy) break; // 이 최상위 부대가 적을 탐지했으므로, 더 이상 다른 최상위 적 부대를 확인할 필요 없음
+            }
+            if (closestEnemy) {
+                attackerUnit.direction = Math.atan2(closestEnemy.y - attackerUnit.y, closestEnemy.x - attackerUnit.x);
+            }
+        }
+        // --- 적 탐지 로직 ---
+        // 상위 부대 단위로 적을 탐지합니다.
+        for (const targetUnit of topLevelUnits) {
+            if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
+
+            const distance = Math.hypot(attackerUnit.x - targetUnit.x, attackerUnit.y - targetUnit.y);
+            if (distance < attackerUnit.detectionRange) {
+                attackerUnit.isEnemyDetected = true;
+                break; // 적을 한 부대라도 발견하면 탐지를 멈춥니다.
             }
         }
 
@@ -133,6 +150,11 @@ function update(currentTime) {
 
             // 사거리 내에 적을 찾았다면 공격합니다.
             if (closestEnemySubUnit) {
+                // 전투 중이고 후퇴 중이 아니라면, 중대는 목표를 향해 직접 이동합니다.
+                if (!combatSubUnit.isRetreating) {
+                    combatSubUnit.destination = { x: closestEnemySubUnit.x, y: closestEnemySubUnit.y };
+                }
+
                 const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
 
                 // --- 새로운 피해 계산 로직 ---
@@ -165,11 +187,22 @@ function update(currentTime) {
             }
         }
 
-        // --- 이동 로직 ---
-        if (attackerUnit.destination) {
-            attackerUnit.updateMovement(deltaTime);
-            attackerUnit.updateCombatSubUnitPositions(); // 이동 시 하위 부대 진형 유지
+        // 전투 중인 중대들은 각자 목표를 향해 이동합니다.
+        if (attackerUnit.isInCombat) {
+            attackerUnit.subUnits.forEach(c => c.updateMovement(deltaTime));
         }
+
+        // --- 이동 로직 ---
+        // 적을 탐지하지 않았고, 후퇴 중이 아닐 때만 이동을 멈춥니다.
+        if (attackerUnit.isEnemyDetected && !attackerUnit.isRetreating) {
+            attackerUnit.subUnits.forEach(c => c.destination = null); // 모든 중대 이동 중지
+        } else if (attackerUnit.destination && !attackerUnit.isInCombat) { 
+            // 전투 중이 아닐 때, 모든 중대가 각자의 목표로 이동합니다.
+            attackerUnit.subUnits.forEach(c => c.updateMovement(deltaTime));
+        }
+
+        // 모든 중대의 위치를 진형에 맞게 업데이트합니다.
+        attackerUnit.updateCombatSubUnitPositions();
 
         // --- 조직력 회복 로직 ---
         if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
