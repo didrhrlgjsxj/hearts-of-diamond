@@ -72,8 +72,10 @@ class GameUI {
         const spawnPos = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
 
         if (template && template.build) {
-            const newUnit = template.build(`New ${template.name}`, spawnPos.x, spawnPos.y, team);
+            // 최상위 부대는 부모 이름이 없으므로 null을 전달합니다.
+            const newUnit = template.build(null, spawnPos.x, spawnPos.y, team);
             this.topLevelUnits.push(newUnit);
+            console.log(`Spawned: ${newUnit.name}`);
         }
     }
 

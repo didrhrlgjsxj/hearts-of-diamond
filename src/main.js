@@ -10,6 +10,16 @@ let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
 
+// 부대 고유 번호 생성을 위한 전역 카운터
+const unitCounters = {
+    'Division': 1,
+    'Brigade': 1,
+    'Regiment': 1,
+    'Battalion': 1,
+    'Company': 1,
+};
+
+
 // UI 인스턴스를 저장할 변수
 let gameUI;
 
@@ -33,7 +43,8 @@ canvas.addEventListener('click', (e) => {
 
     let clickedUnit = null;
     // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
-    for (const unit of topLevelUnits) {
+    for (let i = topLevelUnits.length - 1; i >= 0; i--) {
+        const unit = topLevelUnits[i];
         clickedUnit = unit.getUnitAt(worldCoords.x, worldCoords.y);
         if (clickedUnit) break;
     }

@@ -75,29 +75,34 @@ function updateUnits(topLevelUnits, deltaTime) {
         // --- 이동 로직 ---
         // 상위 부대(여단/대대)의 이동 로직을 먼저 업데이트합니다.
         // 이 안에서 본부(HQ) 이동 및 진형 위치 재계산이 일어납니다.
-        if (attackerUnit instanceof Division || attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
-            attackerUnit.updateMovement(deltaTime);
-            // 전투 중이 아닐 때만 진형을 유지하도록 위치를 업데이트합니다.
-            if (!attackerUnit.isInCombat) {
-                attackerUnit.updateCombatSubUnitPositions();
-            }
-        }
-
-        // 모든 유닛의 이동을 업데이트합니다.
-        // 1. 독립 부대(중대 등)의 이동을 처리합니다.
-        if (!(attackerUnit instanceof Division || attackerUnit instanceof Brigade || attackerUnit instanceof Battalion)) {
-            attackerUnit.updateMovement(deltaTime);
-        }
-        // 2. 모든 전투 부대(중대)의 이동을 처리합니다.
-        attackerUnit.combatSubUnits.forEach(subUnit => subUnit.updateMovement(deltaTime));
-        // 3. 지휘 부대의 본부(HQ) 중대의 이동을 처리합니다.
-        if (attackerUnit.hqUnit) attackerUnit.hqUnit.updateMovement(deltaTime);
+        updateMovementRecursively(attackerUnit, deltaTime);
 
         // --- 조직력 회복 로직 ---
         if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
             attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);
         }
     }
+}
+
+/**
+ * 유닛과 그 모든 하위 유닛의 이동을 재귀적으로 업데이트합니다.
+ * @param {Unit} unit - 업데이트할 유닛
+ * @param {number} deltaTime - 프레임 간 시간 간격
+ */
+function updateMovementRecursively(unit, deltaTime) {
+    // 1. 현재 유닛의 이동 로직을 실행합니다.
+    // (독립 중대 이동, 지휘 부대의 본부 목표 설정 등)
+    unit.updateMovement(deltaTime);
+
+    // 2. 만약 지휘 부대라면, 하위 부대들의 진형 목표를 설정합니다.
+    if (unit instanceof CommandUnit) {
+        unit.updateCombatSubUnitPositions();
+    }
+
+    // 3. 모든 직속 하위 유닛에 대해 재귀적으로 이 함수를 호출합니다.
+    unit.subUnits.forEach(subUnit => {
+        updateMovementRecursively(subUnit, deltaTime);
+    });
 }
 
 /**
