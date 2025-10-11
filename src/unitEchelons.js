@@ -22,8 +22,10 @@ class CommandUnit extends Unit {
     }
 
     // 이동 명령을 받으면, 목표 지점과 방향만 설정합니다.
-    moveTo(x, y) {
-        this.destination = { x, y };
+    moveTo(x, y, allUnits = []) {
+        // CommandUnit의 moveTo는 하위 유닛의 진형 목표를 설정하므로, 충돌 방지 로직을 여기에 직접 적용하지 않고
+        // 각 하위 유닛이 자신의 moveTo에서 처리하도록 위임합니다.
+        this.destination = { x, y }; // 상위 부대의 최종 목표만 설정
         const dx = x - this.x;
         const dy = y - this.y;
         this.direction = Math.atan2(dy, dx);
@@ -59,7 +61,7 @@ class CommandUnit extends Unit {
                 const angle = this.direction + (i - (count - 1) / 2) * (Math.PI / 4); // 45도 간격
                 const destX = this.hqUnit.x + formationRadius * Math.cos(angle);
                 const destY = this.hqUnit.y + formationRadius * Math.sin(angle);
-                battalion.moveTo(destX, destY);
+                battalion.moveTo(destX, destY, this.getAllBattalions());
             });
 
         } else if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof Company)) {

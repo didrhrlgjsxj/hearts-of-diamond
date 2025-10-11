@@ -30,10 +30,10 @@ const DIVISION_TEMPLATES = {
             division.hqUnit = hqCompany;
             division.addUnit(hqCompany);
 
-            // 3. 4개의 보병 여단을 생성하여 추가합니다. (2배 증가)
-            for (let i = 0; i < 4; i++) {
-                const brigade = DIVISION_TEMPLATES["Infantry Brigade"].build(unitName, x, y, team);
-                division.addUnit(brigade);
+            // 3. 10개의 보병 대대를 생성하여 추가합니다. (구조 단순화)
+            for (let i = 0; i < 10; i++) {
+                const battalion = DIVISION_TEMPLATES["보병 대대"].build(unitName, x, y, team);
+                division.addUnit(battalion);
             }
 
             // 4. 사단의 전투 단위는 휘하의 모든 중대들입니다.

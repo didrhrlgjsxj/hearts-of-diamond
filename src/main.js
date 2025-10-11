@@ -72,7 +72,7 @@ canvas.addEventListener('contextmenu', (e) => {
         if (e.shiftKey) {
             selectedUnit.retreatTo(worldCoords.x, worldCoords.y);
         } else {
-            selectedUnit.moveTo(worldCoords.x, worldCoords.y);
+            selectedUnit.moveTo(worldCoords.x, worldCoords.y, topLevelUnits);
         }
     }
 });

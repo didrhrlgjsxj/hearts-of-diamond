@@ -55,3 +55,6 @@ const FORMATION_OFFSETS = {
     [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 }, // 지원대는 중간에
     [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에
 };
+
+// 유닛 간 최소 이격 거리
+const MIN_UNIT_SPACING = 15;

@@ -213,13 +213,30 @@ class Unit {
      * @param {number} x 목표 x 좌표
      * @param {number} y 목표 y 좌표
      */
-    moveTo(x, y) {
-        // 전투 중에는 일반 이동 명령을 무시합니다.
-        if (this.isInCombat) {
-            console.log(`${this.name}은(는) 전투 중이라 이동할 수 없습니다. 후퇴 명령을 사용하세요.`);
-            return;
+    moveTo(x, y, allUnits = []) {
+        let targetX = x;
+        let targetY = y;
+
+        // 다른 유닛과 너무 가까운지 확인하고 목표 위치를 조정합니다.
+        for (const otherUnit of allUnits) {
+            // 자기 자신, 부모, 자식 유닛은 충돌 검사에서 제외합니다.
+            if (otherUnit === this || otherUnit === this.parent || this.subUnits.includes(otherUnit)) {
+                continue;
+            }
+
+            const dist = Math.hypot(targetX - otherUnit.x, targetY - otherUnit.y);
+            const requiredDist = this.size + otherUnit.size + MIN_UNIT_SPACING;
+
+            if (dist < requiredDist) {
+                // 목표가 너무 가까우면, 다른 유닛의 경계선까지만 이동하도록 목표를 수정합니다.
+                const angle = Math.atan2(targetY - otherUnit.y, targetX - otherUnit.x);
+                targetX = otherUnit.x + requiredDist * Math.cos(angle);
+                targetY = otherUnit.y + requiredDist * Math.sin(angle);
+            }
         }
-        this.destination = { x, y };
+
+
+        this.destination = { x: targetX, y: targetY };
         this.isRetreating = false; // 일반 이동 시 후퇴 상태 해제
     }
 
