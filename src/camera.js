@@ -12,8 +12,13 @@ class Camera {
         this.y = 0;
         this.zoom = 1;
         this.edgeSize = 30; // 화면 가장자리 스크롤 감지 영역
-        this.moveSpeed = 5; // 카메라 이동 속도
-
+        this.moveSpeed = 300; // 카메라 이동 속도 (픽셀/초)
+        this.keys = {
+            w: false,
+            a: false,
+            s: false,
+            d: false,
+        };
         this._addEventListeners();
     }
 
@@ -28,19 +33,43 @@ class Camera {
             // 줌 레벨을 최소 0.5, 최대 5로 제한합니다.
             this.zoom = Math.max(0.5, Math.min(this.zoom, 5));
         });
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in this.keys) {
+                this.keys[key] = true;
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in this.keys) {
+                this.keys[key] = false;
+            }
+        });
     }
 
     /**
-     * 마우스 위치에 따라 카메라를 이동시킵니다 (화면 가장자리 스크롤).
-     * @param {number} mouseX 현재 마우스의 X 좌표
-     * @param {number} mouseY 현재 마우스의 Y 좌표
+     * 키 입력 상태에 따라 카메라를 이동시킵니다.
+     * @param {number} deltaTime 프레임 간 시간 간격 (초)
      */
-    update(mouseX, mouseY) {
-        if (mouseX < this.edgeSize) this.x -= this.moveSpeed / this.zoom;
-        else if (mouseX > this.canvas.width - this.edgeSize) this.x += this.moveSpeed / this.zoom;
-
-        if (mouseY < this.edgeSize) this.y -= this.moveSpeed / this.zoom;
-        else if (mouseY > this.canvas.height - this.edgeSize) this.y += this.moveSpeed / this.zoom;
+    update(deltaTime) {
+        // 줌 레벨에 관계없이 화면 이동 속도를 일정하게 유지하기 위해
+        // 이동 거리를 현재 줌 레벨로 나눕니다.
+        const moveAmount = this.moveSpeed * deltaTime / this.zoom;
+        
+        if (this.keys.w) {
+            this.y -= moveAmount;
+        }
+        if (this.keys.s) {
+            this.y += moveAmount;
+        }
+        if (this.keys.a) {
+            this.x -= moveAmount;
+        }
+        if (this.keys.d) {
+            this.x += moveAmount;
+        }
     }
 
     /**

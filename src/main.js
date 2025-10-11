@@ -73,7 +73,7 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
     lastTime = currentTime;
 
-    camera.update(mouseX, mouseY);
+    camera.update(deltaTime);
     
     // --- 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.

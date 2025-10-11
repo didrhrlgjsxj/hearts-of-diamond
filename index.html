@@ -51,11 +51,14 @@
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
-    <script src="camera.js"></script>
-    <script src="units.js"></script> 
-    <script src="division_templates.js"></script>
-    <script src="unitLogic.js"></script>
-    <script src="ui.js"></script>
-    <script src="main.js"></script>
+    <script src="src/camera.js"></script>
+    <!-- units.js를 역할에 따라 세 파일로 분리하여 로드합니다. -->
+    <script src="src/unitConstants.js"></script>
+    <script src="src/unitBase.js"></script>
+    <script src="src/unitEchelons.js"></script>
+    <script src="src/division_templates.js"></script>
+    <script src="src/unitLogic.js"></script>
+    <script src="ui.js"></script> <!-- division_templates.js 보다 뒤에 와야 합니다. -->
+    <script src="src/main.js"></script>
 </body>
 </html>

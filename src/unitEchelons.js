@@ -7,15 +7,15 @@ class Brigade extends Unit {
     }
 
     // 여단의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit.x : this._x; } // hqUnit이 없으면 자신의 _x를 반환
+    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
     set x(value) {
-        // 상위 부대의 위치는 직접 설정할 수 없고, 항상 hqUnit을 따라갑니다.
-        // 초기 위치 설정을 위해 _x는 변경을 허용합니다.
-        if (!this.hqUnit) this._x = value;
+        if (this.hqUnit) this.hqUnit._x = value;
+        else this._x = value;
     }
-    get y() { return this.hqUnit ? this.hqUnit.y : this._y; } // hqUnit이 없으면 자신의 _y를 반환
+    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
     set y(value) {
-        if (!this.hqUnit) this._y = value;
+        if (this.hqUnit) this.hqUnit._y = value;
+        else this._y = value;
     }
 
     moveTo(x, y) {
@@ -33,18 +33,20 @@ class Brigade extends Unit {
      * @param {number} deltaTime 
      */
     updateMovement(deltaTime) {
-        if (this.hqUnit) {
-            // 1. 본부 중대는 최종 목표 지점을 향해 이동합니다.
-            this.hqUnit.destination = this.destination;
-            this.hqUnit.updateMovement(deltaTime);
+        if (!this.hqUnit) return;
 
-            // 2. 본부가 목표에 도달하면, 상위 부대의 목표도 null로 설정합니다.
-            if (this.hqUnit.destination === null) {
-                this.destination = null;
-            }
+        // 1. 본부 중대는 최종 목표 지점을 향해 이동합니다.
+        this.hqUnit.destination = this.destination;
+        // hqUnit의 이동은 unitLogic.js의 루프에서 처리됩니다.
+
+        // 2. 본부가 목표에 도달하면, 상위 부대의 목표도 null로 설정합니다.
+        if (this.hqUnit.destination === null) {
+            this.destination = null;
         }
+        // 진형 위치 업데이트는 unitLogic.js에서 전투 상태가 아닐 때 호출됩니다.
 
-        this.updateCombatSubUnitPositions();
+        // 하위 부대들의 이동을 처리합니다.
+        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {
@@ -65,13 +67,15 @@ class Battalion extends Unit {
     }
 
     // 대대의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit.x : this._x; }
+    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
     set x(value) {
-        if (!this.hqUnit) this._x = value;
+        if (this.hqUnit) this.hqUnit._x = value;
+        else this._x = value;
     }
-    get y() { return this.hqUnit ? this.hqUnit.y : this._y; }
+    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
     set y(value) {
-        if (!this.hqUnit) this._y = value;
+        if (this.hqUnit) this.hqUnit._y = value;
+        else this._y = value;
     }
 
     moveTo(x, y) {
@@ -87,15 +91,18 @@ class Battalion extends Unit {
      * @param {number} deltaTime 
      */
     updateMovement(deltaTime) {
-        if (this.hqUnit) {
-            this.hqUnit.destination = this.destination;
-            this.hqUnit.updateMovement(deltaTime);
+        if (!this.hqUnit) return;
 
-            if (this.hqUnit.destination === null) {
-                this.destination = null;
-            }
+        this.hqUnit.destination = this.destination;
+        // hqUnit의 이동은 unitLogic.js의 루프에서 처리됩니다.
+
+        if (this.hqUnit.destination === null) {
+            this.destination = null;
         }
-        this.updateCombatSubUnitPositions();
+        // 진형 위치 업데이트는 unitLogic.js에서 전투 상태가 아닐 때 호출됩니다.
+
+        // 하위 부대들의 이동을 처리합니다.
+        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {

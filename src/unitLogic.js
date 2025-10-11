@@ -83,10 +83,15 @@ function updateUnits(topLevelUnits, deltaTime) {
         // 이 안에서 본부(HQ) 이동 및 진형 위치 재계산이 일어납니다.
         if (attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
             attackerUnit.updateMovement(deltaTime);
+            // 전투 중이 아닐 때만 진형을 유지하도록 위치를 업데이트합니다.
+            if (!attackerUnit.isInCombat) {
+                attackerUnit.updateCombatSubUnitPositions();
+            }
         }
-        // 모든 하위 유닛(중대 등)들이 각자의 목표를 향해 움직이도록 업데이트합니다.
-        attackerUnit.getAllCompanies().forEach(c => c.updateMovement(deltaTime));
 
+        // 모든 하위 유닛(중대 등)들이 각자의 목표를 향해 움직이도록 업데이트합니다.
+        // getAllSquads()를 사용해 최하위 유닛까지 모두 업데이트하도록 보장합니다.
+        attackerUnit.getAllSquads().forEach(subUnit => subUnit.updateMovement(deltaTime));
         // --- 조직력 회복 로직 ---
         if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
             attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);

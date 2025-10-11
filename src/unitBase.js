@@ -212,10 +212,6 @@ class Unit {
      */
     updateMovement(deltaTime) {
         if (!this.destination) return;
-        // 상위 부대(Brigade, Battalion)는 자체적으로 움직이지 않고, 하위 유닛의 움직임을 위임받아 처리합니다.
-        if (this instanceof Brigade || this instanceof Battalion) {
-            return;
-        }
 
         const dx = this.destination.x - this.x;
         const dy = this.destination.y - this.y;
@@ -527,7 +523,7 @@ class Unit {
 
         // 대대/여단은 반투명한 아이콘을, 그 외에는 일반 아이콘을 그립니다.
         if (this instanceof Brigade || this instanceof Battalion) {
-            this.drawOwnIcon(ctx, 0.4); // 40% 투명도로 아이콘 렌더링
+            this.drawOwnIcon(ctx, 0.3); // 30% 투명도로 아이콘 렌더링
         } else {
             // 중대 이하 부대는 자신의 아이콘을 그립니다.
             this.drawOwnIcon(ctx);
