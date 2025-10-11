@@ -1,3 +1,47 @@
+/** 사단 (Division) */
+class Division extends Unit {
+    constructor(name, x, y, team) {
+        super(name, x, y, 0, 12, team); // 여단보다 큰 사이즈
+        this.hqUnit = null;
+    }
+
+    // 사단의 위치는 항상 본부 중대의 위치를 따릅니다.
+    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
+    set x(value) {
+        if (this.hqUnit) this.hqUnit._x = value;
+        else this._x = value;
+    }
+    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
+    set y(value) {
+        if (this.hqUnit) this.hqUnit._y = value;
+        else this._y = value;
+    }
+
+    moveTo(x, y) {
+        this.destination = { x, y };
+        const dx = x - this.x;
+        const dy = y - this.y;
+        this.direction = Math.atan2(dy, dx);
+    }
+
+    updateMovement(deltaTime) {
+        if (!this.hqUnit) return;
+        this.hqUnit.destination = this.destination;
+        if (this.hqUnit.destination === null) {
+            this.destination = null;
+        }
+    }
+
+    drawEchelonSymbol(ctx) {
+        const size = this.size * 2;
+        ctx.font = `bold ${size * 0.8}px sans-serif`; // 'XX'가 잘 보이도록 폰트 크기 조정
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = 'black';
+        ctx.fillText('XX', this.x, this.y + size * 0.1);
+    }
+}
+
 /** 여단 (Brigade) */
 class Brigade extends Unit {
     constructor(name, x, y, team) {
@@ -114,7 +158,7 @@ class Battalion extends Unit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
-        this.role = COMPANY_ROLES.SUPPORT; // 기본 역할은 '유지대'
+        this.role = COMPANY_ROLES.SUSTAINMENT; // 기본 역할은 '유지대'
         this.formationRadius = 20;
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }

@@ -15,6 +15,31 @@ const DIVISION_TEMPLATES = {
             return hqCompany;
         }
     },
+    "Infantry Division": {
+        name: "보병 사단",
+        unitClass: Division,
+        build: (name, x, y, team) => {
+            // 1. 본부 중대를 생성합니다.
+            const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(`${name}-HQ`, x, y, team);
+
+            // 2. 사단을 생성하고 본부를 추가합니다.
+            const division = new Division(name, hqCompany.x, hqCompany.y, team);
+            division.hqUnit = hqCompany;
+            division.addUnit(hqCompany);
+
+            // 3. 2개의 보병 여단을 생성하여 추가합니다.
+            for (let i = 0; i < 2; i++) {
+                const brigade = DIVISION_TEMPLATES["Infantry Brigade"].build(`${name}-Bde${i+1}`, x, y, team);
+                division.addUnit(brigade);
+            }
+
+            // 4. 사단의 전투 부대는 모든 하위 중대들입니다.
+            division.combatSubUnits = division.getAllCompanies().filter(c => !c.isHQ);
+
+            division.updateCombatSubUnitPositions();
+            return division;
+        }
+    },
     "Infantry Brigade": {
         name: "보병 여단",
         unitClass: Brigade,
@@ -33,10 +58,10 @@ const DIVISION_TEMPLATES = {
             for (let i = 1; i < 4; i++) { // 본부를 제외한 나머지 중대 생성
                 const company = new Company(`${name}-${i}`, x, y, team);
                 if (i === 1) {
-                    company.role = COMPANY_ROLES.RECON;
+                    company.role = COMPANY_ROLES.VANGUARD; // '정찰대' -> '선발대'
                 } else {
-                    // 나머지는 타격대로 설정
-                    company.role = COMPANY_ROLES.STRIKE;
+                    // 나머지는 지원대로 설정
+                    company.role = COMPANY_ROLES.FIRE_SUPPORT; // '타격대' -> '지원대'
                 }
 
                 for (let j = 0; j < 3; j++) {
@@ -71,7 +96,7 @@ const DIVISION_TEMPLATES = {
             for (let i = 1; i < 3; i++) { // 본부를 제외한 나머지 중대 생성
                 const company = new Company(`${name}-${i}`, x, y, team);
                     // 나머지는 유지대로 설정
-                    company.role = COMPANY_ROLES.SUPPORT;
+                    company.role = COMPANY_ROLES.SUSTAINMENT; // '유지대'
                 const platoon = new Platoon(`${company.name}-1`, x, y, team);
                 for (let k = 0; k < 3; k++) {
                     const squad = new Squad(`${platoon.name}-${k+1}`, x, y, team);

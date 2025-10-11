@@ -43,16 +43,15 @@ const UNIT_TYPE_STATS = {
 
 // 중대 역할 정의
 const COMPANY_ROLES = {
-    HQ: '본부',
-    RECON: '정찰대',
-    STRIKE: '타격대',
-    SUPPORT: '유지대',
-    SUPPLY: '보급대', // 현재 미사용, 향후 확장용
+    HQ: '본부',           // Headquarters: 지휘부
+    VANGUARD: '선발대',     // Vanguard: 선두에서 정찰 및 초동 교전 담당 (구 정찰대)
+    FIRE_SUPPORT: '지원대', // Fire Support: 주력 화력 지원 담당 (구 타격대)
+    SUSTAINMENT: '유지대',  // Sustainment: 본부와 함께 중심을 잡으며 전투 지속 지원
 };
 
 // 역할별 진형 오프셋 (상대적 거리)
 const FORMATION_OFFSETS = {
-    [COMPANY_ROLES.RECON]: { distance: 60, spread: 40 },
-    [COMPANY_ROLES.STRIKE]: { distance: 30, spread: 60 },
-    [COMPANY_ROLES.SUPPORT]: { distance: 0, spread: 80 },
+    [COMPANY_ROLES.VANGUARD]: { distance: 60, spread: 40 },     // 선발대는 가장 앞에
+    [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 }, // 지원대는 중간에
+    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에
 };

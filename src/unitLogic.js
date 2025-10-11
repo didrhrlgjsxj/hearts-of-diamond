@@ -75,7 +75,7 @@ function updateUnits(topLevelUnits, deltaTime) {
         // --- 이동 로직 ---
         // 상위 부대(여단/대대)의 이동 로직을 먼저 업데이트합니다.
         // 이 안에서 본부(HQ) 이동 및 진형 위치 재계산이 일어납니다.
-        if (attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
+        if (attackerUnit instanceof Division || attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
             attackerUnit.updateMovement(deltaTime);
             // 전투 중이 아닐 때만 진형을 유지하도록 위치를 업데이트합니다.
             if (!attackerUnit.isInCombat) {
@@ -85,7 +85,7 @@ function updateUnits(topLevelUnits, deltaTime) {
 
         // 모든 유닛의 이동을 업데이트합니다.
         // 1. 독립 부대(중대 등)의 이동을 처리합니다.
-        if (!(attackerUnit instanceof Brigade || attackerUnit instanceof Battalion)) {
+        if (!(attackerUnit instanceof Division || attackerUnit instanceof Brigade || attackerUnit instanceof Battalion)) {
             attackerUnit.updateMovement(deltaTime);
         }
         // 2. 모든 전투 부대(중대)의 이동을 처리합니다.

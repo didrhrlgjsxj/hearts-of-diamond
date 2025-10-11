@@ -275,16 +275,16 @@ class Unit {
      * 가상 전투 부대들의 위치를 부모 유닛 주변에 원형으로 배치합니다.
      */
     updateCombatSubUnitPositions() {
-        if (!this.hqUnit) return;
+        // 독립 중대처럼 본부가 없는 경우, 자기 자신을 기준으로 삼습니다.
+        const hqX = this.hqUnit ? this.hqUnit.x : this.x;
+        const hqY = this.hqUnit ? this.hqUnit.y : this.y;
 
         const roles = {};
         this.combatSubUnits.forEach(c => {
+            if (c.currentStrength <= 0) return; // 파괴된 유닛은 제외
             if (!roles[c.role]) roles[c.role] = [];
             roles[c.role].push(c);
         });
-
-        const hqX = this.hqUnit.x;
-        const hqY = this.hqUnit.y;
 
         Object.keys(roles).forEach(role => {
             const companiesInRole = roles[role];
@@ -292,16 +292,39 @@ class Unit {
             if (!offsetInfo) return;
 
             const count = companiesInRole.length;
-            companiesInRole.forEach((unit, i) => {
+            const formationPoints = [];
+
+            // 1. 해당 역할에 대한 모든 진형 목표 지점을 미리 계산합니다.
+            for (let i = 0; i < count; i++) {
                 const sideOffsetAngle = this.direction + Math.PI / 2;
                 const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
-
                 const destX = hqX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
                 const destY = hqY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+                formationPoints.push({ x: destX, y: destY });
+            }
 
+            // 2. 각 중대가 자신에게 가장 가까운, 아직 할당되지 않은 목표 지점을 찾아가도록 합니다.
+            const assignedPoints = new Array(count).fill(false);
+            companiesInRole.forEach(unit => {
                 // 전투 중이 아닐 때만 진형 유지 이동을 합니다.
                 if (!this.isInCombat) {
-                    unit.destination = { x: destX, y: destY };
+                    let closestPointIndex = -1;
+                    let minDistance = Infinity;
+
+                    for (let i = 0; i < formationPoints.length; i++) {
+                        if (assignedPoints[i]) continue;
+                        const point = formationPoints[i];
+                        const distance = Math.hypot(unit.x - point.x, unit.y - point.y);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestPointIndex = i;
+                        }
+                    }
+
+                    if (closestPointIndex !== -1) {
+                        unit.destination = formationPoints[closestPointIndex];
+                        assignedPoints[closestPointIndex] = true;
+                    }
                 }
             });
         });
@@ -525,7 +548,7 @@ class Unit {
             ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
         // 대대/여단은 반투명한 아이콘을, 그 외에는 일반 아이콘을 그립니다.
-        if (this instanceof Brigade || this instanceof Battalion) {
+        if (this instanceof Division || this instanceof Brigade || this instanceof Battalion) {
             this.drawOwnIcon(ctx, 0.3); // 30% 투명도로 아이콘 렌더링
         } else {
             // 중대 이하 부대는 자신의 아이콘을 그립니다.
@@ -597,7 +620,7 @@ class Unit {
         });
 
         // 대대급 이상 부대는 하위 중대들을 그립니다.
-        if (this instanceof Battalion || this instanceof Brigade) {
+        if (this instanceof Division || this instanceof Battalion || this instanceof Brigade) {
             this.combatSubUnits.forEach(company => {
                 // 선택된 부대의 본부 중대는 흰색 테두리로 강조 표시합니다.
                 if (this.isSelected && company.isHQ) {
