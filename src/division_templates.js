@@ -31,7 +31,7 @@ const DIVISION_TEMPLATES = {
 
             // 3. 나머지 전투 중대들을 생성하여 편제에 추가합니다. (1개 정찰, 2개 타격)
             for (let i = 1; i < 4; i++) { // 본부를 제외한 나머지 중대 생성
-                const company = new Company(`${name}-${i}`, 0, 0, team);
+                const company = new Company(`${name}-${i}`, x, y, team);
                 if (i === 1) {
                     company.role = COMPANY_ROLES.RECON;
                 } else {
@@ -40,9 +40,9 @@ const DIVISION_TEMPLATES = {
                 }
 
                 for (let j = 0; j < 3; j++) {
-                    const platoon = new Platoon(`${company.name}-${j+1}`, 0, 0, team);
+                    const platoon = new Platoon(`${company.name}-${j+1}`, x, y, team);
                     for (let k = 0; k < 3; k++) {
-                        const squad = new Squad(`${platoon.name}-${k+1}`, 0, 0, team);
+                        const squad = new Squad(`${platoon.name}-${k+1}`, x, y, team);
                         platoon.addUnit(squad);
                     }
                     company.addUnit(platoon);
@@ -69,12 +69,12 @@ const DIVISION_TEMPLATES = {
 
             // 2개의 유지 중대를 추가합니다.
             for (let i = 1; i < 3; i++) { // 본부를 제외한 나머지 중대 생성
-                const company = new Company(`${name}-${i}`, 0, 0, team);
+                const company = new Company(`${name}-${i}`, x, y, team);
                     // 나머지는 유지대로 설정
                     company.role = COMPANY_ROLES.SUPPORT;
-                const platoon = new Platoon(`${company.name}-1`, 0, 0, team);
+                const platoon = new Platoon(`${company.name}-1`, x, y, team);
                 for (let k = 0; k < 3; k++) {
-                    const squad = new Squad(`${platoon.name}-${k+1}`, 0, 0, team);
+                    const squad = new Squad(`${platoon.name}-${k+1}`, x, y, team);
                     platoon.addUnit(squad);
                 }
                 company.addUnit(platoon);
@@ -94,9 +94,9 @@ const DIVISION_TEMPLATES = {
 
             // 3개의 보병 소대 추가
             for (let i = 0; i < 3; i++) {
-                const platoon = new Platoon(`${name}-${i+1}`, 0, 0, team);
+                const platoon = new Platoon(`${name}-${i+1}`, x, y, team);
                 for (let j = 0; j < 3; j++) {
-                    const squad = new Squad(`${platoon.name}-${j+1}`, 0, 0, team);
+                    const squad = new Squad(`${platoon.name}-${j+1}`, x, y, team);
                     platoon.addUnit(squad);
                 }
                 company.addUnit(platoon);
@@ -115,7 +115,7 @@ const DIVISION_TEMPLATES = {
 
             // 3개의 보병 분대 추가
             for (let i = 0; i < 3; i++) {
-                const squad = new Squad(`${name}-${i+1}`, 0, 0, team);
+                const squad = new Squad(`${name}-${i+1}`, x, y, team);
                 platoon.addUnit(squad);
             }
 

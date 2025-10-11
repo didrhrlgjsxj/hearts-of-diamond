@@ -45,8 +45,6 @@ class Brigade extends Unit {
         }
         // 진형 위치 업데이트는 unitLogic.js에서 전투 상태가 아닐 때 호출됩니다.
 
-        // 하위 부대들의 이동을 처리합니다.
-        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {
@@ -101,8 +99,6 @@ class Battalion extends Unit {
         }
         // 진형 위치 업데이트는 unitLogic.js에서 전투 상태가 아닐 때 호출됩니다.
 
-        // 하위 부대들의 이동을 처리합니다.
-        this.combatSubUnits.forEach(c => c.updateMovement(deltaTime));
     }
 
     drawEchelonSymbol(ctx) {

@@ -217,6 +217,9 @@ class Unit {
         const dy = this.destination.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
+        // 목표 지점까지의 거리가 1픽셀 이상일 때만 이동 방향을 업데이트합니다.
+        if (distance > 1) this.direction = Math.atan2(dy, dx);
+
         const moveDistance = this.moveSpeed * deltaTime;
 
         if (distance < moveDistance) {
@@ -596,21 +599,15 @@ class Unit {
         // 대대급 이상 부대는 하위 중대들을 그립니다.
         if (this instanceof Battalion || this instanceof Brigade) {
             this.combatSubUnits.forEach(company => {
+                // 선택된 부대의 본부 중대는 흰색 테두리로 강조 표시합니다.
+                if (this.isSelected && company.isHQ) {
+                    company.isSelected = true;
+                }
+
                 if (company.currentStrength > 0) {
                     company.draw(ctx);
                 }
             });
-        } else if (this.isSelected) {
-             // 중대 이하 부대는 선택되었을 때 하위 부대를 그립니다.
-             for (const unit of this.subUnits) {
-                 // 하위 유닛과의 연결선을 그립니다.
-                 ctx.beginPath();
-                 ctx.moveTo(this.x, this.y);
-                 ctx.lineTo(unit.x, unit.y);
-                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                 ctx.stroke();
-                 unit.draw(ctx);
-             }
         }
     }
 

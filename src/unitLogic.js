@@ -50,8 +50,6 @@ function updateUnits(topLevelUnits, deltaTime) {
             const { unit: closestEnemySubUnit } = findClosestEnemySubUnit(combatSubUnit, topLevelUnits);
 
             if (closestEnemySubUnit) {
-                if (!combatSubUnit.isRetreating) combatSubUnit.destination = { x: closestEnemySubUnit.x, y: closestEnemySubUnit.y };
-
                 const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
                 const attacker = combatSubUnit;
                 const defender = targetTopLevelUnit;
@@ -75,10 +73,6 @@ function updateUnits(topLevelUnits, deltaTime) {
         }
 
         // --- 이동 로직 ---
-        if (attackerUnit.isEnemyDetected && !attackerUnit.isRetreating) {
-            attackerUnit.subUnits.forEach(c => c.destination = null);
-        }
-
         // 상위 부대(여단/대대)의 이동 로직을 먼저 업데이트합니다.
         // 이 안에서 본부(HQ) 이동 및 진형 위치 재계산이 일어납니다.
         if (attackerUnit instanceof Brigade || attackerUnit instanceof Battalion) {
@@ -89,9 +83,16 @@ function updateUnits(topLevelUnits, deltaTime) {
             }
         }
 
-        // 모든 하위 유닛(중대 등)들이 각자의 목표를 향해 움직이도록 업데이트합니다.
-        // getAllSquads()를 사용해 최하위 유닛까지 모두 업데이트하도록 보장합니다.
-        attackerUnit.getAllSquads().forEach(subUnit => subUnit.updateMovement(deltaTime));
+        // 모든 유닛의 이동을 업데이트합니다.
+        // 1. 독립 부대(중대 등)의 이동을 처리합니다.
+        if (!(attackerUnit instanceof Brigade || attackerUnit instanceof Battalion)) {
+            attackerUnit.updateMovement(deltaTime);
+        }
+        // 2. 모든 전투 부대(중대)의 이동을 처리합니다.
+        attackerUnit.combatSubUnits.forEach(subUnit => subUnit.updateMovement(deltaTime));
+        // 3. 지휘 부대의 본부(HQ) 중대의 이동을 처리합니다.
+        if (attackerUnit.hqUnit) attackerUnit.hqUnit.updateMovement(deltaTime);
+
         // --- 조직력 회복 로직 ---
         if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
             attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);
