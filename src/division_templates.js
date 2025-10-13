@@ -51,6 +51,7 @@ const DIVISION_TEMPLATES = {
             division.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
 
             division.updateCombatSubUnitPositions();
+            division.initializeOrganization(); // 모든 편제가 끝난 후 조직력 초기화
             return division;
         }
     },
@@ -86,6 +87,7 @@ const DIVISION_TEMPLATES = {
             brigade.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
 
             brigade.updateCombatSubUnitPositions();
+            brigade.initializeOrganization();
             return brigade;
         }
     },
@@ -115,6 +117,7 @@ const DIVISION_TEMPLATES = {
             const companyCount = regiment.getAllCompanies().length;
             regiment.size = 6 + companyCount * 0.5;
             regiment.updateCombatSubUnitPositions();
+            regiment.initializeOrganization();
             return regiment;
         }
     },
@@ -152,6 +155,7 @@ const DIVISION_TEMPLATES = {
             const companyCount = battalion.getAllCompanies().length;
             battalion.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
             battalion.updateCombatSubUnitPositions();
+            battalion.initializeOrganization();
             return battalion;
         }
     },
@@ -194,6 +198,7 @@ const DIVISION_TEMPLATES = {
 
             // 소대는 전투 단위가 아니므로 combatSubUnits를 설정하지 않습니다.
             platoon.updateCombatSubUnitPositions();
+            platoon.initializeOrganization();
             return platoon;
         }
     },
@@ -205,6 +210,7 @@ const DIVISION_TEMPLATES = {
             // 분대는 전투 단위가 아니므로 combatSubUnits를 설정하지 않습니다.
             // 전투 단위가 아니므로 combatSubUnits를 설정하지 않습니다.
             squad.updateCombatSubUnitPositions();
+            squad.initializeOrganization();
             return squad;
         }
     },

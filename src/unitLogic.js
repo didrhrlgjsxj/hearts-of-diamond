@@ -107,8 +107,9 @@ function updateUnits(topLevelUnits, deltaTime) {
     // --- 4. 조직력 회복 및 최종 업데이트 ---
     for (const unit of topLevelUnits) {
         // --- 조직력 회복 로직 ---
-        if (!unit.isInCombat && unit.organization < unit.maxOrganization) {
-            unit.organization = Math.min(unit.maxOrganization, unit.organization + unit.organizationRecoveryRate * deltaTime);
+        if (unit.organization < unit.maxOrganization) {
+            const recoveryRate = unit.isInCombat ? unit.organizationRecoveryRateInCombat : unit.organizationRecoveryRate;
+            unit.organization = Math.min(unit.maxOrganization, unit.organization + recoveryRate * deltaTime);
         }
     }
 

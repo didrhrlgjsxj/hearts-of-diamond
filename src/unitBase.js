@@ -32,7 +32,8 @@ class Unit {
         this.isBeingTargeted = false; // 다른 유닛에게 공격받고 있는지 여부
         this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
         this.formationRadius = 0; // 전투 부대 배치 반경
-        this.organizationRecoveryRate = 5; // 초당 조직력 회복량
+        this.organizationRecoveryRate = 5; // 초당 조직력 회복량 (비전투)
+        this.organizationRecoveryRateInCombat = 0.5; // 초당 조직력 회복량 (전투 중)
 
         // 신규 능력치
         this.firepower = 0;
@@ -147,6 +148,15 @@ class Unit {
         // 이는 보병(장갑 0)과 기갑/차량화 유닛을 구분하는 간단한 척도입니다.
         const armoredSquads = allSquads.filter(squad => squad.armor > 0).length;
         return armoredSquads / allSquads.length;
+    }
+
+    /**
+     * 부대 편제가 완료된 후, 최대 조직력에 맞춰 현재 조직력을 초기화합니다.
+     * 이 메서드는 재귀적으로 모든 하위 유닛에 대해 호출됩니다.
+     */
+    initializeOrganization() {
+        this.organization = this.maxOrganization;
+        this.subUnits.forEach(subUnit => subUnit.initializeOrganization());
     }
 
     /**
@@ -355,7 +365,7 @@ class Unit {
         
         // 조직력이 0이 되어 막지 못한 조직력 피해도 병력 피해에 추가됩니다.
         const orgSpilloverDamage = orgDamage - actualOrgDamage;
-        const totalStrengthDamage = strDamage + orgSpilloverDamage + (strDamage * bonusDamageMultiplier);
+        const totalStrengthDamage = (strDamage * 4) + orgSpilloverDamage + (strDamage * bonusDamageMultiplier);
 
         if (totalStrengthDamage > 0) {
             // 공격 위치에서 가장 가까운 분대를 찾아 피해를 입힙니다.
