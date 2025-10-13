@@ -80,13 +80,13 @@ function updateUnits(topLevelUnits, deltaTime) {
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
-            const defender = targetTopLevel;
-            const defenderHardness = defender.hardness;
+            const defenderHardness = target.hardness; // 목표 중대의 기갑화율
             const effectiveAttack = attacker.totalSoftAttack * (1 - defenderHardness) + attacker.totalHardAttack * defenderHardness;
-            const strDamage = Math.max(0, effectiveAttack - defender.totalArmor) * 0.1;
+            const strDamage = Math.max(0, effectiveAttack - target.totalArmor); // 목표 중대의 장갑으로 계산
             const orgDamage = attacker.totalFirepower * 1.5;
 
-            targetTopLevel.takeDamage(orgDamage, strDamage, { x: attacker.x, y: attacker.y });
+            // 실제 목표가 된 '중대'에게 직접 피해를 적용합니다.
+            target.takeDamage(orgDamage, strDamage, { x: attacker.x, y: attacker.y });
         }
 
         // 전투 시각 효과 (예광탄)
@@ -118,6 +118,17 @@ function updateUnits(topLevelUnits, deltaTime) {
     topLevelUnits.forEach(unit => processUnitMovement(unit, deltaTime));
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
+
+    // --- 5. 파괴된 유닛 제거 ---
+    // 이 로직은 전역 변수인 topLevelUnits와 selectedUnit을 직접 수정할 수 있으므로,
+    // main.js에서 처리하는 것이 더 안전하지만, 편의상 여기서 처리합니다.
+    const cleanupResult = cleanupDestroyedUnits(topLevelUnits, window.selectedUnit);
+    if (topLevelUnits.length !== cleanupResult.remainingUnits.length) {
+        topLevelUnits.length = 0;
+        Array.prototype.push.apply(topLevelUnits, cleanupResult.remainingUnits);
+        window.selectedUnit = cleanupResult.newSelectedUnit;
+        window.gameUI.updateCompositionPanel(window.selectedUnit); // UI 업데이트
+    }
 }
 
 /**

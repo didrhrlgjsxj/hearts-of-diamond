@@ -354,12 +354,15 @@ class Unit {
      * @param {number} strDamage 병력에 가해지는 기본 피해
      */
     takeDamage(orgDamage, strDamage, fromCoords) {
-        // 1. 조직력에 직접 피해를 적용합니다.
+        // 이 유닛(중대)이 피해를 받았을 때, 실제 피해를 흡수할 하위 분대를 찾습니다.
+        const squadToTakeHit = this.findUnitToTakeDamage(fromCoords.x, fromCoords.y);
+        if (!squadToTakeHit) return; // 피해를 받을 분대가 없으면 종료
+
+        // 1. 조직력 피해는 중대 전체에 적용됩니다.
         const actualOrgDamage = Math.min(this.organization, orgDamage);
         this.organization -= actualOrgDamage;
 
-        // 2. 병력 피해는 조직력 손실 정도에 따라 증폭됩니다.
-        // 조직력이 낮을수록(비율이 0에 가까울수록) 병력 피해가 커집니다.
+        // 2. 내구력(병력) 피해는 중대의 조직력 손실 정도에 따라 증폭됩니다.
         const orgRatio = this.organization / this.maxOrganization;
         const bonusDamageMultiplier = Math.pow(1 - orgRatio, 2); // 조직력이 0이면 1, 100이면 0. 제곱하여 초반 피해를 줄이고 후반 피해를 늘립니다.
         
@@ -367,34 +370,22 @@ class Unit {
         const orgSpilloverDamage = orgDamage - actualOrgDamage;
         const totalStrengthDamage = (strDamage * 4) + orgSpilloverDamage + (strDamage * bonusDamageMultiplier);
 
-        if (totalStrengthDamage > 0) {
-            // 공격 위치에서 가장 가까운 분대를 찾아 피해를 입힙니다.
-            const targetUnit = this.findUnitToTakeDamage(fromCoords.x, fromCoords.y);
-            if (targetUnit) {
-                targetUnit.damageTaken += totalStrengthDamage;
-                // 상위 부대의 damageTaken은 currentStrength getter에서 재귀적으로 계산되므로 중복 누적하지 않습니다.
+        if (totalStrengthDamage > 0) { 
+            // 실제 내구력 피해는 해당 '분대'에 적용합니다.
+            squadToTakeHit.damageTaken += totalStrengthDamage;
+            // 상위 부대의 damageTaken은 currentStrength getter에서 재귀적으로 계산되므로 중복 누적하지 않습니다.
 
-                // 피해량 텍스트를 해당 분대 위치에 생성합니다.
-                this.floatingTexts.push({
-                    text: `-${Math.floor(totalStrengthDamage)}`,
-                    life: 1.5, // 1.5초 동안 표시
-                    alpha: 1.0,
-                    x: targetUnit.x,
-                    y: targetUnit.y - targetUnit.size - 5,
-                });
-            }
+            // 피해량 텍스트를 해당 중대 위치에 생성합니다.
+            this.getTopLevelParent().floatingTexts.push({
+                text: `-${Math.floor(totalStrengthDamage)}`,
+                life: 1.5, // 1.5초 동안 표시
+                alpha: 1.0,
+                x: squadToTakeHit.x, // 피해 입은 분대 위치에 표시
+                y: squadToTakeHit.y - squadToTakeHit.size - 5,
+            });
 
             // 피해를 입은 분대의 병력이 0 이하가 되면, 부모의 하위 유닛 목록과 최상위 부대의 전투 부대 목록에서 모두 제거합니다.
-            if (targetUnit && targetUnit.currentStrength <= 0) {
-                const topLevelParent = this.getTopLevelParent();
-
-                // 1. 직접적인 부모(소대)의 subUnits 목록에서 제거
-                if (targetUnit.parent) {
-                    targetUnit.parent.subUnits = targetUnit.parent.subUnits.filter(s => s !== targetUnit);
-                }
-                // 2. 최상위 부대의 combatSubUnits 목록에서도 제거
-                topLevelParent.combatSubUnits = topLevelParent.combatSubUnits.filter(s => s !== targetUnit);
-            }
+            // 유닛 파괴 로직은 이제 unitLogic.js의 cleanupDestroyedUnits에서 처리됩니다.
         }
     }
 
@@ -512,18 +503,9 @@ class Unit {
             ctx.fillStyle = '#555';
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
-            // 2. 현재 병력 바
-            if (this.displayStrength === -1) {
-                this.displayStrength = this.currentStrength;
-            } else {
-                if (this.displayStrength > this.currentStrength) {
-                    this.displayStrength = Math.max(this.currentStrength, this.displayStrength - this.baseStrength * 0.5 * ctx.canvas.deltaTime);
-                } else {
-                    this.displayStrength = this.currentStrength;
-                }
-            }
-            const currentBaseStrength = this.baseStrength;
-            const strengthRatio = currentBaseStrength > 0 ? this.displayStrength / currentBaseStrength : 0;
+            // 2. 현재 내구력(Strength) 바
+            const currentBaseStrength = this.baseStrength; // 편제상의 최대 병력
+            const strengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
             
             const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
             ctx.fillStyle = '#ff8c00'; // DarkOrange
@@ -535,14 +517,6 @@ class Unit {
                 ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
             }
 
-            const actualStrengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
-            if (strengthRatio > actualStrengthRatio) {
-                const damageBarStart = barWidth * actualStrengthRatio;
-                const damageBarWidth = barWidth * (strengthRatio - actualStrengthRatio);
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'; // Red
-                ctx.fillRect(barX + damageBarStart, barY, damageBarWidth, barHeight);
-            }
-            
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
@@ -554,6 +528,14 @@ class Unit {
             ctx.fillStyle = '#00ff00'; // Lime Green
             ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
             ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+
+        // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillStyle = 'red';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
+        ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
 
         // 대대/여단은 반투명한 아이콘을, 그 외에는 일반 아이콘을 그립니다.
         if (this instanceof CommandUnit) {
@@ -606,7 +588,7 @@ class Unit {
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
         ctx.font = '10px sans-serif';
-        ctx.fillText(`${this.name} [${this.currentStrength}]`, this.x, this.y + 25);
+        ctx.fillText(`${this.name}`, this.x, this.y + 25);
 
         // 피해량 텍스트 그리기
         ctx.font = 'bold 12px sans-serif';
