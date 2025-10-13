@@ -1,13 +1,16 @@
 /**
- * 지휘 부대 (사단, 여단, 대대)의 공통 로직을 담는 기본 클래스입니다.
+ * 지휘 부대 (사단, 여단, 연대, 대대)의 공통 로직을 담는 기본 클래스입니다.
  * Unit을 상속받습니다.
  */
 class CommandUnit extends Unit {
-    constructor(name, x, y, team, size) {
+    constructor(name, x, y, team, size, echelon = null) {
         super(name, x, y, 0, size, team);
         this.hqUnit = null;
         this.isIndependentMoving = false; // 독립적으로 이동 중인지 여부
         this.formationMode = 'base'; // 'base' 또는 'custom'
+        this.echelon = echelon; // 부대 규모 (e.g., 'DIVISION', 'BRIGADE')
+        this.echelonSymbol = ECHELON_SYMBOLS[echelon] || '';
+        this.reserveUnits = []; // 지휘관을 잃은 예비대 유닛 목록
     }
 
     // 지휘 부대의 위치는 항상 본부 중대의 위치를 따릅니다.
@@ -113,8 +116,8 @@ class CommandUnit extends Unit {
         if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof CommandUnit)) {
             // 사단/여단/연대의 경우: 휘하 대대들을 배치합니다.
             const hqX = this.hqUnit.x;
-            const hqY = this.hqUnit.y;
-            const battalions = this.subUnits.filter(u => u instanceof CommandUnit);
+            const hqY = this.hqUnit.y; 
+            const battalions = this.subUnits.filter(u => u instanceof CommandUnit && !u.isDestroyed);
 
             // 진형 계산 전에, 모든 하위 대대의 방향을 자신의 방향과 동기화합니다.
             // 이렇게 해야 대대 휘하의 중대들도 올바른 방향으로 진형을 유지할 수 있습니다.
@@ -168,7 +171,7 @@ class CommandUnit extends Unit {
             // 2단계: 대대의 경우: 휘하 중대들을 역할에 따라 배치합니다.
             const hqX = this.hqUnit.x;
             const hqY = this.hqUnit.y;
-            const companies = this.subUnits.filter(u => u instanceof Company && u.currentStrength > 0);
+            const companies = this.subUnits.filter(u => u instanceof Company && !u.isDestroyed);
 
             const roles = {};
             companies.forEach(c => {
@@ -218,70 +221,27 @@ class CommandUnit extends Unit {
             });
         }
     }
-}
-
-/** 사단 (Division) */
-class Division extends CommandUnit {
-    constructor(name, x, y, team, size) {
-        super(name, x, y, team, size);
-    }
 
     drawEchelonSymbol(ctx) {
+        if (!this.echelonSymbol) return;
+
         const size = this.size * 2;
-        ctx.font = `bold ${size * 0.8}px sans-serif`; // 'XX'가 잘 보이도록 폰트 크기 조정
+        // 심볼 길이에 따라 폰트 크기 동적 조절
+        const fontSize = this.echelonSymbol.length > 1 ? size * 0.8 : size;
+        ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'black';
-        ctx.fillText('XX', this.x, this.y + size * 0.1);
-    }
-}
-
-/** 여단 (Brigade) */
-class Brigade extends CommandUnit {
-    constructor(name, x, y, team, size) {
-        super(name, x, y, team, size);
-    }
-
-    drawEchelonSymbol(ctx) {
-        const size = this.size * 2; // 아이콘 크기에 비례
-        ctx.font = `bold ${size}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
-        ctx.fillText('X', this.x, this.y + size * 0.1); // 폰트에 따라 미세 조정
-    }
-}
-
-/** 연대 (Regiment) */
-class Regiment extends CommandUnit {
-    constructor(name, x, y, team, size) {
-        super(name, x, y, team, size);
-    }
-
-    drawEchelonSymbol(ctx) {
-        const size = this.size * 2; // 아이콘 크기에 비례
-        ctx.font = `bold ${size}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
-        ctx.fillText('|||', this.x, this.y + size * 0.1); // 폰트에 따라 미세 조정
+        ctx.fillText(this.echelonSymbol, this.x, this.y + size * 0.1);
     }
 }
 /** 대대 (Battalion) */
 class Battalion extends CommandUnit {
     constructor(name, x, y, team, size) {
-        super(name, x, y, team, size);
+        super(name, x, y, team, size, 'BATTALION');
         this.role = BATTALION_ROLES.MAIN_FORCE; // 기본 역할은 '주력'
     }
 
-    drawEchelonSymbol(ctx) {
-        const size = this.size * 2; // 아이콘 크기에 비례
-        ctx.font = `bold ${size}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
-        ctx.fillText('||', this.x, this.y + size * 0.1); // 폰트에 따라 미세 조정
-    }
 }
 /** 중대 (Company) */
 class Company extends Unit {

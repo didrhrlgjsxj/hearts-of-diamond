@@ -110,24 +110,27 @@ class GameUI {
         }
 
 
-        const activeCompanies = unit.getAllCompanies().filter(c => c.currentStrength > 0);
+        const allCompanies = unit.getAllCompanies();
         const composition = {};
 
         // 각 중대의 하위 분대 타입을 집계합니다.
-        for (const company of activeCompanies) {
+        for (const company of allCompanies) {
             const squads = company.getAllSquads();
             squads.forEach(squad => {
-                composition[squad.type] = (composition[squad.type] || 0) + 1;
+                if (!composition[squad.type]) {
+                    composition[squad.type] = { active: 0, total: 0 };
+                }
+                composition[squad.type].total++;
+                if (!squad.isDestroyed) {
+                    composition[squad.type].active++;
+                }
             });
         }
-        let html = `<h3>부대 구성 (${Object.values(composition).reduce((a, b) => a + b, 0)}개 분대)</h3>`;
+        let html = `<h3>부대 구성</h3>`;
         if (Object.keys(composition).length > 0) {
             html += '<ul>';
-            // UNIT_TYPES 순서대로 정렬하여 표시
-            Object.values(UNIT_TYPES).forEach(type => {
-                if (composition[type]) {
-                    html += `<li>${type}: ${composition[type]}</li>`;
-                }
+            Object.entries(composition).forEach(([type, counts]) => {
+                html += `<li>${type}: ${counts.active} / ${counts.total}</li>`;
             });
             html += '</ul>';
         }

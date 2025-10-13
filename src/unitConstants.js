@@ -72,3 +72,12 @@ const BATTALION_FORMATION_OFFSETS = {
 
 // 유닛 간 최소 이격 거리
 const MIN_UNIT_SPACING = 15;
+
+// 부대 규모(Echelon)별 심볼 정의
+const ECHELON_SYMBOLS = {
+    'DIVISION': 'XX',
+    'BRIGADE': 'X',
+    'REGIMENT': '|||',
+    'BATTALION': '||',
+    // 중대 이하는 각 클래스에서 직접 그림
+};

@@ -17,8 +17,8 @@ function updateUnits(topLevelUnits, deltaTime) {
         });
 
         // 모든 전투 가능 부대를 하나의 배열로 모읍니다.
-        if (unit.currentStrength > 0) {
-            allCombatSubUnits.push(...unit.combatSubUnits);
+        if (!unit.isDestroyed) {
+            allCombatSubUnits.push(...unit.combatSubUnits); // combatSubUnits는 이미 파괴된 유닛이 제거된 상태
         }
     });
 
@@ -82,11 +82,11 @@ function updateUnits(topLevelUnits, deltaTime) {
 
             // 1. 방어자의 기갑화율에 따라 유효 공격력을 계산합니다.
             const defenderHardness = target.hardness; // 목표 중대의 기갑화율
-            const effectiveAttack = attacker.totalSoftAttack * (1 - defenderHardness) + attacker.totalHardAttack * defenderHardness;
-            const totalAttackPower = Math.max(0, effectiveAttack - target.totalArmor);
+            const effectiveAttack = attacker.softAttack * (1 - defenderHardness) + attacker.hardAttack * defenderHardness;
+            const totalAttackPower = Math.max(0, effectiveAttack - target.armor);
 
             // 2. 화력은 조직력에 직접적인 추가 피해를 줍니다.
-            const firepowerDamage = attacker.totalFirepower * 1.5;
+            const firepowerDamage = attacker.firepower * 1.5;
 
             target.takeDamage(totalAttackPower, firepowerDamage, { x: attacker.x, y: attacker.y });
         }
@@ -120,17 +120,6 @@ function updateUnits(topLevelUnits, deltaTime) {
     topLevelUnits.forEach(unit => processUnitMovement(unit, deltaTime));
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
-
-    // --- 5. 파괴된 유닛 제거 ---
-    // 이 로직은 전역 변수인 topLevelUnits와 selectedUnit을 직접 수정할 수 있으므로,
-    // main.js에서 처리하는 것이 더 안전하지만, 편의상 여기서 처리합니다.
-    const cleanupResult = cleanupDestroyedUnits(topLevelUnits, window.selectedUnit);
-    if (topLevelUnits.length !== cleanupResult.remainingUnits.length) {
-        topLevelUnits.length = 0;
-        Array.prototype.push.apply(topLevelUnits, cleanupResult.remainingUnits);
-        window.selectedUnit = cleanupResult.newSelectedUnit;
-        window.gameUI.updateCompositionPanel(window.selectedUnit); // UI 업데이트
-    }
 }
 
 /**
@@ -139,21 +128,22 @@ function updateUnits(topLevelUnits, deltaTime) {
  * @param {number} deltaTime 
  */
 function processUnitMovement(unit, deltaTime) {
+    if (unit.isDestroyed) return;
     if (unit.updateMovement) {
         unit.updateMovement(deltaTime);
     }
     unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, deltaTime));
 }
-
 /**
  * 유닛과 그 하위 유닛들의 진형 로직(updateCombatSubUnitPositions)을 재귀적으로 처리합니다.
  * @param {Unit} unit 
  */
 function processFormationUpdate(unit) {
+    if (unit.isDestroyed) return;
     if (unit instanceof CommandUnit) {
         unit.updateCombatSubUnitPositions();
     }
-    unit.subUnits.forEach(subUnit => processFormationUpdate(subUnit));
+    unit.subUnits.forEach(subUnit => processFormationUpdate(subUnit)); // 파괴된 하위 유닛은 내부적으로 무시됨
 }
 
 /**
@@ -167,7 +157,7 @@ function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
     let minDistance = friendlySubUnit.engagementRange;
 
     for (const enemyTopLevelUnit of allTopLevelUnits) {
-        if (enemyTopLevelUnit.team === friendlySubUnit.team || enemyTopLevelUnit.currentStrength <= 0) continue;
+        if (enemyTopLevelUnit.team === friendlySubUnit.team || enemyTopLevelUnit.isDestroyed) continue;
 
         for (const enemySubUnit of enemyTopLevelUnit.combatSubUnits) {
             const distance = Math.hypot(friendlySubUnit.x - enemySubUnit.x, friendlySubUnit.y - enemySubUnit.y);
@@ -181,7 +171,7 @@ function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
 }
 
 /**
- * 파괴된 유닛(병력이 0 이하)을 게임 월드에서 제거합니다.
+ * 파괴된 최상위 유닛(isDestroyed가 true)을 게임 월드에서 제거합니다.
  * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
  * @param {Unit | null} selectedUnit - 현재 선택된 유닛
  * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
@@ -191,13 +181,10 @@ function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
     let newSelectedUnit = selectedUnit;
 
     for (const unit of topLevelUnits) {
-        if (unit.currentStrength > 0) {
+        if (!unit.isDestroyed) {
             remainingUnits.push(unit);
-        } else {
-            // 파괴된 유닛이 선택된 유닛이라면, 선택을 해제합니다.
-            if (newSelectedUnit === unit) {
-                newSelectedUnit = null;
-            }
+        } else if (newSelectedUnit === unit) {
+            newSelectedUnit = null;
         }
     }
     return { remainingUnits, newSelectedUnit };
