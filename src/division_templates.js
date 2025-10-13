@@ -174,6 +174,9 @@ const DIVISION_TEMPLATES = {
                 company.addUnit(platoon);
             }
 
+            // 이제 중대의 능력치는 하위 분대들로부터 자동으로 합산되므로
+            // 여기서 별도로 설정할 필요가 없습니다.
+
             return company;
         }
     },

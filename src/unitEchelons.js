@@ -101,7 +101,7 @@ class CommandUnit extends Unit {
         if (this.formationMode === 'custom') {
             // 커스텀 모드에서는 자동 진형 배치를 하지 않습니다.
             // 각 하위 부대는 사용자가 지정한 목표 지점(destination)으로 이동하거나
-            // 현재 위치를 유지합니다. 상위 부대의 진형 시스템이 더 이상 개입하지 않습니다.
+
             return; // 커스텀 진형일 때는 아래의 기본 진형 로직을 실행하지 않습니다.
         }
 
@@ -115,6 +115,12 @@ class CommandUnit extends Unit {
             const hqX = this.hqUnit.x;
             const hqY = this.hqUnit.y;
             const battalions = this.subUnits.filter(u => u instanceof CommandUnit);
+
+            // 진형 계산 전에, 모든 하위 대대의 방향을 자신의 방향과 동기화합니다.
+            // 이렇게 해야 대대 휘하의 중대들도 올바른 방향으로 진형을 유지할 수 있습니다.
+            battalions.forEach(battalion => {
+                battalion.direction = this.direction;
+            });
 
             const roles = {};
             battalions.forEach(b => {
@@ -181,10 +187,12 @@ class CommandUnit extends Unit {
 
                 // 역할에 대한 모든 진형 목표 지점을 미리 계산합니다.
                 for (let i = 0; i < count; i++) {
-                    const sideOffsetAngle = this.direction + Math.PI / 2;
+                    // 상위 부대(대대)의 현재 방향을 기준으로 진형을 계산합니다.
+                    const parentDirection = this.direction;
+                    const sideOffsetAngle = parentDirection + Math.PI / 2;
                     const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
-                    const destX = hqX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
-                    const destY = hqY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+                    const destX = hqX + (offsetInfo.distance * Math.cos(parentDirection)) + (sideOffset * Math.cos(sideOffsetAngle));
+                    const destY = hqY + (offsetInfo.distance * Math.sin(parentDirection)) + (sideOffset * Math.sin(sideOffsetAngle));
                     formationPoints.push({ x: destX, y: destY });
                 }
 

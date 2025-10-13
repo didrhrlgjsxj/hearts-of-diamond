@@ -5,76 +5,110 @@
  */
 function updateUnits(topLevelUnits, deltaTime) {
 
-    // --- 1. 상태 초기화 및 기본 업데이트 ---
+    // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
+    const allCombatSubUnits = [];
     topLevelUnits.forEach(unit => {
         unit.isInCombat = false;
         unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
         unit.tracers = []; // 예광탄 효과 초기화
         unit.updateVisuals(deltaTime); // 데미지 텍스트 등 시각 효과 업데이트
+        unit.getAllCompanies().forEach(c => {
+            c.isBeingTargeted = false; // 중대별 피격 상태 초기화
+        });
+
+        // 모든 전투 가능 부대를 하나의 배열로 모읍니다.
+        if (unit.currentStrength > 0) {
+            allCombatSubUnits.push(...unit.combatSubUnits);
+        }
     });
 
-    // --- 2. 유닛별 행동 처리 (탐지, 전투, 이동) ---
-    for (const attackerUnit of topLevelUnits) {
-        if (attackerUnit.currentStrength <= 0) continue;
+    // --- 2. 목표 탐색 및 전투 상태 설정 ---
+    const targetMap = new Map(); // 각 유닛이 누구를 목표로 할지 임시 저장
 
-        let closestEnemyTopLevel = null;
-        let minTopLevelDistance = Infinity;
+    for (const subUnit of allCombatSubUnits) {
+        // 측면 공격을 받으면, 공격자를 우선 목표로 설정합니다.
+        // 조건: 1. 내가 현재 측면 공격 중이고, 2. 다른 누군가가 나를 공격하고 있을 때
+        if (subUnit.currentTarget && subUnit.currentTarget.currentTarget !== subUnit && subUnit.isBeingTargeted) {
+            // 나를 공격하는 적들 중에서, 내 사거리 안에 있는 가장 가까운 적을 찾습니다.
+            const flankersInRange = allCombatSubUnits.filter(u => u.currentTarget === subUnit && Math.hypot(subUnit.x - u.x, subUnit.y - u.y) < subUnit.engagementRange);
 
-        // --- 최적화: 적 탐색 로직 통합 ---
-        // 모든 적 유닛을 한 번만 순회하여 거리 계산 후, 필요한 모든 로직(탐지, 방향, 전투 대상)을 처리합니다.
-        for (const targetUnit of topLevelUnits) {
-            if (targetUnit.team === attackerUnit.team || targetUnit.currentStrength <= 0) continue;
+            if (flankersInRange.length > 0) {
+                const closestFlanker = flankersInRange.reduce((closest, flanker) => {
+                    const dist = Math.hypot(subUnit.x - flanker.x, subUnit.y - flanker.y);
+                    return dist < closest.dist ? { unit: flanker, dist } : closest;
+                }, { unit: null, dist: Infinity }).unit;
 
-            const distance = Math.hypot(attackerUnit.x - targetUnit.x, attackerUnit.y - targetUnit.y);
-
-            // 1. 적 탐지 로직
-            if (distance < attackerUnit.detectionRange) {
-                attackerUnit.isEnemyDetected = true;
-            }
-
-            // 2. 가장 가까운 적 부대(최상위) 찾기 (진형 방향 결정용)
-            if (distance < minTopLevelDistance) {
-                minTopLevelDistance = distance;
-                closestEnemyTopLevel = targetUnit;
+                targetMap.set(subUnit, closestFlanker); // 반격 대상을 설정합니다.
+                continue; // 우선 목표가 정해졌으므로 일반 목표 탐색을 건너뜁니다.
             }
         }
 
-        // --- 진형 방향 결정 ---
-        if (closestEnemyTopLevel && (attackerUnit.isInCombat || !attackerUnit.destination)) {
-            attackerUnit.direction = Math.atan2(closestEnemyTopLevel.y - attackerUnit.y, closestEnemyTopLevel.x - attackerUnit.x);
-        }
+        // 일반적인 목표 탐색: 가장 가까운 적을 찾습니다.
+        let potentialTarget = null;
+        let minDistance = subUnit.engagementRange;
 
-        // --- 전투 로직 (개별 전투 부대 단위) ---
-        for (const combatSubUnit of attackerUnit.combatSubUnits) {
-            // 각 전투 중대에 대해 가장 가까운 적 전투 중대를 찾습니다.
-            const { unit: closestEnemySubUnit } = findClosestEnemySubUnit(combatSubUnit, topLevelUnits);
+        for (const targetSubUnit of allCombatSubUnits) {
+            if (targetSubUnit.team === subUnit.team) continue;
 
-            if (closestEnemySubUnit) {
-                const targetTopLevelUnit = closestEnemySubUnit.getTopLevelParent();
-                const attacker = combatSubUnit;
-                const defender = targetTopLevelUnit;
-
-                const piercingDamage = Math.max(0, attacker.hardAttack - defender.totalArmor);
-                const nonPiercingDamage = attacker.softAttack * Math.max(0.1, 1 - (defender.totalArmor / 10));
-                const strDamage = (piercingDamage + nonPiercingDamage) * 0.2;
-                const orgDamage = attacker.firepower * 1.5;
-
-                targetTopLevelUnit.takeDamage(orgDamage, strDamage, { x: combatSubUnit.x, y: combatSubUnit.y });
-
-                attackerUnit.isInCombat = true;
-                targetTopLevelUnit.isInCombat = true;
-
-                attackerUnit.tracers.push({
-                    from: combatSubUnit,
-                    to: closestEnemySubUnit,
-                    life: 0.5,
-                });
+            const distance = Math.hypot(subUnit.x - targetSubUnit.x, subUnit.y - targetSubUnit.y);
+            if (distance < minDistance) {
+                minDistance = distance;
+                potentialTarget = targetSubUnit;
             }
         }
+        targetMap.set(subUnit, potentialTarget);
+    }
 
+    // --- 3. 실제 공격 및 피해 계산 (턴 기반) ---
+    targetMap.forEach((target, attacker) => {
+        if (!target) {
+            attacker.currentTarget = null;
+            attacker.attackProgress = 0; // 공격 대상이 없으면 초기화
+            return;
+        }
+
+        attacker.currentTarget = target;
+        target.isBeingTargeted = true;
+        const attackerTopLevel = attacker.getTopLevelParent();
+        const targetTopLevel = target.getTopLevelParent();
+
+        attackerTopLevel.isInCombat = true;
+        targetTopLevel.isInCombat = true;
+
+        // 공격 턴 계산
+        attacker.attackProgress += deltaTime;
+        if (attacker.attackProgress >= attacker.attackCooldown) {
+            attacker.attackProgress = 0; // 턴 초기화
+
+            const defender = targetTopLevel;
+            const defenderHardness = defender.hardness;
+            const effectiveAttack = attacker.totalSoftAttack * (1 - defenderHardness) + attacker.totalHardAttack * defenderHardness;
+            const strDamage = Math.max(0, effectiveAttack - defender.totalArmor) * 0.1;
+            const orgDamage = attacker.totalFirepower * 1.5;
+
+            targetTopLevel.takeDamage(orgDamage, strDamage, { x: attacker.x, y: attacker.y });
+        }
+
+        // 전투 시각 효과 (예광탄)
+        const isFrontal = target.currentTarget === attacker;
+        attackerTopLevel.tracers.push({
+            from: attacker,
+            to: target,
+            life: 0.5,
+            type: isFrontal ? 'frontal' : 'flank'
+        });
+
+        // 전투 중 방향 전환
+        if (!attackerTopLevel.destination) {
+            attackerTopLevel.direction = Math.atan2(target.y - attackerTopLevel.y, target.x - attackerTopLevel.x);
+        }
+    });
+
+    // --- 4. 조직력 회복 및 최종 업데이트 ---
+    for (const unit of topLevelUnits) {
         // --- 조직력 회복 로직 ---
-        if (!attackerUnit.isInCombat && attackerUnit.organization < attackerUnit.maxOrganization) {
-            attackerUnit.organization = Math.min(attackerUnit.maxOrganization, attackerUnit.organization + attackerUnit.organizationRecoveryRate * deltaTime);
+        if (!unit.isInCombat && unit.organization < unit.maxOrganization) {
+            unit.organization = Math.min(unit.maxOrganization, unit.organization + unit.organizationRecoveryRate * deltaTime);
         }
     }
 

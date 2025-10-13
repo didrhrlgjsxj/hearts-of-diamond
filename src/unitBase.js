@@ -26,6 +26,10 @@ class Unit {
         this.moveSpeed = 30; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
+        this.attackCooldown = 2.0; // 공격 주기 (초)
+        this.attackProgress = 0;   // 현재 공격 진행도
+        this.currentTarget = null; // 현재 공격 대상
+        this.isBeingTargeted = false; // 다른 유닛에게 공격받고 있는지 여부
         this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
         this.formationRadius = 0; // 전투 부대 배치 반경
         this.organizationRecoveryRate = 5; // 초당 조직력 회복량
@@ -127,6 +131,22 @@ class Unit {
      */
     get baseStrength() {
         return this.subUnits.length > 0 ? this.subUnits.reduce((total, unit) => total + unit.baseStrength, 0) : this._baseStrength;
+    }
+
+    /**
+     * 부대의 기갑화율(Hardness)을 계산합니다. 0(완전 보병)에서 1(완전 기갑) 사이의 값입니다.
+     * 기갑화율은 대인/대물 공격이 얼마나 효과적으로 적용될지 결정하는 데 사용됩니다.
+     */
+    get hardness() {
+        const allSquads = this.getAllSquads();
+        if (allSquads.length === 0) {
+            return 0; // 분대가 없으면 소프트 타겟으로 간주
+        }
+
+        // 장갑이 1 이상인 분대의 비율을 기갑화율로 계산합니다.
+        // 이는 보병(장갑 0)과 기갑/차량화 유닛을 구분하는 간단한 척도입니다.
+        const armoredSquads = allSquads.filter(squad => squad.armor > 0).length;
+        return armoredSquads / allSquads.length;
     }
 
     /**
@@ -591,8 +611,12 @@ class Unit {
         this.tracers.forEach(t => {
             ctx.beginPath();
             ctx.moveTo(t.from.x, t.from.y);
-            ctx.lineTo(t.to.x, t.to.y);
-            ctx.strokeStyle = `rgba(255, 255, 150, ${t.alpha})`; // 밝은 노란색
+            ctx.lineTo(t.to.x, t.to.y); 
+            if (t.type === 'frontal') {
+                ctx.strokeStyle = `rgba(255, 0, 0, ${t.alpha})`; // 정면전투: 빨간색
+            } else { // 'flank'
+                ctx.strokeStyle = `rgba(0, 150, 255, ${t.alpha})`; // 측면전투: 파란색
+            }
             ctx.lineWidth = 1.5;
             ctx.stroke();
         });
