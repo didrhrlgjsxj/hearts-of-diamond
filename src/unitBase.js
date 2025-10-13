@@ -22,7 +22,6 @@ class Unit {
         this.isDestroyed = false; // 유닛이 파괴되었는지 여부
         this.destination = null; // 이동 목표 지점 {x, y}
         this.isRetreating = false; // 후퇴 중인지 여부
-        this.isHQ = false; // 본부(HQ) 유닛 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this.direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
         this.moveSpeed = 30; // 초당 이동 속도
@@ -346,18 +345,18 @@ class Unit {
             // combatSubUnits 목록에서만 제거하여 전투 로직에서 제외시킵니다.
             this.getTopLevelParent().combatSubUnits = this.getTopLevelParent().combatSubUnits.filter(s => s !== this);
 
-            // 만약 파괴된 유닛이 본부(HQ)였다면, 휘하의 남은 중대들을 예비대로 전환합니다.
-            if (this.isHQ && this.parent) {
-                const survivingCompanies = this.parent.subUnits.filter(u => u instanceof Company && u !== this && !u.isDestroyed);
+            // 만약 파괴된 유닛이 지휘 부대(CommandUnit)였다면, 휘하의 남은 중대들을 예비대로 전환합니다.
+            if (this instanceof CommandUnit) {
+                const survivingCompanies = this.subUnits.filter(u => u instanceof Company && !u.isDestroyed);
                 const topLevelParent = this.getTopLevelParent();
 
                 survivingCompanies.forEach(company => {
                     console.log(`${company.name}이(가) 지휘관을 잃고 예비대로 전환됩니다.`);
                     company.isReserve = true; // 예비대 상태로 변경
                     // 상위 부대의 목록에서 제거
-                    this.parent.subUnits = this.parent.subUnits.filter(u => u !== company);
+                    this.subUnits = this.subUnits.filter(u => u !== company);
                     // 최상위 부대의 예비대 목록으로 이동
-                    topLevelParent.reserveUnits.push(company);
+                    if (topLevelParent) topLevelParent.reserveUnits.push(company);
                 });
             }
         }
@@ -602,10 +601,7 @@ class Unit {
                     ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                     ctx.stroke();
 
-                    // 본부 중대는 지휘부대 아이콘과 겹치므로 그리지 않습니다.
-                    if (subUnit !== this.hqUnit) {
-                        subUnit.draw(ctx);
-                    }
+                    subUnit.draw(ctx);
                 } 
             });
         }

@@ -5,25 +5,11 @@
 class CommandUnit extends Unit {
     constructor(name, x, y, team, size, echelon = null) {
         super(name, x, y, 0, size, team);
-        this.hqUnit = null;
         this.isIndependentMoving = false; // 독립적으로 이동 중인지 여부
         this.formationMode = 'base'; // 'base' 또는 'custom'
         this.echelon = echelon; // 부대 규모 (e.g., 'DIVISION', 'BRIGADE')
         this.echelonSymbol = ECHELON_SYMBOLS[echelon] || '';
         this.reserveUnits = []; // 지휘관을 잃은 예비대 유닛 목록
-    }
-
-    // 지휘 부대의 위치는 항상 본부 중대의 위치를 따릅니다.
-    get x() { return this.hqUnit ? this.hqUnit._x : this._x; }
-    set x(value) {
-        if (this.hqUnit) this.hqUnit._x = value;
-        else this._x = value;
-    }
-
-    get y() { return this.hqUnit ? this.hqUnit._y : this._y; }
-    set y(value) {
-        if (this.hqUnit) this.hqUnit._y = value;
-        else this._y = value;
     }
 
     // 이동 명령을 받으면, 목표 지점과 방향만 설정합니다.
@@ -73,10 +59,7 @@ class CommandUnit extends Unit {
     // 이동 업데이트 시, 본부 중대에게 목표를 위임합니다.
     // 실제 이동 처리는 unitLogic.js에서 일괄적으로 수행됩니다.
     updateMovement(deltaTime) {
-        if (!this.hqUnit) return;
-
-        // 1. 자신의 이동 목표(destination)를 본부 중대(hqUnit)의 목표로 위임합니다.
-        this.hqUnit.destination = this.destination;
+        super.updateMovement(deltaTime); // Unit의 기본 이동 로직을 그대로 사용합니다.
 
         // 2. 목표 지점에 도달하면 독립 이동 상태를 해제합니다.
         if (this.isIndependentMoving && this.destination === null) { // 목표 도달
@@ -98,7 +81,7 @@ class CommandUnit extends Unit {
      * 2. 대대는 휘하의 중대들을 배치합니다.
      */
     updateCombatSubUnitPositions() {
-        if (this.subUnits.length === 0 || !this.hqUnit) return;
+        if (this.subUnits.length === 0) return;
 
         // 커스텀 진형 모드일 때의 로직
         if (this.formationMode === 'custom') {
@@ -115,8 +98,8 @@ class CommandUnit extends Unit {
         // 1단계: 하위 부대가 대대(CommandUnit)인지 확인합니다.
         if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof CommandUnit)) {
             // 사단/여단/연대의 경우: 휘하 대대들을 배치합니다.
-            const hqX = this.hqUnit.x;
-            const hqY = this.hqUnit.y; 
+            const hqX = this.x; // 자신의 위치를 기준으로 합니다.
+            const hqY = this.y; 
             const battalions = this.subUnits.filter(u => u instanceof CommandUnit && !u.isDestroyed);
 
             // 진형 계산 전에, 모든 하위 대대의 방향을 자신의 방향과 동기화합니다.
@@ -169,13 +152,12 @@ class CommandUnit extends Unit {
             });
         } else if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof Company)) {
             // 2단계: 대대의 경우: 휘하 중대들을 역할에 따라 배치합니다.
-            const hqX = this.hqUnit.x;
-            const hqY = this.hqUnit.y;
+            const hqX = this.x; // 자신의 위치를 기준으로 합니다.
+            const hqY = this.y;
             const companies = this.subUnits.filter(u => u instanceof Company && !u.isDestroyed);
 
             const roles = {};
             companies.forEach(c => {
-                if (c.isHQ) return; // 본부 중대는 진형 배치에서 제외
                 if (!roles[c.role]) roles[c.role] = [];
                 roles[c.role].push(c);
             });
