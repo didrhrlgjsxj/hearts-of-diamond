@@ -11,6 +11,7 @@ class GameUI {
         this.topLevelUnits = unitList;
         this.createControlPanel();
 
+
         // 부대 구성 정보 패널 생성
         this.compositionPanel = document.createElement('div');
         this.compositionPanel.id = 'composition-panel';
@@ -24,6 +25,11 @@ class GameUI {
     createControlPanel() {
         const panel = document.createElement('div');
         panel.id = 'control-panel';
+
+        // 진형 리셋 버튼 (처음에는 숨김)
+        this.resetFormationButton = document.createElement('button');
+        this.resetFormationButton.id = 'reset-formation-button';
+        this.resetFormationButton.textContent = '기본 진형으로 복귀';
 
         // 팀 선택
         const teamSelect = this.createSelect('team-select', '팀 선택:', {
@@ -43,7 +49,7 @@ class GameUI {
         spawnButton.textContent = '소환';
         spawnButton.onclick = () => this.spawnUnit();
 
-        panel.append('<h3>유닛 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
+        panel.append(this.resetFormationButton, '<h3>유닛 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
         document.body.appendChild(panel);
     }
 
@@ -89,6 +95,20 @@ class GameUI {
             this.compositionPanel.style.display = 'none';
             return;
         }
+
+        // 진형 리셋 버튼 표시 여부 결정
+        if (unit instanceof CommandUnit) {
+            this.resetFormationButton.style.display = 'block';
+            this.resetFormationButton.onclick = () => {
+                if (unit.resetFormation) {
+                    unit.resetFormation();
+                    console.log(`${unit.name}의 진형을 기본값으로 재설정합니다.`);
+                }
+            };
+        } else {
+            this.resetFormationButton.style.display = 'none';
+        }
+
 
         const activeCompanies = unit.getAllCompanies().filter(c => c.currentStrength > 0);
         const composition = {};

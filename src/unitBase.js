@@ -429,18 +429,22 @@ class Unit {
      * @returns {Unit|null}
      */
     getUnitAt(x, y) {
-        // 화면에 그려지는 순서의 역순(위에서부터)으로 클릭을 확인합니다.
-        // 1. 하위 유닛을 먼저 확인합니다.
-        // Company는 하위 유닛(소대, 분대)을 그리지 않으므로 확인할 필요가 없습니다.
-        if (!(this instanceof Company)) {
-            for (let i = this.subUnits.length - 1; i >= 0; i--) {
-                const subUnit = this.subUnits[i];
-                const found = subUnit.getUnitAt(x, y);
-                if (found) return found;
-            }
+        // 화면에 그려지는 순서의 역순(위에 그려진 유닛부터)으로 클릭을 확인합니다.
+        // 지휘 부대는 하위 부대(대대, 중대)를 먼저 확인합니다.
+        if (this instanceof CommandUnit) {
+             // CommandUnit은 subUnits(대대) 또는 combatSubUnits(중대)를 그립니다.
+             // 여기서는 클릭 가능한 대상인 subUnits(주로 대대)를 확인합니다.
+             for (let i = this.subUnits.length - 1; i >= 0; i--) {
+                 const subUnit = this.subUnits[i];
+                 // 중대는 지휘부대 아이콘 아래에 그려지므로 여기서는 확인하지 않습니다.
+                 if (subUnit instanceof CommandUnit) {
+                     const found = subUnit.getUnitAt(x, y);
+                     if (found) return found;
+                 }
+             }
         }
 
-        // 2. 하위 유닛에서 클릭된 것이 없으면 자기 자신을 확인합니다.
+        // 하위 유닛에서 클릭된 것이 없거나, 자신이 최하위 유닛이면 자기 자신을 확인합니다.
         const distance = Math.hypot(x - this.x, y - this.y);
         if (distance < this.size) {
             return this;

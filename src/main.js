@@ -53,13 +53,14 @@ canvas.addEventListener('click', (e) => {
     if (selectedUnit) {
         selectedUnit.setSelected(false);
     }
+
     // 새로 클릭된 유닛을 선택 상태로 만듦
     selectedUnit = clickedUnit;
     if (selectedUnit) {
         selectedUnit.setSelected(true);
     }
 
-    // 부대 구성 UI를 업데이트합니다.
+    // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
     gameUI.updateCompositionPanel(selectedUnit);
 });
 

@@ -31,8 +31,15 @@ const DIVISION_TEMPLATES = {
             division.addUnit(hqCompany);
 
             // 3. 10개의 보병 대대를 생성하여 추가합니다. (구조 단순화)
+            const rolesToAssign = [
+                ...Array(4).fill(BATTALION_ROLES.VANGUARD),   // 4개 대대 선봉
+                ...Array(4).fill(BATTALION_ROLES.MAIN_FORCE), // 4개 대대 주력
+                ...Array(2).fill(BATTALION_ROLES.RESERVE)     // 2개 대대 예비
+            ];
+
             for (let i = 0; i < 10; i++) {
                 const battalion = DIVISION_TEMPLATES["보병 대대"].build(unitName, x, y, team);
+                battalion.role = rolesToAssign[i]; // 역할 할당
                 division.addUnit(battalion);
             }
 

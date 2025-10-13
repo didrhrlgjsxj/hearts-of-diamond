@@ -56,5 +56,19 @@ const FORMATION_OFFSETS = {
     [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에
 };
 
+// 대대 역할 정의
+const BATTALION_ROLES = {
+    VANGUARD: '선봉',     // Vanguard: 선두에서 주력 공격 담당
+    MAIN_FORCE: '주력', // Main Force: 중앙에서 화력 지원
+    RESERVE: '예비',    // Reserve: 후방에서 대기 및 지원
+};
+
+// 대대 역할별 진형 오프셋 (중대보다 훨씬 넓은 간격)
+const BATTALION_FORMATION_OFFSETS = {
+    [BATTALION_ROLES.VANGUARD]: { distance: 250, spread: 150 }, // 선봉대는 가장 앞에 넓게
+    [BATTALION_ROLES.MAIN_FORCE]: { distance: 100, spread: 200 }, // 주력대는 중앙에 더 넓게
+    [BATTALION_ROLES.RESERVE]: { distance: -50, spread: 100 },  // 예비대는 본부 약간 뒤에
+};
+
 // 유닛 간 최소 이격 거리
 const MIN_UNIT_SPACING = 15;
