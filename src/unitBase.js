@@ -34,6 +34,8 @@ class Unit {
         this.formationRadius = 0; // 전투 부대 배치 반경
         this.organizationRecoveryRate = 5; // 초당 조직력 회복량 (비전투)
         this.organizationRecoveryRateInCombat = 0.5; // 초당 조직력 회복량 (전투 중)
+        this.minOrgDamageAbsorption = 0.1; // 조직력 0%일 때의 최소 피해 흡수율
+        this.maxOrgDamageAbsorption = 0.9; // 조직력 100%일 때의 최대 피해 흡수율
 
         // 신규 능력치
         this.firepower = 0;
@@ -77,11 +79,11 @@ class Unit {
      * 하위 유닛이 있으면 그 유닛들의 병력 총합을, 없으면 자신의 기본 병력을 기준으로 계산합니다.
      */
     get currentStrength() {
-        if (this.subUnits.length > 0) {
-            const subUnitsStrength = this.subUnits.reduce((total, unit) => total + unit.currentStrength, 0);
-            return subUnitsStrength;
-        }
-        return Math.max(0, Math.floor(this._baseStrength * (1 + (1/6) * this.reinforcementLevel) - this.damageTaken));
+        // 현재 내구력 = (편제상 최대 내구력) - (자신과 모든 하위 부대가 받은 누적 피해량)
+        const totalDamage = this.damageTaken + this.subUnits.reduce((total, unit) => {
+            return total + (unit.baseStrength - unit.currentStrength);
+        }, 0);
+        return Math.max(0, Math.floor(this.baseStrength - totalDamage));
     }
 
     // --- 능력치 Getter: 하위 유닛의 능력치를 재귀적으로 합산 ---
@@ -348,44 +350,35 @@ class Unit {
 
     /**
      * 피해를 받습니다.
-     * @param {number} amount 총 피해량
-     * @param {{x: number, y: number}} fromCoords 공격자 위치
-     * @param {number} orgDamage 조직력에 가해지는 기본 피해
-     * @param {number} strDamage 병력에 가해지는 기본 피해
+     * @param {number} totalAttackPower 장갑으로 경감된 후의 총 공격력
+     * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
+     * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
-    takeDamage(orgDamage, strDamage, fromCoords) {
-        // 이 유닛(중대)이 피해를 받았을 때, 실제 피해를 흡수할 하위 분대를 찾습니다.
-        const squadToTakeHit = this.findUnitToTakeDamage(fromCoords.x, fromCoords.y);
-        if (!squadToTakeHit) return; // 피해를 받을 분대가 없으면 종료
-
-        // 1. 조직력 피해는 중대 전체에 적용됩니다.
-        const actualOrgDamage = Math.min(this.organization, orgDamage);
-        this.organization -= actualOrgDamage;
-
-        // 2. 내구력(병력) 피해는 중대의 조직력 손실 정도에 따라 증폭됩니다.
+    takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
+        // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
-        const bonusDamageMultiplier = Math.pow(1 - orgRatio, 2); // 조직력이 0이면 1, 100이면 0. 제곱하여 초반 피해를 줄이고 후반 피해를 늘립니다.
-        
-        // 조직력이 0이 되어 막지 못한 조직력 피해도 병력 피해에 추가됩니다.
-        const orgSpilloverDamage = orgDamage - actualOrgDamage;
-        const totalStrengthDamage = (strDamage * 4) + orgSpilloverDamage + (strDamage * bonusDamageMultiplier);
+        const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
+        const damageAbsorptionRate = this.minOrgDamageAbsorption + (orgRatio * absorptionRange);
 
-        if (totalStrengthDamage > 0) { 
-            // 실제 내구력 피해는 해당 '분대'에 적용합니다.
-            squadToTakeHit.damageTaken += totalStrengthDamage;
-            // 상위 부대의 damageTaken은 currentStrength getter에서 재귀적으로 계산되므로 중복 누적하지 않습니다.
+        // 2. 총 공격력을 조직력 피해와 내구력 피해로 분배합니다.
+        const orgDamageFromAttack = totalAttackPower * damageAbsorptionRate;
+        const strengthDamage = totalAttackPower * (1 - damageAbsorptionRate);
 
-            // 피해량 텍스트를 해당 중대 위치에 생성합니다.
+        // 3. 최종 조직력 피해를 계산하고 적용합니다.
+        const finalOrgDamage = orgDamageFromAttack + firepowerDamage;
+        this.organization = Math.max(0, this.organization - finalOrgDamage);
+
+        // 4. 최종 내구력 피해를 이 유닛(중대)의 damageTaken에 직접 누적시킵니다.
+        if (strengthDamage > 0) {
+            this.damageTaken += strengthDamage;
+            // 내구력 피해량 텍스트를 생성합니다.
             this.getTopLevelParent().floatingTexts.push({
-                text: `-${Math.floor(totalStrengthDamage)}`,
+                text: `-${Math.floor(strengthDamage)}`,
                 life: 1.5, // 1.5초 동안 표시
                 alpha: 1.0,
-                x: squadToTakeHit.x, // 피해 입은 분대 위치에 표시
-                y: squadToTakeHit.y - squadToTakeHit.size - 5,
+                x: this.x, // 피해 입은 중대 위치에 표시
+                y: this.y - this.size - 5,
             });
-
-            // 피해를 입은 분대의 병력이 0 이하가 되면, 부모의 하위 유닛 목록과 최상위 부대의 전투 부대 목록에서 모두 제거합니다.
-            // 유닛 파괴 로직은 이제 unitLogic.js의 cleanupDestroyedUnits에서 처리됩니다.
         }
     }
 

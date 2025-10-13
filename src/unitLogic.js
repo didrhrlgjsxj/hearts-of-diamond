@@ -80,13 +80,15 @@ function updateUnits(topLevelUnits, deltaTime) {
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
+            // 1. 방어자의 기갑화율에 따라 유효 공격력을 계산합니다.
             const defenderHardness = target.hardness; // 목표 중대의 기갑화율
             const effectiveAttack = attacker.totalSoftAttack * (1 - defenderHardness) + attacker.totalHardAttack * defenderHardness;
-            const strDamage = Math.max(0, effectiveAttack - target.totalArmor); // 목표 중대의 장갑으로 계산
-            const orgDamage = attacker.totalFirepower * 1.5;
+            const totalAttackPower = Math.max(0, effectiveAttack - target.totalArmor);
 
-            // 실제 목표가 된 '중대'에게 직접 피해를 적용합니다.
-            target.takeDamage(orgDamage, strDamage, { x: attacker.x, y: attacker.y });
+            // 2. 화력은 조직력에 직접적인 추가 피해를 줍니다.
+            const firepowerDamage = attacker.totalFirepower * 1.5;
+
+            target.takeDamage(totalAttackPower, firepowerDamage, { x: attacker.x, y: attacker.y });
         }
 
         // 전투 시각 효과 (예광탄)

@@ -12,11 +12,13 @@
     *   **계층 구조**: `subUnits`(하위 부대 목록), `parent`(상위 부대 참조)를 통해 부대 간의 지휘 체계를 구성합니다. `isHQ` 속성으로 부대가 본부(HQ)인지 여부를 표시합니다.
     *   **상태 정보**: `isSelected`(선택 여부), `isRetreating`(후퇴 여부) 등 유닛의 현재 상태를 저장합니다.
 
-2.  **병력 및 능력치 (Stats)**
+2.  **내구력 및 능력치 (Stats)**
     *   **병력**: `_baseStrength`(기본 병력), `damageTaken`(받은 피해), `reinforcementLevel`(증강 레벨)을 통해 `currentStrength`(현재 병력)를 계산합니다. 하위 부대가 있으면 모든 하위 부대의 병력을 합산하여 자신의 병력으로 삼습니다.
     *   **전투 능력치**: `firepower`(화력), `softAttack`(대인 공격력), `hardAttack`(대물 공격력), `reconnaissance`(정찰력), `armor`(장갑) 등 개별 전투 능력치를 가집니다.
     *   **종합 능력치 (Total Stats)**: `totalFirepower`, `totalReconnaissance` 와 같이 `total`이 붙은 속성들은 하위 부대들의 능력치를 모두 합산하거나 평균을 내어 상위 부대의 종합 능력치를 실시간으로 계산합니다. 예를 들어, 여단의 총 정찰력은 소속된 모든 분대의 정찰력을 합한 값이 됩니다.
     *   **조직력 (Organization)**: 전투 지속력을 나타내는 `organization`과 `maxOrganization`을 가집니다.
+    *   **전투 관련**: `attackCooldown`(공격 주기), `currentTarget`(현재 공격 대상), `isBeingTargeted`(피격 여부) 등 전투의 세부 상태를 관리하는 속성들을 포함합니다.
+    *   **피해 흡수율**: `minOrgDamageAbsorption`과 `maxOrgDamageAbsorption` 속성을 통해 조직력이 피해를 흡수하는 최소/최대 비율을 정의합니다.
 
 3.  **핵심 메서드 (Methods)**
     *   **이동 관련**:
@@ -27,6 +29,12 @@
         *   `addUnit(unit)`: 자신의 하위 부대로 다른 유닛을 추가합니다.
         *   `getTopLevelParent()`: 자신의 최상위 지휘관 유닛을 찾아 반환합니다.
         *   `getAllSquads()`, `getAllCompanies()`: 자신 및 자신의 모든 하위 부대에 포함된 특정 종류의 유닛(분대, 중대) 목록을 재귀적으로 찾아 반환합니다.
+    *   **피해 처리**:
+        *   `takeDamage(totalAttackPower, firepowerDamage, ...)`: **새로운 피해 처리 로직의 핵심**입니다. 이 메서드는 공격자로부터 받은 총 공격력과 화력 피해를 인자로 받습니다.
+            1.  자신의 현재 조직력 상태에 따라 '피해 흡수율'을 계산합니다.
+            2.  총 공격력을 흡수율에 맞춰 '조직력 피해'와 '내구력 피해'로 분배합니다.
+            3.  계산된 조직력 피해와 추가 화력 피해를 자신의 조직력에 적용합니다.
+            4.  분배된 내구력 피해를 자신의 내구력(`damageTaken`)에 직접 적용합니다.
     *   **선택 및 상호작용**:
         *   `setSelected(selected)`: 유닛의 선택 상태를 변경합니다.
         *   `getUnitAt(x, y)`: 특정 좌표에 이 유닛이 있는지 확인합니다.
