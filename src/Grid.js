@@ -16,19 +16,19 @@ class Grid {
     /**
      * 카메라에 보이는 영역의 그리드만 동적으로 그립니다.
      * @param {CanvasRenderingContext2D} ctx 
-     * @param {Camera} camera 
+     * @param {LayerManager} layerManager 
      */
-    draw(ctx, camera) {
+    draw(ctx, layerManager) {
         ctx.save();
         ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
-        ctx.lineWidth = 1 / camera.zoom; // 줌 레벨에 따라 선 두께 조절
+        ctx.lineWidth = 1 / layerManager.finalScale; // 최종 스케일에 따라 선 두께 조절
 
         // 카메라 뷰포트 계산
         const view = {
-            x: camera.x,
-            y: camera.y,
-            w: camera.canvas.width / camera.zoom,
-            h: camera.canvas.height / camera.zoom,
+            x: layerManager.camera.x,
+            y: layerManager.camera.y,
+            w: layerManager.canvas.width / layerManager.finalScale,
+            h: layerManager.canvas.height / layerManager.finalScale,
         };
 
         const startX = Math.floor(view.x / this.cellSize) * this.cellSize;

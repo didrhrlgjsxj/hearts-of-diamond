@@ -12,7 +12,7 @@ export class Camera {
         this.y = 0;
         this.zoom = 1;
         this.edgeSize = 30; // 화면 가장자리 스크롤 감지 영역
-        this.moveSpeed = 300; // 카메라 이동 속도 (픽셀/초)
+        this.moveSpeed = 1000; // 카메라 이동 속도 (월드 유닛/초)
         this.keys = {
             w: false,
             a: false,
@@ -29,9 +29,9 @@ export class Camera {
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-            this.zoom *= zoomFactor;
-            // 줌 레벨을 최소 0.5, 최대 5로 제한합니다.
-            this.zoom = Math.max(0.05, Math.min(this.zoom, 5));
+            const newZoom = this.zoom * zoomFactor;
+            // 줌 레벨을 최소 0.5, 최대 2.5로 제한합니다.
+            this.zoom = Math.max(0.5, Math.min(newZoom, 2.5));
         });
 
         window.addEventListener('keydown', (e) => {
@@ -54,9 +54,8 @@ export class Camera {
      * @param {number} deltaTime 프레임 간 시간 간격 (초)
      */
     update(deltaTime) {
-        // 줌 레벨에 관계없이 화면 이동 속도를 일정하게 유지하기 위해
-        // 이동 거리를 현재 줌 레벨로 나눕니다.
-        const moveAmount = this.moveSpeed * deltaTime / this.zoom;
+        // 월드 좌표 기준 이동량. 줌 레벨과 무관하게 동일한 속도로 이동합니다.
+        const moveAmount = this.moveSpeed * deltaTime;
         
         if (this.keys.w) {
             this.y -= moveAmount;
@@ -73,15 +72,6 @@ export class Camera {
     }
 
     /**
-     * 캔버스 컨텍스트에 카메라의 변환(이동, 줌)을 적용합니다.
-     * @param {CanvasRenderingContext2D} ctx
-     */
-    applyTransform(ctx) {
-        ctx.translate(-this.x * this.zoom, -this.y * this.zoom);
-        ctx.scale(this.zoom, this.zoom);
-    }
-
-    /**
      * 화면 좌표를 월드 좌표로 변환합니다.
      * @param {number} screenX 화면 X 좌표
      * @param {number} screenY 화면 Y 좌표
@@ -89,8 +79,8 @@ export class Camera {
      */
     screenToWorld(screenX, screenY) {
         return {
-            x: (screenX / this.zoom) + this.x,
-            y: (screenY / this.zoom) + this.y,
+            x: screenX + this.x,
+            y: screenY + this.y,
         };
     }
 }
