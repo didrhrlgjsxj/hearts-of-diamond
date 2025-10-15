@@ -66,7 +66,7 @@ export const DIVISION_TEMPLATES = {
 
             // 5. 사단 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = division.getAllCompanies().length;
-            division.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
+            division.size = 150 + companyCount * 10; // 기본 크기150 + 중대당 10
 
             division.updateCombatSubUnitPositions();
             division.initializeOrganization(); // 모든 편제가 끝난 후 조직력 초기화
@@ -109,7 +109,7 @@ export const DIVISION_TEMPLATES = {
 
             // 5. 여단 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = brigade.getAllCompanies().length;
-            brigade.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
+            brigade.size = 100 + companyCount * 10; // 기본 크기 100 + 중대당 10
 
             brigade.updateCombatSubUnitPositions();
             brigade.initializeOrganization();
@@ -186,7 +186,7 @@ export const DIVISION_TEMPLATES = {
 
             // 대대 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = battalion.getAllCompanies().length;
-            battalion.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
+            battalion.size = 50 + companyCount * 5; // 기본 크기 50 + 중대당 5
             battalion.updateCombatSubUnitPositions();
             battalion.initializeOrganization();
             return battalion;
