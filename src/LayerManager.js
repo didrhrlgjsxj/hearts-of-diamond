@@ -51,7 +51,7 @@ export class LayerManager {
 
         // 3단계 레이어에서 벗어났는지 확인하고 네모 객체를 정리합니다.
         if (this.wasOnLayer3 && this.currentRenderLayer !== 3) {
-            console.log("3단계 줌 아웃: 모든 네모 객체를 정리합니다.");
+            console.error(`[LayerManager] 줌 아웃 감지! 모든 네모를 정리합니다. (이전 레이어: 3, 현재 레이어: ${this.currentRenderLayer})`);
             this.nemos.length = 0;
             this.platoonManager.platoons.length = 0;
             // 중대의 nemosSpawned 플래그도 리셋
@@ -60,6 +60,53 @@ export class LayerManager {
             });
         }
         this.wasOnLayer3 = (this.currentRenderLayer === 3);
+
+        // 3단계 레이어에 있고, 화면에 보이는 중대가 있다면 네모를 생성합니다.
+        if (this.currentRenderLayer === 3) {
+            const viewRect = {
+                x: this.camera.x,
+                y: this.camera.y,
+                w: this.canvas.width / this.finalScale,
+                h: this.canvas.height / this.finalScale,
+            };
+
+            this.topLevelUnits.forEach(unit => {
+                unit.getAllCompanies().forEach(company => {
+                    const isVisible = company.x > viewRect.x - company.size && company.x < viewRect.x + viewRect.w + company.size &&
+                                      company.y > viewRect.y - company.size && company.y < viewRect.y + viewRect.h + company.size;
+
+                    if (isVisible && !company.nemosSpawned) {
+                        console.log(`${company.name}이(가) 화면에 보여 하위 편제를 바탕으로 네모를 생성합니다.`);
+                        
+                        // 1. 중대 휘하의 모든 분대를 순회하며 Nemo 아바타를 실제 객체로 생성합니다.
+                        company.getAllSquads().forEach((squad, squadIndex) => {
+                            for (let i = 0; i < squad.nemoAvatars.length; i++) {
+                                const tacticalX = company.x * TACTICAL_SPACE_SCALE;
+                                const tacticalY = company.y * TACTICAL_SPACE_SCALE;
+                                const offsetX = (Math.random() - 0.5) * 400;
+                                const offsetY = (Math.random() - 0.5) * 400;
+                                const newNemo = new Nemo(tacticalX + offsetX, tacticalY + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
+                                
+                                squad.nemoAvatars[i] = newNemo; // 미리 만들어둔 공간에 실제 Nemo 객체 할당
+                                this.nemos.push(newNemo); // 전역 Nemo 배열에 추가
+                                newNemo.squad = squad.nemoSquad; // Nemo가 자신의 NemoSquad를 알도록 설정
+                            }
+                        });
+
+                        // 2. 이 중대에 소속된 모든 NemoSquad를 담을 새로운 NemoPlatoon을 생성합니다.
+                        const nemoSquadsForCompany = company.getAllSquads().map(s => s.nemoSquad);
+                        nemoSquadsForCompany.forEach(ns => {
+                            ns.nemos = company.getAllSquads().find(s => s.nemoSquad === ns).nemoAvatars;
+                            ns.assignLeader();
+                        });
+
+                        const nemoPlatoon = new NemoPlatoon(nemoSquadsForCompany, company.team, company);
+                        this.platoonManager.platoons.push(nemoPlatoon);
+                        company.nemosSpawned = true;
+                    }
+                });
+            });
+        }
     }
 
     /**
@@ -77,60 +124,18 @@ export class LayerManager {
     }
 
     draw(ctx) {
-        if (this.currentRenderLayer === 3) {
-            // 3단계: 중대와 네모를 함께 렌더링
-            const viewRect = {
-                x: this.camera.x,
-                y: this.camera.y,
-                w: this.canvas.width / this.finalScale,
-                h: this.canvas.height / this.finalScale,
-            };
+        // 그리드를 먼저 그려서 다른 객체들 아래에 위치하도록 합니다.
+        this.drawGrid(ctx);
 
+        if (this.currentRenderLayer === 3) {
+            // 3단계: 중대 아이콘과 네모를 함께 렌더링
             this.topLevelUnits.forEach(unit => {
                 unit.getAllCompanies().forEach(company => {
-                    const isVisible = company.x > viewRect.x - company.size && company.x < viewRect.x + viewRect.w + company.size &&
-                                      company.y > viewRect.y - company.size && company.y < viewRect.y + viewRect.h + company.size;
-
-                    if (isVisible) {
-                        if (!company.nemosSpawned) {
-                            console.log(`${company.name}이(가) 화면에 보여 하위 편제를 바탕으로 네모를 생성합니다.`);
-                            
-                            // 중대 휘하의 모든 소대를 순회합니다.
-                            company.subUnits.forEach(platoon => {
-                                const nemoPlatoonSquads = [];
-                                // 각 소대 휘하의 모든 분대를 순회합니다.
-                                platoon.subUnits.forEach(squad => {
-                                    const nemoSquadNemos = [];
-                                    // 각 분대는 3개의 네모로 구성됩니다.
-                                    for (let i = 0; i < 3; i++) {
-                                        const tacticalX = company.x * TACTICAL_SPACE_SCALE;
-                                        const tacticalY = company.y * TACTICAL_SPACE_SCALE;
-                                        const offsetX = (Math.random() - 0.5) * 400;
-                                        const offsetY = (Math.random() - 0.5) * 400;
-                                        const newNemo = new Nemo(tacticalX + offsetX, tacticalY + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
-                                        nemoSquadNemos.push(newNemo);
-                                        company.nemoAvatars.push(newNemo); // 중대에 네모 아바타 등록
-                                        this.nemos.push(newNemo);
-                                    }
-                                    // Armies의 분대에 해당하는 NemoSquad를 생성합니다.
-                                    const newNemoSquad = new NemoSquad(nemoSquadNemos, company.team);
-                                    nemoSquadNemos.forEach(n => n.squad = newNemoSquad);
-                                    nemoPlatoonSquads.push(newNemoSquad);
-                                });
-
-                                // Armies의 소대에 해당하는 NemoPlatoon을 생성하고 PlatoonManager에 추가합니다.
-                                const newNemoPlatoon = new NemoPlatoon(nemoPlatoonSquads, company.team, company);
-                                this.platoonManager.platoons.push(newNemoPlatoon);
-                            });
-
-                            company.nemosSpawned = true;
-                        }
-                        // 레이어 3에서는 중대 아이콘을 반투명하게 그립니다.
-                        ctx.save();
-                        ctx.globalAlpha = 0.2;
-                        company.draw(ctx); // 중대 아이콘은 전략 좌표계 기준
-                        ctx.restore();
-                    }
+                    // 레이어 3에서는 중대 아이콘을 반투명하게 그립니다.
+                    ctx.save();
+                    ctx.globalAlpha = 0.2;
+                    company.draw(ctx); // 중대 아이콘은 전략 좌표계 기준
+                    ctx.restore();
                 });
             });
 
@@ -157,5 +162,48 @@ export class LayerManager {
                 }
             });
         }
+    }
+
+    /**
+     * 현재 레이어에 맞춰 그리드를 그립니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    drawGrid(ctx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+        ctx.lineWidth = 1 / this.finalScale;
+
+        let view, cellSize, startX, endX, startY, endY;
+
+        if (this.currentRenderLayer === 3) {
+            // 3단계 뷰: 전술 좌표계에 맞춰 그리드를 그립니다.
+            view = {
+                x: this.camera.x * TACTICAL_SPACE_SCALE,
+                y: this.camera.y * TACTICAL_SPACE_SCALE,
+                w: this.canvas.width / this.finalScale,
+                h: this.canvas.height / this.finalScale,
+            };
+            cellSize = 40 * TACTICAL_SPACE_SCALE; // 그리드 셀 크기도 확대
+        } else {
+            // 1, 2단계 뷰: 전략 좌표계에 맞춰 그립니다.
+            view = {
+                x: this.camera.x,
+                y: this.camera.y,
+                w: this.canvas.width / this.finalScale,
+                h: this.canvas.height / this.finalScale,
+            };
+            cellSize = 40; // 기본 그리드 셀 크기
+        }
+
+        startX = Math.floor(view.x / cellSize) * cellSize;
+        endX = Math.ceil((view.x + view.w) / cellSize) * cellSize;
+        startY = Math.floor(view.y / cellSize) * cellSize;
+        endY = Math.ceil((view.y + view.h) / cellSize) * cellSize;
+
+        ctx.beginPath();
+        for (let x = startX; x < endX; x += cellSize) { ctx.moveTo(x, startY); ctx.lineTo(x, endY); }
+        for (let y = startY; y < endY; y += cellSize) { ctx.moveTo(startX, y); ctx.lineTo(endX, y); }
+        ctx.stroke();
+        ctx.restore();
     }
 }

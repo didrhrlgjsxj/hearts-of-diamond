@@ -5,13 +5,13 @@ import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SY
  * 이름, 위치, 하위 유닛 목록을 가집니다.
  */
 export class Unit {
-    constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue', type = null) {
+    constructor(name, x = 0, y = 0, baseDurability = 0, size = 5, team = 'blue', type = null) {
         this.name = name;
         this._x = x; // 유닛의 절대 또는 상대 X 좌표
         this._y = y; // 유닛의 절대 또는 상대 Y 좌표
         this.type = type; // 유닛 타입 (보병, 기갑 등)
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
-        this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
+        this._baseDurability = baseDurability; // 기본 내구력 (편제 인원)
         this.parent = null; // 상위 유닛 참조
         this.size = size; // 유닛 아이콘의 크기 (반지름)
         this.team = team; // 유닛의 팀 ('blue' 또는 'red')
@@ -28,7 +28,7 @@ export class Unit {
         this.direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
         this.moveSpeed = 150; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
-        this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
+        this.displayDurability = -1; // 화면에 표시되는 내구력 (애니메이션용)
         this.attackCooldown = 2.0; // 공격 주기 (초)
         this.attackProgress = 0;   // 현재 공격 진행도
         this.currentTarget = null; // 현재 공격 대상
@@ -79,19 +79,19 @@ export class Unit {
     }
 
     /**
-     * 현재 병력을 계산합니다.
-     * 하위 유닛이 있으면 그 유닛들의 병력 총합을, 없으면 자신의 기본 병력을 기준으로 계산합니다.
+     * 현재 내구력을 계산합니다.
+     * 하위 유닛이 있으면 그 유닛들의 내구력 총합을, 없으면 자신의 기본 내구력을 기준으로 계산합니다.
      */
-    get currentStrength() {
+    get currentDurability() {
         if (this.isDestroyed) return 0;
-        return Math.max(0, this.damageTaken > 0 ? this._baseStrength - this.damageTaken : this._baseStrength);
+        return Math.max(0, this.damageTaken > 0 ? this._baseDurability - this.damageTaken : this._baseDurability);
     }
 
     /**
-     * 기본 편성 병력을 반환합니다. 이 값은 생성 시점에 고정됩니다.
+     * 기본 편성 내구력을 반환합니다. 이 값은 생성 시점에 고정됩니다.
      */
-    get baseStrength() {
-        return this._baseStrength;
+    get baseDurability() {
+        return this._baseDurability;
     }
 
     /**
@@ -133,12 +133,12 @@ export class Unit {
         }
 
         // 상위 부대의 경우, 하위 유닛의 능력치를 합산합니다.
-        this._baseStrength = this.subUnits.reduce((sum, unit) => sum + unit._baseStrength, 0);
+        this._baseDurability = this.subUnits.reduce((sum, unit) => sum + unit._baseDurability, 0);
         this.firepower = this.subUnits.reduce((sum, unit) => sum + unit.firepower, 0);
         this.softAttack = this.subUnits.reduce((sum, unit) => sum + unit.softAttack, 0);
         this.hardAttack = this.subUnits.reduce((sum, unit) => sum + unit.hardAttack, 0);
         this.reconnaissance = this.subUnits.reduce((sum, unit) => sum + unit.reconnaissance, 0);
-        this.maxOrganization = 100 + this.subUnits.reduce((sum, unit) => sum + (unit.maxOrganization - 100), 0);
+        this.maxOrganization = 100 + this.subUnits.reduce((sum, unit) => sum + ((unit.maxOrganization || 100) - 100), 0);
     }
 
     /**
@@ -308,7 +308,7 @@ export class Unit {
         let minDistance = Infinity;
 
         for (const unit of this.combatSubUnits) {
-            if (unit.currentStrength <= 0) continue; // 이미 파괴된 유닛은 제외
+            if (unit.currentDurability <= 0) continue; // 이미 파괴된 유닛은 제외
             const distance = Math.hypot(unit.x - fromX, unit.y - fromY);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -324,7 +324,7 @@ export class Unit {
      */
     attack(target) {
         // 피해량은 현재 병력의 일부로 계산 (예: 1%)
-        const damage = this.currentStrength * 0.01;
+        const damage = this.currentDurability * 0.01;
         target.takeDamage(damage);
         this.isInCombat = true;
     }
@@ -332,7 +332,7 @@ export class Unit {
     /**
      * 피해를 받습니다.
      * @param {number} totalAttackPower 장갑으로 경감된 후의 총 공격력
-     * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
+     * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해 (내구력 피해)
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
     takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
@@ -345,7 +345,7 @@ export class Unit {
 
         // 2. 총 공격력을 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamageFromAttack = totalAttackPower * damageAbsorptionRate;
-        const strengthDamage = totalAttackPower * (1 - damageAbsorptionRate);
+        const durabilityDamage = totalAttackPower * (1 - damageAbsorptionRate);
 
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
         const finalOrgDamage = orgDamageFromAttack + firepowerDamage;
@@ -353,20 +353,20 @@ export class Unit {
 
         if (this.nemoAvatars.length > 0) {
             // 4. Nemo 파괴를 위한 피해 누적
-            this.damageAccumulator += strengthDamage;
-            const strengthPerNemo = this.baseStrength / this.nemoAvatars.length;
-            if (this.damageAccumulator >= strengthPerNemo && strengthPerNemo > 0) {
+            this.damageAccumulator += durabilityDamage;
+            const durabilityPerNemo = this.baseDurability / this.nemoAvatars.length;
+            if (this.damageAccumulator >= durabilityPerNemo && durabilityPerNemo > 0) {
                 this.destroyOneNemo();
-                this.damageAccumulator -= strengthPerNemo;
+                this.damageAccumulator -= durabilityPerNemo;
             }
         }
 
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
-        if (strengthDamage > 0) {
-            this.damageTaken += strengthDamage;
+        if (durabilityDamage > 0) {
+            this.damageTaken += durabilityDamage;
             // 내구력 피해량 텍스트를 생성합니다.
             this.getTopLevelParent().floatingTexts.push({
-                text: `-${Math.floor(strengthDamage)}`,
+                text: `-${Math.floor(durabilityDamage)}`,
                 life: 1.5, // 1.5초 동안 표시
                 alpha: 1.0,
                 x: this.x,
@@ -375,7 +375,7 @@ export class Unit {
         }
 
         // 5. 유닛이 파괴되었는지 확인하고, 그렇다면 상위 부대 목록에서 제거합니다.
-        if (this.currentStrength <= 0) {
+        if (this.currentDurability <= 0) {
             this.isDestroyed = true;
             this.organization = 0;
             this.destination = null;
@@ -404,12 +404,15 @@ export class Unit {
      * 중대의 병력 손실을 시각적으로 표현하기 위해 호출됩니다.
      */
     destroyOneNemo() {
-        if (this.nemoAvatars.length > 0) {
-            const randomIndex = Math.floor(Math.random() * this.nemoAvatars.length);
-            const nemoToDestroy = this.nemoAvatars[randomIndex];
+        const activeNemos = this.nemoAvatars.filter(n => n && !n.dead);
+        if (activeNemos.length > 0) {
+            // [디버그] 어떤 중대가 Nemo 파괴를 시작했는지 기록합니다.
+            console.log(`[unitBase.js] ${this.name}에서 내구력 피해로 인해 Nemo 파괴 로직 실행.`);
+            const randomIndex = Math.floor(Math.random() * activeNemos.length);
+            const nemoToDestroy = activeNemos[randomIndex];
             
             // Nemo의 파괴 메서드를 호출합니다.
-            nemoToDestroy.destroyed();
+            nemoToDestroy.destroyed("상위 부대 내구력 손실");
         }
     }
 
@@ -529,27 +532,27 @@ export class Unit {
         const barX = this.x - barWidth / 2;
         const barY = this.y - this.size - 15; // 아이콘 크기에 맞춰 동적으로 위치 조정
 
-            // 1. 병력 바 배경 (어두운 회색)
-            ctx.fillStyle = '#555';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
+        // 1. 내구력 바 배경 (어두운 회색)
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
 
-            // 2. 현재 내구력(Strength) 바
-            const currentBaseStrength = this.baseStrength; // 편제상의 최대 병력
-            const strengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
-            
-            const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
-            ctx.fillStyle = '#ff8c00'; // DarkOrange
-            ctx.fillRect(barX, barY, baseBarWidth, barHeight);
+        // 2. 현재 내구력(Durability) 바
+        const currentBaseDurability = this.baseDurability; // 편제상의 최대 내구력
+        const durabilityRatio = currentBaseDurability > 0 ? this.currentDurability / currentBaseDurability : 0;
+        
+        const baseBarWidth = barWidth * Math.min(durabilityRatio, 1);
+        ctx.fillStyle = '#ff8c00'; // DarkOrange
+        ctx.fillRect(barX, barY, baseBarWidth, barHeight);
 
-            if (strengthRatio > 1) {
-                const reinforcedBarWidth = barWidth * (strengthRatio - 1);
-                ctx.fillStyle = '#f0e68c'; // Khaki
-                ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
-            }
+        if (durabilityRatio > 1) {
+            const reinforcedBarWidth = barWidth * (durabilityRatio - 1);
+            ctx.fillStyle = '#f0e68c'; // Khaki
+            ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
+        }
 
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
 
             const orgBarY = barY + barHeight + 2;
             ctx.fillStyle = '#555';
@@ -562,9 +565,9 @@ export class Unit {
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
         // ctx.font = 'bold 14px sans-serif';
         // ctx.fillStyle = 'red';
-        // ctx.textAlign = 'center';
+        // ctx.textAlign = 'center'; 
         // ctx.textBaseline = 'bottom';
-        // ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
+        // ctx.fillText(`내구력: ${Math.floor(this.currentDurability)}`, this.x, this.y - this.size - 15);
         // ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
 
         // 대대/여단은 반투명한 아이콘을, 그 외에는 일반 아이콘을 그립니다.

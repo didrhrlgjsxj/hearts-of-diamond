@@ -1,4 +1,5 @@
 import { BATTALION_ROLES, COMPANY_ROLES } from "./unitConstants.js";
+import { NemoPlatoon, NemoSquad } from "../Nemos/NemoSquadManager.js";
 import { CommandUnit, Battalion, Company, Platoon, Squad } from "./unitEchelons.js";
 
 /**
@@ -9,7 +10,7 @@ import { CommandUnit, Battalion, Company, Platoon, Squad } from "./unitEchelons.
 // --- 미리 계산된 능력치 세트 ---
 // 보병 중대 (분대 9개 기준)
 const INFANTRY_COMPANY_STATS = {
-    _baseStrength: 108, // 12 * 9
+    _baseDurability: 108, // 12 * 9
     firepower: 9,       // 1 * 9
     softAttack: 18,     // 2 * 9
     hardAttack: 4.5,    // 0.5 * 9
@@ -31,7 +32,7 @@ export const DIVISION_TEMPLATES = {
         unitClass: CommandUnit,
         // 보병 대대 10개 + 본부 중대 1개 기준
         stats: {
-            _baseStrength: 5508, // (540 * 10) + 108
+            _baseDurability: 5508, // (540 * 10) + 108
             firepower: 459,      // (45 * 10) + 9
             softAttack: 918,     // (90 * 10) + 18
             hardAttack: 229.5,   // (22.5 * 10) + 4.5
@@ -78,7 +79,7 @@ export const DIVISION_TEMPLATES = {
         unitClass: CommandUnit,
         // 보병 대대 3개 + 본부 중대 1개 기준
         stats: {
-            _baseStrength: 1728,   // (540 * 3) + 108
+            _baseDurability: 1728,   // (540 * 3) + 108
             firepower: 144,      // (45 * 3) + 9
             softAttack: 288,     // (90 * 3) + 18
             hardAttack: 72,      // (22.5 * 3) + 4.5
@@ -121,7 +122,7 @@ export const DIVISION_TEMPLATES = {
         unitClass: CommandUnit,
         // 보병 대대 2개 + 본부 중대 1개 기준
         stats: {
-            _baseStrength: 1188,   // (540 * 2) + 108
+            _baseDurability: 1188,   // (540 * 2) + 108
             firepower: 99,       // (45 * 2) + 9
             softAttack: 198,     // (90 * 2) + 18
             hardAttack: 49.5,    // (22.5 * 2) + 4.5
@@ -158,7 +159,7 @@ export const DIVISION_TEMPLATES = {
         unitClass: Battalion,
         // 보병 중대 4개 + 본부 역할(중대 1개 분량) 기준
         stats: {
-            _baseStrength: 540,      // 108 * 5
+            _baseDurability: 540,      // 108 * 5
             firepower: 45,           // 9 * 5
             softAttack: 90,          // 18 * 5
             hardAttack: 22.5,        // 4.5 * 5
@@ -201,14 +202,12 @@ export const DIVISION_TEMPLATES = {
             const unitName = `제${unitNumber}중대 - ${parentName}`;
 
             const company = new Company(unitName, x, y, team, 7);
-            // Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
 
             // 보병 중대는 3개의 보병 소대로 구성됩니다.
             for (let i = 0; i < 3; i++) {
                 const platoon = DIVISION_TEMPLATES["Infantry Platoon"].build(unitName, x, y, team);
                 company.addUnit(platoon);
             }
-            company.size = 20; // 기본 크기 설정
 
             // 중대의 전투 단위는 자기 자신이므로, combatSubUnits에 자신을 추가합니다.
             // 실제 전투 로직은 중대 단위로 돌아갑니다.
@@ -216,6 +215,7 @@ export const DIVISION_TEMPLATES = {
 
             company.updateStatsFromSubUnits(); // 하위 유닛으로부터 능력치 재계산
             company.initializeOrganization();
+            company.size = 20; // 기본 크기 설정
 
             return company;
         }
@@ -230,9 +230,10 @@ export const DIVISION_TEMPLATES = {
 
             // 보병 소대는 3개의 보병 분대로 구성됩니다.
             for (let i = 0; i < 3; i++) {
-                const squad = DIVISION_TEMPLATES["Infantry Squad"].build(unitName, x, y, team);
+                const squad = DIVISION_TEMPLATES["Infantry Squad"].build(unitName, x, y, team, platoon);
                 platoon.addUnit(squad);
             }
+
             platoon.updateStatsFromSubUnits();
             return platoon;
         }
@@ -240,12 +241,22 @@ export const DIVISION_TEMPLATES = {
     "Infantry Squad": {
         name: "보병 분대",
         unitClass: Squad,
-        build: (parentName, x, y, team) => {
+        build: (parentName, x, y, team, platoon) => {
             const unitNumber = unitCounters['Squad']++;
             const unitName = `제${unitNumber}분대 - ${parentName}`;
             const squad = new Squad(unitName, x, y, team);
             // 분대는 최하위 단위이므로, 기본 능력치를 가집니다.
             // setType에서 능력치가 할당됩니다.
+
+            // NemoSquad를 생성할 때 상위 소대(platoon)를 전달하여 참조를 설정합니다.
+            squad.nemoSquad = new NemoSquad([], team, platoon);
+
+            // 분대에 해당하는 Nemo 아바타 3개를 미리 생성합니다.
+            for (let i = 0; i < 3; i++) {
+                // Nemo는 처음에는 비활성 상태로, 보이지 않게 생성됩니다.
+                squad.nemoAvatars.push(null); // 나중에 LayerManager에서 실제 Nemo 객체로 채워집니다.
+            }
+
             return squad;
         }
     },

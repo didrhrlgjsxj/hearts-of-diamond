@@ -1,4 +1,4 @@
-export const UNIT_STRENGTHS = {
+export const UNIT_DURABILITIES = {
     SQUAD: 12,
     PLATOON: 12 * 3,       // 36
     COMPANY: 12 * 3 * 3,     // 108
