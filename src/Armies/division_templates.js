@@ -206,6 +206,9 @@ export const DIVISION_TEMPLATES = {
             Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
             company.organization = company.maxOrganization;
             company.size = 7; // 중대 기본 크기
+            
+            // 이 중대가 어떤 종류와 수의 네모 스쿼드로 구성되는지 정의합니다.
+            company.setNemoSquadComposition('infantry', 9);
 
             return company;
         }
