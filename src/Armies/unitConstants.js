@@ -50,7 +50,7 @@ export const COMPANY_ROLES = {
 };
 
 // 진형 내 유닛 간 간격 배율
-export const FORMATION_SPREAD_MULTIPLIER = 2.0;
+export const FORMATION_SPREAD_MULTIPLIER = 4.0;
 
 // 역할별 진형 오프셋 (상대적 거리)
 export const FORMATION_OFFSETS = {
