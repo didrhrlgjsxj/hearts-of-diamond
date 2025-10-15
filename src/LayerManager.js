@@ -114,13 +114,10 @@ export class LayerManager {
      * @param {CanvasRenderingContext2D} ctx
      */
     applyTransform(ctx) {
-        if (this.currentRenderLayer === 3) {
-            ctx.scale(this.finalScale, this.finalScale);
-            ctx.translate(-this.camera.x * TACTICAL_SPACE_SCALE, -this.camera.y * TACTICAL_SPACE_SCALE);
-        } else {
-            ctx.scale(this.finalScale, this.finalScale);
-            ctx.translate(-this.camera.x, -this.camera.y);
-        }
+        ctx.scale(this.finalScale, this.finalScale);
+        const tx = this.currentRenderLayer === 3 ? this.camera.x * TACTICAL_SPACE_SCALE : this.camera.x;
+        const ty = this.currentRenderLayer === 3 ? this.camera.y * TACTICAL_SPACE_SCALE : this.camera.y;
+        ctx.translate(-tx, -ty);
     }
 
     draw(ctx) {

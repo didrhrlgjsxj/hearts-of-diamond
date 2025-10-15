@@ -315,7 +315,7 @@ function initEventListeners() {
 // LayerManager가 screenToWorld를 관리하도록 위임합니다.
 LayerManager.prototype.screenToWorld = function(screenX, screenY) {
     if (this.currentRenderLayer === 3) {
-        const TACTICAL_SPACE_SCALE = 10.0;
+        const TACTICAL_SPACE_SCALE = 20.0;
         return {
             x: ((screenX / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.x,
             y: ((screenY / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.y,
@@ -327,42 +327,6 @@ LayerManager.prototype.screenToWorld = function(screenX, screenY) {
         };
     }
 };
-
-
-function handleNemoRightClick(pos) {
-    const hasCombatUnits = selectedNemoSquads.length > 0 || selectedSquads.length > 0;
-    if (hasCombatUnits) {
-        if (selectedSquads.length > 0) {
-            // 전술 좌표계로 변환하여 목표 지점 설정
-            const TACTICAL_SPACE_SCALE = 10.0;
-            const tacticalPos = {
-                x: pos.x * TACTICAL_SPACE_SCALE,
-                y: pos.y * TACTICAL_SPACE_SCALE,
-            };
-            selectedSquads.forEach(squad => squad.setDestination(tacticalPos));
-            moveIndicators.push(new MoveIndicator(pos.x, pos.y, 40, 20, 'yellow'));
-        }
-
-        const individualNemos = selectedNemoSquads.map(s => s.nemos).flat().filter(n => !n.squad);
-        if (individualNemos.length > 0) {
-            const currentCenter = individualNemos.reduce((acc, n) => ({ x: acc.x + n.x, y: acc.y + n.y }), { x: 0, y: 0 });
-            currentCenter.x /= individualNemos.length;
-            currentCenter.y /= individualNemos.length;
-            individualNemos.forEach(n => {
-                // 전술 좌표계로 변환
-                const TACTICAL_SPACE_SCALE = 10.0;
-                const tacticalPosX = pos.x * TACTICAL_SPACE_SCALE;
-                const tacticalPosY = pos.y * TACTICAL_SPACE_SCALE;
-                const destX = tacticalPosX + (n.x - currentCenter.x);
-                const destY = tacticalPosY + (n.y - currentCenter.y);
-                n.setDestination(destX, destY);
-            });
-            if (selectedSquads.length === 0) {
-                moveIndicators.push(new MoveIndicator(pos.x, pos.y, 40, 20, 'yellow'));
-            }
-        }
-    }
-}
 
 function update(currentTime) {
     if (!lastTime) {
