@@ -336,6 +336,8 @@ export class Unit {
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
     takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
+        if (this.isDestroyed) return;
+
         // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
         const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
@@ -348,6 +350,16 @@ export class Unit {
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
         const finalOrgDamage = orgDamageFromAttack + firepowerDamage;
         this.organization = Math.max(0, this.organization - finalOrgDamage);
+
+        if (this.nemoAvatars.length > 0) {
+            // 4. Nemo 파괴를 위한 피해 누적
+            this.damageAccumulator += strengthDamage;
+            const strengthPerNemo = this.baseStrength / this.nemoAvatars.length;
+            if (this.damageAccumulator >= strengthPerNemo && strengthPerNemo > 0) {
+                this.destroyOneNemo();
+                this.damageAccumulator -= strengthPerNemo;
+            }
+        }
 
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
         if (strengthDamage > 0) {
