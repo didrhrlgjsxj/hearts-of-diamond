@@ -76,12 +76,16 @@ export class NemoSquadFormationManager {
         const perpendicular = direction + Math.PI / 2; // 대형의 좌우 방향
         let spacing = this.squad.cellSize * 1.2; // 유닛 간 기본 간격
         const lineDepth = this.squad.cellSize * 2; // 라인 간 깊이
-
-        // 스쿼드의 현재 중심점을 기준으로 진형을 계산합니다.
-        // 이동 중일 때는 가상 중심점을, 정지 시에는 리더의 위치를 사용합니다.
-        const squadCenter = this.squad.squadDestination
-            ? { x: this.squad.currentPos.x, y: this.squad.currentPos.y }
-            : { x: leader.x, y: leader.y };
+        
+        // 스쿼드의 현재 중심점을 모든 네모의 평균 위치로 계산하여 안정성을 높입니다.
+        let totalX = 0, totalY = 0;
+        this.squad.nemos.forEach(n => {
+            totalX += n.x;
+            totalY += n.y;
+        });
+        const squadCenter = this.squad.nemos.length > 0
+            ? { x: totalX / this.squad.nemos.length, y: totalY / this.squad.nemos.length }
+            : { x: 0, y: 0 }; // 네모가 없으면 (0,0)을 기본값으로 사용하여 NaN 방지
 
         this.formationPositions.clear(); // 매번 위치를 새로 계산
     

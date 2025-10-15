@@ -31,6 +31,7 @@ export class LayerManager {
         this.worldScale = LAYER_SCALES[1]; // 현재 레이어의 월드 스케일
         this.finalScale = this.worldScale * this.camera.zoom; // 최종 렌더링 스케일
         this.wasOnLayer3 = false;
+        this.TACTICAL_SPACE_SCALE = TACTICAL_SPACE_SCALE; // 다른 모듈에서 참조할 수 있도록 속성으로 만듭니다.
     }
 
     update() {
@@ -114,10 +115,12 @@ export class LayerManager {
      * @param {CanvasRenderingContext2D} ctx
      */
     applyTransform(ctx) {
+        // 3단계 뷰에서는 카메라의 전략 좌표에 TACTICAL_SPACE_SCALE을 곱하여 전술 좌표계 기준으로 변환합니다.
+        const camX = this.currentRenderLayer === 3 ? this.camera.x * this.TACTICAL_SPACE_SCALE : this.camera.x;
+        const camY = this.currentRenderLayer === 3 ? this.camera.y * this.TACTICAL_SPACE_SCALE : this.camera.y;
+
         ctx.scale(this.finalScale, this.finalScale);
-        const tx = this.currentRenderLayer === 3 ? this.camera.x * TACTICAL_SPACE_SCALE : this.camera.x;
-        const ty = this.currentRenderLayer === 3 ? this.camera.y * TACTICAL_SPACE_SCALE : this.camera.y;
-        ctx.translate(-tx, -ty);
+        ctx.translate(-camX, -camY);
     }
 
     draw(ctx) {
@@ -125,17 +128,6 @@ export class LayerManager {
         this.drawGrid(ctx);
 
         if (this.currentRenderLayer === 3) {
-            // 3단계: 중대 아이콘과 네모를 함께 렌더링
-            this.topLevelUnits.forEach(unit => {
-                unit.getAllCompanies().forEach(company => {
-                    // 레이어 3에서는 중대 아이콘을 반투명하게 그립니다.
-                    ctx.save();
-                    ctx.globalAlpha = 0.2;
-                    company.draw(ctx); // 중대 아이콘은 전략 좌표계 기준
-                    ctx.restore();
-                });
-            });
-
             // 3단계 레이어일 때만 네모 관련 객체들을 그립니다.
             this.nemos.forEach(nemo => nemo.draw(ctx, TACTICAL_SPACE_SCALE));
             this.platoonManager.draw(ctx);

@@ -314,19 +314,36 @@ function initEventListeners() {
 
 // LayerManager가 screenToWorld를 관리하도록 위임합니다.
 LayerManager.prototype.screenToWorld = function(screenX, screenY) {
-    if (this.currentRenderLayer === 3) {
-        const TACTICAL_SPACE_SCALE = 20.0;
-        return {
-            x: ((screenX / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.x,
-            y: ((screenY / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.y,
-        };
-    } else {
-        return {
-            x: (screenX / this.finalScale) + this.camera.x,
-            y: (screenY / this.finalScale) + this.camera.y,
-        };
-    }
+    // 줌 보정 시에는 항상 전략 좌표계를 기준으로 계산해야 좌표계 불일치 오류가 발생하지 않습니다.
+    // 3단계 뷰에서 실제 클릭/이동 명령을 내릴 때는, 해당 로직 내에서 전술 좌표계로 변환해야 합니다. (예: mousedown 이벤트 핸들러 내부)
+    // 이 함수는 줌 로직의 일관성을 위해 항상 전략 좌표 기준으로 계산하여 반환합니다.
+    return {
+        x: (screenX / this.finalScale) + this.camera.x,
+        y: (screenY / this.finalScale) + this.camera.y,
+    };
 };
+
+let debugTimer = 0;
+const DEBUG_INTERVAL = 1.0; // 1초
+
+function runDebug(deltaTime) {
+    debugTimer += deltaTime;
+    if (debugTimer < DEBUG_INTERVAL) return;
+
+    debugTimer = 0; // 타이머 리셋
+
+    console.log(`--- 1초 간격 디버그 ---`);
+    console.log(`카메라 좌표 (전략): x=${camera.x.toFixed(2)}, y=${camera.y.toFixed(2)}, zoom=${camera.zoom.toFixed(2)}`);
+
+    if (layerManager && layerManager.currentRenderLayer === 3 && nemos.length > 0) {
+        const firstNemo = nemos[0];
+        console.log(`첫 번째 Nemo #${firstNemo.id} 좌표 (전술): x=${firstNemo.x.toFixed(2)}, y=${firstNemo.y.toFixed(2)}`);
+        if (nemos.length > 1) {
+            const lastNemo = nemos[nemos.length - 1];
+            console.log(`마지막 Nemo #${lastNemo.id} 좌표 (전술): x=${lastNemo.x.toFixed(2)}, y=${lastNemo.y.toFixed(2)}`);
+        }
+    }
+}
 
 function update(currentTime) {
     if (!lastTime) {
@@ -335,6 +352,9 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000;
     const effectiveDeltaTime = isPaused ? 0 : deltaTime * timeScale;
     lastTime = currentTime;
+
+    // 디버그 메시지 출력 실행
+    runDebug(effectiveDeltaTime);
     
     // 1. 렌더링 레이어를 가장 먼저 업데이트하여 현재 프레임의 상태를 확정합니다.
     layerManager.update();
