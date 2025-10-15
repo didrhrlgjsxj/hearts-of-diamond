@@ -1,8 +1,9 @@
-import { Platform, AttackPlatform } from './Platform.js';  // MovePlatform과 AttackPlatform을 가져옵니다.
+import { AttackPlatform } from './Platform.js';  // MovePlatform과 AttackPlatform을 가져옵니다.
 import Gear from './Gear.js';
 import ShatterEffect from './ShatterEffect.js';
 import { MineralPiece, Storage } from '../Resource.js';
 import { TeamManagers } from '../TeamManager.js';
+import { deathEffects, gatherEffects } from '../effects.js';
 
 class Nemo {
     static nextId = 1;

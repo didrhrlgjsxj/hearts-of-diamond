@@ -1,8 +1,10 @@
+import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, MIN_UNIT_SPACING, UNIT_TYPE_ICONS } from "./unitConstants.js";
+
 /**
  * 모든 군사 유닛의 기본이 되는 클래스입니다.
  * 이름, 위치, 하위 유닛 목록을 가집니다.
  */
-class Unit {
+export class Unit {
     constructor(name, x = 0, y = 0, baseStrength = 0, size = 5, team = 'blue', type = null) {
         this.name = name;
         this._x = x; // 유닛의 절대 또는 상대 X 좌표
@@ -639,3 +641,6 @@ class Unit {
         // 각 클래스에서 개별적으로 구현됩니다.
     }
 }
+
+// To be used by unitEchelons.js
+import { CommandUnit, Battalion, Company, Squad } from './unitEchelons.js';

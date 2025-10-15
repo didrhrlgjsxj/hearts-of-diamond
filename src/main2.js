@@ -26,7 +26,7 @@ const buildMenu = document.getElementById("buildMenu");
 
 // 배경 이미지 설정
 const background = new Image();
-background.src = "src/BackGround.webp"; // 배경 이미지 경로
+background.src = "Background.webp"; // 배경 이미지 경로
 const backgroundWidth = 4800; // 배경 너비 (1600 * 3)
 const backgroundHeight = 3600; // 배경 높이 (1200 * 3)
 
