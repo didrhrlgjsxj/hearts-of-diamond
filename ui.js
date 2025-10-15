@@ -1,5 +1,7 @@
 import { DIVISION_TEMPLATES } from './src/Armies/division_templates.js';
 import { CommandUnit } from './src/Armies/unitEchelons.js';
+import Nemo from './src/Nemos/Nemo.js';
+import { Squad } from './src/Nemos/NemoSquadManager.js';
 
 // main.js에서 생성될 ghostSquad를 위한 전역 변수 선언
 window.ghostSquad = null;
@@ -20,6 +22,7 @@ export class GameUI {
         this.topLevelUnits = topLevelUnits;
         this.nemos = nemos;
         this.squadManager = squadManager;
+        this.workers = workers; // Nemo 소환에 필요
         this.createControlPanel();
 
 
@@ -63,11 +66,11 @@ export class GameUI {
         // Nemo 소환 버튼들
         const spawnRedNemoUnitBtn = document.createElement('button');
         spawnRedNemoUnitBtn.textContent = 'Nemo Red Unit';
-        spawnRedNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'red'); // createGhostSquad는 main.js에 정의되어야 합니다.
+        spawnRedNemoUnitBtn.onclick = () => this.spawnNemoSquad('A', 'red');
 
         const spawnBlueNemoUnitBtn = document.createElement('button');
         spawnBlueNemoUnitBtn.textContent = 'Nemo Blue Unit';
-        spawnBlueNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'blue');
+        spawnBlueNemoUnitBtn.onclick = () => this.spawnNemoSquad('A', 'blue');
 
 
         panel.append(this.resetFormationButton, '<h3>Armies 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
@@ -110,6 +113,39 @@ export class GameUI {
                 console.warn(`Could not spawn unit. The template "${template.name}" is not spawnable as a top-level unit.`);
             }
         }
+    }
+
+    /**
+     * 화면 중앙에 Nemo 스쿼드를 즉시 소환합니다.
+     * @param {string} squadType - 스쿼드 타입 ('A', 'B' 등)
+     * @param {string} team - 소환할 팀 ('red' 또는 'blue')
+     */
+    spawnNemoSquad(squadType, team) {
+        const spawnPos = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
+        const squadNemos = [];
+        const numUnits = 3;
+
+        for (let i = 0; i < numUnits; i++) {
+            // 유닛들을 소환 위치 주변에 약간 흩어지게 배치
+            const offsetX = (Math.random() - 0.5) * 80;
+            const offsetY = (Math.random() - 0.5) * 80;
+            let newNemo;
+
+            if (squadType === 'A') { // A형: unit 3기
+                newNemo = new Nemo(spawnPos.x + offsetX, spawnPos.y + offsetY, team, ["attack"], "unit", "sqaudio", "ranged", false);
+            } else { // B형: sqaudio 3기
+                newNemo = new Nemo(spawnPos.x + offsetX, spawnPos.y + offsetY, team, ["attack", "attack"], "army", "sqaudio", "ranged", true);
+            }
+            squadNemos.push(newNemo);
+            this.nemos.push(newNemo); // main.js의 nemos 배열에 추가
+        }
+
+        // Squad 인스턴스를 생성하고 SquadManager에 등록합니다.
+        const newSquad = new Squad(squadNemos, team, this.squadManager.cellSize);
+        squadNemos.forEach(n => n.squad = newSquad);
+        this.squadManager.squads.push(newSquad);
+
+        console.log(`Spawned: Nemo Squad (Type: ${squadType}, Team: ${team})`);
     }
 
     /**

@@ -1,7 +1,7 @@
 import { Camera } from './camera.js';
 import { GameUI } from '../ui.js';
 import { cleanupDestroyedUnits, updateUnits } from './Armies/unitLogic.js';
-import Grid from './Grid.js';
+import Grid from './Grid.js'; // NemoSquadManager.js에서 Squad를 import하므로 Nemo도 필요합니다.
 import { Squad, SquadManager } from './Nemos/NemoSquadManager.js';
 import MoveIndicator from './Nemos/MoveIndicator.js';
 import { MineralPatch, Storage } from './Resource.js';
