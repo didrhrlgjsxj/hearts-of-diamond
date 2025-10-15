@@ -234,7 +234,7 @@ export class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
         this.role = COMPANY_ROLES.SUSTAINMENT; // 기본 역할. division_templates에서 덮어쓸 수 있음.
-        this.formationRadius = 20;
+        this.formationRadius = 20; // 이 속성은 더 이상 사용되지 않을 수 있습니다.
         this.nemosSpawned = false; // 이 중대의 네모들이 실제로 생성되었는지 여부
         this.damageAccumulator = 0; // Nemo 파괴를 트리거하기 위한 피해 누적 변수
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.

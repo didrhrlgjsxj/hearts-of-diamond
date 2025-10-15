@@ -44,7 +44,7 @@ export class Unit {
         this.firepower = 0;
         this.softAttack = 0;
         this.hardAttack = 0;
-        this.reconnaissance = 0;
+        this.reconnaissance = 0; // 분대급에서만 의미있는 값
         this.nemoAvatars = []; // 이 유닛을 시각적으로 대표하는 Nemo 객체들의 배열
         this.armor = 0;
         this.tracers = []; // 예광탄 효과 배열
@@ -137,7 +137,7 @@ export class Unit {
         this.firepower = this.subUnits.reduce((sum, unit) => sum + unit.firepower, 0);
         this.softAttack = this.subUnits.reduce((sum, unit) => sum + unit.softAttack, 0);
         this.hardAttack = this.subUnits.reduce((sum, unit) => sum + unit.hardAttack, 0);
-        this.reconnaissance = this.subUnits.reduce((sum, unit) => sum + unit.reconnaissance, 0);
+        this.reconnaissance = this.subUnits.reduce((sum, unit) => sum + unit.reconnaissance, 0); // 정찰력은 합산
         this.maxOrganization = 100 + this.subUnits.reduce((sum, unit) => sum + ((unit.maxOrganization || 100) - 100), 0);
     }
 
@@ -406,8 +406,6 @@ export class Unit {
     destroyOneNemo() {
         const activeNemos = this.nemoAvatars.filter(n => n && !n.dead);
         if (activeNemos.length > 0) {
-            // [디버그] 어떤 중대가 Nemo 파괴를 시작했는지 기록합니다.
-            console.log(`[unitBase.js] ${this.name}에서 내구력 피해로 인해 Nemo 파괴 로직 실행.`);
             const randomIndex = Math.floor(Math.random() * activeNemos.length);
             const nemoToDestroy = activeNemos[randomIndex];
             

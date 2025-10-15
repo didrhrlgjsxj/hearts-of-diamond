@@ -1,10 +1,10 @@
 import Nemo from './Nemos/Nemo.js';
 import { NemoPlatoon, NemoSquad } from './Nemos/NemoSquadManager.js';
-import { CommandUnit } from './Armies/unitEchelons.js';
+import { CommandUnit, Company } from './Armies/unitEchelons.js';
 
 const ZOOM_THRESHOLDS = { // 카메라의 zoom 값 기준
     LEVEL_2: 0.8,
-    LEVEL_3: 1.2, // 3단계 진입 시점을 낮춰 더 빨리 전술 뷰로 전환
+    LEVEL_3: 1.2,
 };
 
 const LAYER_SCALES = { // 각 레이어별 실제 렌더링 배율
@@ -19,13 +19,13 @@ const TACTICAL_SPACE_SCALE = 20.0;
 /**
  * 카메라 줌 레벨에 따라 다른 객체를 렌더링하는 레이어 시스템을 관리합니다.
  */
-export class LayerManager {
+export class LayerManager { // eslint-disable-line
     constructor(camera, canvas, topLevelUnits, nemos, squadManager) {
         this.camera = camera;
         this.canvas = canvas;
         this.topLevelUnits = topLevelUnits;
         this.nemos = nemos;
-        this.platoonManager = squadManager;
+        this.platoonManager = squadManager; // NemoPlatoonManager
 
         this.currentRenderLayer = 1;
         this.worldScale = LAYER_SCALES[1]; // 현재 레이어의 월드 스케일
@@ -63,51 +63,56 @@ export class LayerManager {
         this.wasOnLayer3 = (this.currentRenderLayer === 3);
 
         // 3단계 레이어에 있고, 화면에 보이는 중대가 있다면 네모를 생성합니다.
-        if (this.currentRenderLayer === 3) {
-            const viewRect = {
-                x: this.camera.x,
-                y: this.camera.y,
-                w: this.canvas.width / this.finalScale,
-                h: this.canvas.height / this.finalScale,
-            };
+        if (this.currentRenderLayer !== 3) return;
 
-            this.topLevelUnits.forEach(unit => {
-                unit.getAllCompanies().forEach(company => {
-                    const isVisible = company.x > viewRect.x - company.size && company.x < viewRect.x + viewRect.w + company.size &&
-                                      company.y > viewRect.y - company.size && company.y < viewRect.y + viewRect.h + company.size;
+        const viewRect = {
+            x: this.camera.x - (this.canvas.width / 2 / this.finalScale),
+            y: this.camera.y - (this.canvas.height / 2 / this.finalScale),
+            w: this.canvas.width / this.finalScale,
+            h: this.canvas.height / this.finalScale,
+        };
 
-                    if (isVisible && !company.nemosSpawned) {
-                        console.log(`${company.name}이(가) 화면에 보여 하위 편제를 바탕으로 네모를 생성합니다.`);
-                        
-                        // 1. 중대 휘하의 모든 분대를 순회하며 Nemo 아바타를 실제 객체로 생성합니다.
-                        company.getAllSquads().forEach((squad, squadIndex) => {
-                            for (let i = 0; i < squad.nemoAvatars.length; i++) {
-                                const tacticalX = company.x * TACTICAL_SPACE_SCALE;
-                                const tacticalY = company.y * TACTICAL_SPACE_SCALE;
-                                const offsetX = (Math.random() - 0.5) * 400;
-                                const offsetY = (Math.random() - 0.5) * 400;
-                                const newNemo = new Nemo(tacticalX + offsetX, tacticalY + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
-                                
-                                squad.nemoAvatars[i] = newNemo; // 미리 만들어둔 공간에 실제 Nemo 객체 할당
-                                this.nemos.push(newNemo); // 전역 Nemo 배열에 추가
-                                newNemo.squad = squad.nemoSquad; // Nemo가 자신의 NemoSquad를 알도록 설정
-                            }
-                        });
+        this.topLevelUnits.forEach(unit => {
+            unit.getAllCompanies().forEach(company => {
+                if (company.isDestroyed) return;
 
-                        // 2. 이 중대에 소속된 모든 NemoSquad를 담을 새로운 NemoPlatoon을 생성합니다.
-                        const nemoSquadsForCompany = company.getAllSquads().map(s => s.nemoSquad);
-                        nemoSquadsForCompany.forEach(ns => {
-                            ns.nemos = company.getAllSquads().find(s => s.nemoSquad === ns).nemoAvatars;
-                            ns.assignLeader();
-                        });
+                const isVisible = company.x > viewRect.x - company.size && company.x < viewRect.x + viewRect.w + company.size &&
+                                  company.y > viewRect.y - company.size && company.y < viewRect.y + viewRect.h + company.size;
 
-                        const nemoPlatoon = new NemoPlatoon(nemoSquadsForCompany, company.team, company);
-                        this.platoonManager.platoons.push(nemoPlatoon);
-                        company.nemosSpawned = true;
-                    }
-                });
+                if (isVisible && !company.nemosSpawned) {
+                    console.log(`${company.name}이(가) 화면에 보여 하위 편제를 바탕으로 네모를 생성합니다.`);
+                    
+                    // 1. 중대 휘하의 모든 분대를 순회하며 Nemo 아바타를 실제 객체로 생성합니다.
+                    const allSquadsInCompany = company.getAllSquads();
+                    allSquadsInCompany.forEach(squad => {
+                        for (let i = 0; i < squad.nemoAvatars.length; i++) {
+                            // 중대의 전략 좌표를 전술 좌표로 변환하여 Nemo의 기본 위치를 설정합니다.
+                            const tacticalX = company.x * TACTICAL_SPACE_SCALE;
+                            const tacticalY = company.y * TACTICAL_SPACE_SCALE;
+                            const offsetX = (Math.random() - 0.5) * 400; // 스폰 시 약간 흩어지게
+                            const offsetY = (Math.random() - 0.5) * 400;
+                            
+                            const newNemo = new Nemo(tacticalX + offsetX, tacticalY + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
+                            
+                            squad.nemoAvatars[i] = newNemo; // 미리 만들어둔 공간에 실제 Nemo 객체 할당
+                            this.nemos.push(newNemo); // 전역 Nemo 배열에 추가
+                            newNemo.squad = squad.nemoSquad; // Nemo가 자신의 NemoSquad를 알도록 설정
+                        }
+                    });
+
+                    // 2. 이 중대에 소속된 모든 NemoSquad를 담을 새로운 NemoPlatoon을 생성합니다.
+                    const nemoSquadsForCompany = allSquadsInCompany.map(s => s.nemoSquad);
+                    nemoSquadsForCompany.forEach(ns => {
+                        ns.nemos = allSquadsInCompany.find(s => s.nemoSquad === ns).nemoAvatars;
+                        ns.assignLeader();
+                    });
+
+                    const nemoPlatoon = new NemoPlatoon(nemoSquadsForCompany, company.team, company);
+                    this.platoonManager.platoons.push(nemoPlatoon);
+                    company.nemosSpawned = true;
+                }
             });
-        }
+        });
     }
 
     /**
@@ -115,12 +120,10 @@ export class LayerManager {
      * @param {CanvasRenderingContext2D} ctx
      */
     applyTransform(ctx) {
-        // 3단계 뷰에서는 카메라의 전략 좌표에 TACTICAL_SPACE_SCALE을 곱하여 전술 좌표계 기준으로 변환합니다.
-        const camX = this.currentRenderLayer === 3 ? this.camera.x * this.TACTICAL_SPACE_SCALE : this.camera.x;
-        const camY = this.currentRenderLayer === 3 ? this.camera.y * this.TACTICAL_SPACE_SCALE : this.camera.y;
-
+        // 1. 스케일을 먼저 적용합니다.
         ctx.scale(this.finalScale, this.finalScale);
-        ctx.translate(-camX, -camY);
+        // 2. 카메라의 중심이 캔버스의 중심과 일치하도록 이동시킵니다.
+        ctx.translate(-this.camera.x + (this.canvas.width / 2 / this.finalScale), -this.camera.y + (this.canvas.height / 2 / this.finalScale));
     }
 
     draw(ctx) {
@@ -129,7 +132,7 @@ export class LayerManager {
 
         if (this.currentRenderLayer === 3) {
             // 3단계 레이어일 때만 네모 관련 객체들을 그립니다.
-            this.nemos.forEach(nemo => nemo.draw(ctx, TACTICAL_SPACE_SCALE));
+            this.nemos.forEach(nemo => nemo.draw(ctx));
             this.platoonManager.draw(ctx);
 
         } else if (this.currentRenderLayer === 2) {
@@ -166,9 +169,11 @@ export class LayerManager {
 
         if (this.currentRenderLayer === 3) {
             // 3단계 뷰: 전술 좌표계에 맞춰 그리드를 그립니다.
+            const tacticalCameraX = this.camera.x * TACTICAL_SPACE_SCALE;
+            const tacticalCameraY = this.camera.y * TACTICAL_SPACE_SCALE;
             view = {
-                x: this.camera.x * TACTICAL_SPACE_SCALE,
-                y: this.camera.y * TACTICAL_SPACE_SCALE,
+                x: tacticalCameraX - (this.canvas.width / 2 / this.finalScale),
+                y: tacticalCameraY - (this.canvas.height / 2 / this.finalScale),
                 w: this.canvas.width / this.finalScale,
                 h: this.canvas.height / this.finalScale,
             };
@@ -176,8 +181,8 @@ export class LayerManager {
         } else {
             // 1, 2단계 뷰: 전략 좌표계에 맞춰 그립니다.
             view = {
-                x: this.camera.x,
-                y: this.camera.y,
+                x: this.camera.x - (this.canvas.width / 2 / this.finalScale),
+                y: this.camera.y - (this.canvas.height / 2 / this.finalScale),
                 w: this.canvas.width / this.finalScale,
                 h: this.canvas.height / this.finalScale,
             };

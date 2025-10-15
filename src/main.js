@@ -27,12 +27,6 @@ let selectedSquads = [];
 let selectedWorkers = [];
 const mineralPatches = [];
 const mineralPieces = [];
-const storages = [];
-const moveIndicators = [];
-let ghostWorker = null;
-let ghostBuilding = null;
-let pendingBuildWorker = null;
-let pendingBuildType = null;
 let attackKey = false;
 let mineKey = false;
 
@@ -41,6 +35,12 @@ const camera = new Camera(canvas); // 카메라 인스턴스 생성
 let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
+const moveIndicators = [];
+const storages = [];
+let ghostWorker = null;
+let ghostBuilding = null;
+let pendingBuildWorker = null;
+let pendingBuildType = null;
 let timeScale = 1.0; // 게임 시간 배율
 let isPaused = false; // 게임 일시정지 상태
 
@@ -190,24 +190,9 @@ function initEventListeners() {
                 // issueAttackMove([], pos); // TODO: Implement
                 return;
             }
-            if (window.ghostSquad) {
-                const squadNemos = [];
-                window.ghostSquad.nemos.forEach(ghostNemo => {
-                    ghostNemo.ghost = false;
-                    squadNemos.push(ghostNemo);
-                    nemos.push(ghostNemo);
-                });
-
-                const newSquad = new NemoSquad(squadNemos, window.ghostSquad.team, mainGrid.cellSize);
-                squadNemos.forEach(n => n.squad = newSquad);
-                // platoonManager.platoons.push(new NemoPlatoon([newSquad])); // 임시로 소대에 넣어줌
-
-                window.ghostSquad = null;
-            } else {
-                isSelecting = true;
-                selectionStart = pos;
-                selectionRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
-            }
+            isSelecting = true;
+            selectionStart = pos;
+            selectionRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
         }
 
         if (e.button === 2) { // 우클릭
@@ -234,19 +219,6 @@ function initEventListeners() {
         if (rightClickDragStarted && moveRect) {
             moveRect.x2 = pos.x;
             moveRect.y2 = pos.y;
-        }
-        if (window.ghostSquad) {
-            let dx = 0;
-            let dy = 0;
-            if (window.ghostSquad.leader) {
-                dx = pos.x - window.ghostSquad.leader.x;
-                dy = pos.y - window.ghostSquad.leader.y;
-            }
-            window.ghostSquad.nemos.forEach(n => {
-                n.x += dx;
-                n.y += dy;
-            });
-            window.ghostSquad.update();
         }
     });
 
@@ -314,12 +286,11 @@ function initEventListeners() {
 
 // LayerManager가 screenToWorld를 관리하도록 위임합니다.
 LayerManager.prototype.screenToWorld = function(screenX, screenY) {
-    // 줌 보정 시에는 항상 전략 좌표계를 기준으로 계산해야 좌표계 불일치 오류가 발생하지 않습니다.
-    // 3단계 뷰에서 실제 클릭/이동 명령을 내릴 때는, 해당 로직 내에서 전술 좌표계로 변환해야 합니다. (예: mousedown 이벤트 핸들러 내부)
-    // 이 함수는 줌 로직의 일관성을 위해 항상 전략 좌표 기준으로 계산하여 반환합니다.
+    const worldX = this.camera.x + (screenX - this.canvas.width / 2) / this.finalScale;
+    const worldY = this.camera.y + (screenY - this.canvas.height / 2) / this.finalScale;
     return {
-        x: (screenX / this.finalScale) + this.camera.x,
-        y: (screenY / this.finalScale) + this.camera.y,
+        x: worldX,
+        y: worldY,
     };
 };
 
@@ -366,12 +337,12 @@ function update(currentTime) {
     // --- Nemos 유닛 로직 업데이트 ---
     const allNemoEntities = [...nemos, ...workers];
     nemos.forEach(nemo => nemo.update(allNemoEntities, platoonManager));
-    workers.forEach(w => w.update(mineralPatches, mineralPieces, storages));
+    // workers.forEach(w => w.update(mineralPatches, mineralPieces, storages));
     platoonManager.updatePlatoons(nemos);
 
     // 이펙트 업데이트
     [moveIndicators, deathEffects, gatherEffects].forEach(effectArray => {
-        for (let i = effectArray.length - 1; i >= 0; i--) {
+        for (let i = effectArray.length - 1; i >= 0; i--) { // 역순으로 순회하여 안전하게 제거
             effectArray[i].update();
             if (effectArray[i].isDone()) {
                 effectArray.splice(i, 1);
@@ -423,19 +394,11 @@ function draw() {
     layerManager.draw(ctx);
 
     // Nemos 시스템 객체 그리기
-    mineralPatches.forEach(p => p.draw(ctx));
-    storages.forEach(s => s.draw(ctx));
-    mineralPieces.forEach(p => p.draw(ctx));
-    workers.forEach(w => w.draw(ctx));
+    // mineralPatches.forEach(p => p.draw(ctx));
+    // storages.forEach(s => s.draw(ctx));
+    // mineralPieces.forEach(p => p.draw(ctx));
+    // workers.forEach(w => w.draw(ctx));
     moveIndicators.forEach(ind => ind.draw(ctx));
-
-    if (window.ghostSquad) {
-        ctx.save();
-        ctx.globalAlpha = 0.5;
-        window.ghostSquad.nemos.forEach(n => n.draw(ctx));
-        window.ghostSquad.draw(ctx);
-        ctx.restore();
-    }
 
     // 선택 영역 그리기
     if (selectionRect) {
