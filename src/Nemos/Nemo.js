@@ -523,7 +523,15 @@ class Nemo {
         // 필요한 경우 추가적인 정리 작업을 여기서 수행할 수 있습니다.
     }
     
-    draw(ctx) {
+    draw(ctx, tacticalScale = 1) {
+        // 레이어 3에서는 중대 아이콘이 그려지므로, 네모의 위치를 전략 좌표계에 맞게 변환하여 그립니다.
+        if (tacticalScale !== 1) {
+            ctx.save();
+            ctx.translate(this.x / tacticalScale, this.y / tacticalScale);
+            ctx.scale(1 / tacticalScale, 1 / tacticalScale);
+            ctx.translate(-this.x, -this.y);
+        }
+
         // 플랫폼 본체와 총알을 먼저 그린다
         this.platforms.forEach(platform => platform.draw(ctx));
 
@@ -587,6 +595,10 @@ class Nemo {
         this.platforms.forEach(p => {
             if (p.drawEffects) p.drawEffects(ctx);
         });
+
+        if (tacticalScale !== 1) {
+            ctx.restore();
+        }
     }
 }
 

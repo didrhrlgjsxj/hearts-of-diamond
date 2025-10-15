@@ -1,5 +1,6 @@
 import Nemo from './Nemos/Nemo.js';
 import { Squad } from './Nemos/NemoSquadManager.js';
+import { CommandUnit } from './Armies/unitEchelons.js';
 
 const ZOOM_THRESHOLDS = { // 카메라의 zoom 값 기준
     LEVEL_2: 0.8,
@@ -7,10 +8,13 @@ const ZOOM_THRESHOLDS = { // 카메라의 zoom 값 기준
 };
 
 const LAYER_SCALES = { // 각 레이어별 실제 렌더링 배율
-    1: 0.5,  // 1단계 (전략 뷰): 부대 아이콘 위주
+    1: 0.4,  // 1단계 (전략 뷰): 부대 아이콘 위주
     2: 0.8,  // 2단계 (작전 뷰): 대대/중대 아이콘 위주
-    3: 2.0,  // 3단계 (전술 뷰): 네모 객체 위주
+    3: 1.0,  // 3단계 (전술 뷰): 네모 객체 위주 (이 값은 이제 최종 배율에 직접 사용되지 않음)
 };
+
+// 전술 뷰(레이어 3)로 전환될 때 적용될 좌표계 배율
+const TACTICAL_SPACE_SCALE = 2.0;
 
 /**
  * 카메라 줌 레벨에 따라 다른 객체를 렌더링하는 레이어 시스템을 관리합니다.
@@ -43,7 +47,11 @@ export class LayerManager {
         }
 
         // 최종 스케일을 다시 계산합니다.
-        this.finalScale = this.worldScale * this.camera.zoom;
+        if (this.currentRenderLayer === 3) {
+            this.finalScale = this.camera.zoom; // 레이어 3에서는 카메라 줌만 사용
+        } else {
+            this.finalScale = this.worldScale * this.camera.zoom;
+        }
 
         // 3단계 레이어에서 벗어났는지 확인하고 네모 객체를 정리합니다.
         if (this.wasOnLayer3 && this.currentRenderLayer !== 3) {
@@ -63,8 +71,13 @@ export class LayerManager {
      * @param {CanvasRenderingContext2D} ctx
      */
     applyTransform(ctx) {
-        ctx.scale(this.finalScale, this.finalScale);
-        ctx.translate(-this.camera.x, -this.camera.y);
+        if (this.currentRenderLayer === 3) {
+            ctx.scale(this.finalScale, this.finalScale);
+            ctx.translate(-this.camera.x * TACTICAL_SPACE_SCALE, -this.camera.y * TACTICAL_SPACE_SCALE);
+        } else {
+            ctx.scale(this.finalScale, this.finalScale);
+            ctx.translate(-this.camera.x, -this.camera.y);
+        }
     }
 
     draw(ctx) {
@@ -89,9 +102,12 @@ export class LayerManager {
                             for (let i = 0; i < comp.count; i++) {
                                 const squadNemos = [];
                                 for (let j = 0; j < 3; j++) {
-                                    const offsetX = (Math.random() - 0.5) * 150;
-                                    const offsetY = (Math.random() - 0.5) * 150;
-                                    const newNemo = new Nemo(company.x + offsetX, company.y + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
+                                    // 전술 좌표계에 맞게 위치를 스케일링하고 오프셋을 적용합니다.
+                                    const tacticalX = company.x * TACTICAL_SPACE_SCALE;
+                                    const tacticalY = company.y * TACTICAL_SPACE_SCALE;
+                                    const offsetX = (Math.random() - 0.5) * 400; // 전술 공간에서의 오프셋은 더 커야 함
+                                    const offsetY = (Math.random() - 0.5) * 400;
+                                    const newNemo = new Nemo(tacticalX + offsetX, tacticalY + offsetY, company.team, ["attack"], "unit", "sqaudio", "ranged", false);
                                     squadNemos.push(newNemo);
                                     this.nemos.push(newNemo);
                                 }
@@ -101,13 +117,17 @@ export class LayerManager {
                             }
                             company.nemosSpawned = true;
                         }
-                        company.draw(ctx);
+                        // 레이어 3에서는 중대 아이콘을 반투명하게 그립니다.
+                        ctx.save();
+                        ctx.globalAlpha = 0.2;
+                        company.draw(ctx); // 중대 아이콘은 전략 좌표계 기준
+                        ctx.restore();
                     }
                 });
             });
 
             // 3단계 레이어일 때만 네모 관련 객체들을 그립니다.
-            this.nemos.forEach(nemo => nemo.draw(ctx));
+            this.nemos.forEach(nemo => nemo.draw(ctx, TACTICAL_SPACE_SCALE));
             this.squadManager.draw(ctx);
 
         } else if (this.currentRenderLayer === 2) {
@@ -121,8 +141,13 @@ export class LayerManager {
                 }
             });
         } else { // 1단계
-            // 1단계: 최상위 부대만 렌더링
-            this.topLevelUnits.forEach(unit => unit.draw(ctx));
+            // 1단계: 대대급 이상의 지휘 부대만 렌더링합니다.
+            this.topLevelUnits.forEach(unit => {
+                // CommandUnit은 대대, 연대, 여단, 사단을 포함합니다.
+                if (unit instanceof CommandUnit) {
+                    unit.draw(ctx);
+                }
+            });
         }
     }
 }

@@ -186,7 +186,7 @@ export const DIVISION_TEMPLATES = {
 
             // 대대 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = battalion.getAllCompanies().length;
-            battalion.size = 20 + companyCount * 5;
+            battalion.size = 30 + companyCount * 5;
             battalion.updateCombatSubUnitPositions();
             battalion.initializeOrganization();
             return battalion;
@@ -205,7 +205,7 @@ export const DIVISION_TEMPLATES = {
             // 미리 계산된 고정 능력치를 할당합니다.
             Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
             company.organization = company.maxOrganization;
-            company.size = 7; // 중대 기본 크기
+            company.size = 20; // 중대 기본 크기
             
             // 이 중대가 어떤 종류와 수의 네모 스쿼드로 구성되는지 정의합니다.
             company.setNemoSquadComposition('infantry', 9);
