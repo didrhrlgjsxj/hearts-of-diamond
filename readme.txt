@@ -78,3 +78,50 @@
 
 *   **규모별 크기 및 기호**: 부대의 규모(Echelon)가 클수록 아이콘의 크기가 커지며, 각 아이콘 위에는 부대의 규모를 나타내는 표준 군대 기호가 표시됩니다 (XX: 사단, X: 여단, ||: 대대, |: 중대 등).
 *   **상태 표시**: 부대 아이콘 위의 주황색 바는 **내구력**을, 초록색 바는 **조직력**을 나타냅니다.
+
+
+
+
+Game Terminology Glossary
+
+This file explains the key terms used in the game's code and logic.
+
+--- Squad Mechanics ---
+
+x 주 경계 대상 (Primary Combat Target): A squad's highest priority enemy squad. The squad orients itself towards this target. It's typically the nearest enemy squad within recognition range.
+
+x 보조 경계 대상 (Secondary Combat Targets): Enemy squads that have designated this squad as their 'Primary Combat Target'. This is used for defensive engagements when not in a head-on battle.
+
+x 정면 전투 상태 (Head-on Battle): A state where two opposing squads have designated each other as their Primary Combat Target. This is visualized with arrows pointing at each other.
+
+x 주 경계 방향 (Primary Direction): The main forward-facing direction of a squad. It aligns with the 'Target Direction' and influences the squad's formation and defensive orientation.
+
+x 보조 경계 방향 (Secondary Directions): Additional directions, typically to the flanks, that the squad monitors, in addition to its primary direction.
+
+x 목표 이동 방향 (Target Direction): The actual direction the squad is moving, or the direction towards the Primary Combat Target. The 'Primary Direction' smoothly interpolates towards this angle.
+
+x 스쿼드 전체 목표 지점 (Squad Destination): A single destination point for the entire squad, as opposed to individual unit destinations. Used for formation movement.
+
+x 진형 위치 (Formation Positions): The relative positions that individual units (Nemos) should maintain within the squad's formation while moving.
+
+x 스쿼드의 가상 중심 (Squad Center): A logical center point that acts as the anchor for the squad's formation. When a squad moves, this virtual center travels to the destination.
+
+x 조직력 (Organization): A metric representing a squad's combat effectiveness, calculated based on the average health of its units. Represented by the green part of the squad's health bar.
+
+x 내구도 (Durability): A metric representing the total combined health of all units in a squad. Represented by the brown part of the squad's health bar.
+
+x 스쿼드 규모 (Squad Sizes): Classification of a squad's size based on its composition (SQUAD, TROOP, PLATOON, COMPANY).
+
+--- Unit & General Mechanics ---
+
+x 적 감지 범위 (Recognition Range): The maximum distance at which a unit can detect an enemy and automatically engage in combat.
+
+x 공격 이동 (Attack Move): A command ('A' key + click) that orders units to move to a location while automatically attacking any enemies they encounter along the way.
+
+x On-hand / Off-hand 무기: 'On-hand' refers to a primary weapon held by a unit. 'Off-hand' refers to secondary weapons mounted on the unit's body that can rotate and fire independently.
+
+x 발사 반동 (Recoil Offset): A visual effect where a weapon platform recoils backward upon firing.
+
+x 고스트 유닛/건물 (Ghost Unit/Building): A translucent preview of a unit or building that follows the mouse cursor before placement, allowing the player to see where it will be built.
+
+x 채광 명령 (Mine Key): A state ('M' key or UI button) that prepares a worker unit to receive a mining command on a mineral patch.

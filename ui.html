@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regend GAMA - New UI</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="controls">
+        <button id="spawnRedUnitBtn">Red Unit (no shield)</button>
+        <button id="spawnRedArmyBtn">Red Army (shield)</button>
+        <button id="spawnBlueUnitBtn">Blue Unit (no shield)</button>
+        <button id="spawnBlueArmyBtn">Blue Army (shield)</button>
+        <button id="spawnWorkerABtn">Worker A</button>
+        <button id="spawnWorkerBBtn">Worker B</button>
+        <button id="openBuildMenuBtn">Build</button>
+    </div>
+    <div id="resourcePanel">
+        Minerals: <span id="blueMinerals">0</span>
+    </div>
+    <canvas id="gameCanvas" width="1200" height="800"></canvas>
+    <div id="commandPanel">
+        <div id="unitInfo"></div>
+        <div id="commandButtons"></div>
+    </div>
+    <div id="buildMenu">
+        <button class="buildBtn" data-type="storage">Storage</button>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>
