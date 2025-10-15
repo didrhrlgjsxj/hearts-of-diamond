@@ -189,18 +189,6 @@ class AttackPlatform extends Platform {
             const distanceToTarget = Math.hypot(dx, dy);
 
             if (distanceToTarget <= this.parent.calculatedMaxRange && (now - this.lastShot) >= 1000 / this.attackSpeed) {
-                if (targetEnemy.team !== this.parent.team && targetEnemy.takeDamage) {
-                    // 거리에 따른 데미지 보간 계산
-                    let damageMultiplier = 1.0;
-                    if (distanceToTarget > this.parent.calculatedEffectiveRange) {
-                        // 유효 사거리를 벗어나면 데미지가 감소
-                        const rangeRatio = (distanceToTarget - this.parent.calculatedEffectiveRange) / (this.parent.calculatedMaxRange - this.parent.calculatedEffectiveRange);
-                        const clampedRatio = Math.max(0, Math.min(1, rangeRatio));
-                        damageMultiplier = 1 - (clampedRatio * this.accuracyWeight);
-                    }
-                    const finalDamage = this.attackPower * damageMultiplier;
-                    targetEnemy.takeDamage(finalDamage);
-                }
 
                 const hitAngle = Math.atan2(targetEnemy.y - this.y, targetEnemy.x - this.x);
                 const perp = hitAngle + Math.PI / 2;

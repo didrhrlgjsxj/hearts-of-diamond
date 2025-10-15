@@ -1,7 +1,7 @@
 import { DIVISION_TEMPLATES } from './src/Armies/division_templates.js';
 import { CommandUnit } from './src/Armies/unitEchelons.js';
 import Nemo from './src/Nemos/Nemo.js';
-import { Squad } from './src/Nemos/NemoSquadManager.js';
+import { NemoPlatoon, NemoSquad } from './src/Nemos/NemoSquadManager.js';
 
 // main.js에서 생성될 ghostSquad를 위한 전역 변수 선언
 window.ghostSquad = null;
@@ -15,13 +15,13 @@ export class GameUI {
      * @param {Unit[]} topLevelUnits
      * @param {Nemo[]} nemos
      * @param {Worker[]} workers
-     * @param {SquadManager} squadManager
+     * @param {NemoPlatoonManager} platoonManager
      */
-    constructor(camera, topLevelUnits, nemos, workers, squadManager) {
+    constructor(camera, topLevelUnits, nemos, workers, platoonManager) {
         this.camera = camera;
         this.topLevelUnits = topLevelUnits;
         this.nemos = nemos;
-        this.squadManager = squadManager;
+        this.platoonManager = platoonManager;
         this.workers = workers; // Nemo 소환에 필요
         this.createControlPanel();
 
@@ -161,10 +161,10 @@ export class GameUI {
             this.nemos.push(newNemo); // main.js의 nemos 배열에 추가
         }
 
-        // Squad 인스턴스를 생성하고 SquadManager에 등록합니다.
-        const newSquad = new Squad(squadNemos, team, this.squadManager.cellSize);
+        // NemoSquad 인스턴스를 생성하고 NemoPlatoonManager에 등록합니다.
+        const newSquad = new NemoSquad(squadNemos, team);
         squadNemos.forEach(n => n.squad = newSquad);
-        this.squadManager.squads.push(newSquad);
+        this.platoonManager.platoons.push(new NemoPlatoon([newSquad], team, null)); // 독립 스쿼드는 parentCompany가 없음
 
         console.log(`Spawned: Nemo Squad (Type: ${squadType}, Team: ${team})`);
     }

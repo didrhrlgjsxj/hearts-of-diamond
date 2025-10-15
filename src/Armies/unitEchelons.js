@@ -235,19 +235,9 @@ export class Company extends Unit {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
         this.role = COMPANY_ROLES.SUSTAINMENT; // 기본 역할. division_templates에서 덮어쓸 수 있음.
         this.formationRadius = 20;
-        
-        // 이 중대를 구성하는 네모 스쿼드의 정보를 저장합니다.
-        this.nemoSquadComposition = {
-            type: null, // e.g., 'infantry', 'armor'
-            count: 0,
-        };
         this.nemosSpawned = false; // 이 중대의 네모들이 실제로 생성되었는지 여부
+        this.damageAccumulator = 0; // Nemo 파괴를 트리거하기 위한 피해 누적 변수
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
-    }
-
-    setNemoSquadComposition(type, count) {
-        this.nemoSquadComposition.type = type;
-        this.nemoSquadComposition.count = count;
     }
 
     drawEchelonSymbol(ctx) {

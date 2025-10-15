@@ -1,12 +1,12 @@
 // SquadManager.js
 import { NemoSquadFormationManager } from './NemoSquadFormationManager.js';
 
-// This file provides a small manager that automatically groups Nemos
-// by distance. Groups are called "squad".  Nemos within
-// 5 grid cells from each other (considering chain connection) form a squad.
-// squad.  The squad size is limited so that its bounding box does not
-// exceed 20 grid cells.
-const SquadSizes = {
+// 이 파일은 Nemo 객체들을 그룹화하고 관리하는 로직을 담당합니다.
+// NemoSquad: 개별 Nemo들의 가장 작은 그룹. Armies의 분대(Squad)에 해당합니다.
+// NemoPlatoon: 여러 NemoSquad를 지휘하는 상위 그룹. Armies의 소대(Platoon)에 해당합니다.
+// NemoPlatoonManager: 모든 NemoPlatoon을 관리합니다.
+
+const PlatoonSizes = {
     SQUAD: 'squad',       // 2-5 Nemos
     TROOP: 'troop',     // 6-12 Nemos
     PLATOON: 'platoon',   // 13-30 Nemos
@@ -22,12 +22,12 @@ function lerpAngle(start, end, amount) {
     return start + difference * amount;
 }
 
-class Squad {
+class NemoSquad {
     constructor(nemos = [], team = 'blue', cellSize = 40) {
         this.nemos = nemos;
         this.team = team;
         this.leader = null;
-        this.cellSize = cellSize;
+        this.platoon = null; // 상위 소대(NemoPlatoon) 참조
         this.selected = false;
         this.squadDestination = null; // 스쿼드 전체의 목표 지점        
         this.currentPos = { x: 0, y: 0 }; // 스쿼드의 현재 가상 중심 위치
@@ -52,7 +52,6 @@ class Squad {
             { currentAngle: Math.PI / 2, targetOffset: Math.PI / 2 }
         ];
 
-        this.type = this.determineSquadSize();
         this.assignLeader();
         this.updateBounds();
         this.currentPos = { x: this.bounds.x + this.bounds.w / 2, y: this.bounds.y + this.bounds.h / 2 };
@@ -154,13 +153,7 @@ class Squad {
         this.formationManager.formationWidth = Math.max(this.cellSize * 2, dist);
         this.setDestination(destination);
    }
-
     updateBounds() {
-        if (this.nemos.length === 0) {
-            this.bounds = {x:0, y:0, w:0, h:0};
-            return;
-        }
-
         let minX = Infinity;
         let maxX = -Infinity;
         let minY = Infinity;
@@ -179,18 +172,18 @@ class Squad {
             w: maxX - minX,
             h: maxY - minY
         };
-    }
+    }    
 
     getRotationSpeed() {
         // 스쿼드 타입에 따라 회전 속도 조절
-        switch (this.type) {
-            case SquadSizes.COMPANY:
+        switch (this.platoon?.type) {
+            case PlatoonSizes.COMPANY:
                 return 0.01; // 가장 느림
-            case SquadSizes.PLATOON:
+            case PlatoonSizes.PLATOON:
                 return 0.02;
-            case SquadSizes.TROOP:
+            case PlatoonSizes.TROOP:
                 return 0.03;
-            case SquadSizes.SQUAD:
+            case PlatoonSizes.SQUAD:
                 return 0.04; // 가장 빠름
             default:
                 return 0.03;
@@ -229,57 +222,20 @@ class Squad {
         });
     }
 
-    determineSquadSize() {
-        let weightedSize = 0;
-        this.nemos.forEach(nemo => {
-            if (nemo.unitType === 'army') {
-                switch (nemo.armyType) {
-                    case 'sqaudio':
-                        weightedSize += 3;
-                        break;
-                    case 'platoon':
-                        weightedSize += 10;
-                        break;
-                    case 'company':
-                        weightedSize += 23;
-                        break;
-                    default:
-                        weightedSize += 1; // 다른 army 타입은 1로 계산
-                }
-            } else {
-                weightedSize += 1; // 'unit' 타입은 1로 계산
-            }
-        });
-
-        if (weightedSize >= 2 && weightedSize <= 5) {
-            return SquadSizes.SQUAD;
-        } else if (weightedSize >= 6 && weightedSize <= 12) {
-            return SquadSizes.TROOP;
-        } else if (weightedSize >= 13 && weightedSize <= 30) {
-            return SquadSizes.PLATOON;
-        } else if (weightedSize >= 31) {
-            return SquadSizes.COMPANY;
-        }
-        return null; // Or handle the case where the size doesn't fit any type
-
-    }
-
+    // 이제 분대의 조직력은 상위 중대의 조직력을 직접 반영합니다.
     calculateOrganization() {
-        // This is a placeholder, replace with actual combat effectiveness logic
-        // For example, consider Nemo's role, distance to other squad members, etc.
-        let total = 0;
-        this.nemos.forEach(n => {
-            total += n.hp / 45; // Assuming max hp is 45, adjust as needed
-        });
-        return Math.min(1, total / this.nemos.length); // Normalize to 0-1 range
+        if (this.platoon && this.platoon.parentCompany) {
+            return this.platoon.parentCompany.organization / this.platoon.parentCompany.maxOrganization;
+        }
+        return 0;
     }
 
+    // 이제 분대의 내구력은 상위 중대의 현재 병력을 직접 반영합니다.
     calculateDurability() {
-        let totalHealth = 0;
-        this.nemos.forEach(n => {
-            totalHealth += n.hp;
-        });
-        return totalHealth;
+        if (this.platoon && this.platoon.parentCompany) {
+            return this.platoon.parentCompany.currentStrength;
+        }
+        return 0;
     }
 
     getMaxDurability() {
@@ -301,7 +257,6 @@ class Squad {
 
     // Draw translucent rectangle covering all nemos in the squad
     draw(ctx) {
-
         if (!this.bounds) return;
         const { x, y, w, h } = this.bounds;
         ctx.save();
@@ -504,17 +459,6 @@ class Squad {
             }
             ctx.restore();
         }
-        
-        // Display squad type
-        if (this.nemos.length) {
-            ctx.save();
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'center';
-
-            ctx.fillText(this.type, x + w / 2, y - 10);
-            ctx.restore();
-        }
 
         // Draw Health Bar
         if (this.nemos.length) {
@@ -548,21 +492,107 @@ class Squad {
     }
 }
 
-class SquadManager {
+class NemoPlatoon {
+    constructor(squads = [], team = 'blue', parentCompany = null) {
+        this.squads = squads;
+        this.team = team;
+        this.selected = false;
+        this.type = this.determinePlatoonSize();
+        this.parentCompany = parentCompany; // 이 소대가 속한 Armies의 중대
+        
+        squads.forEach(s => s.platoon = this);
+        this.updateBounds();
+    }
+
+    update() {
+        this.squads.forEach(s => s.update());
+        this.updateBounds();
+    }
+
+    updateBounds() {
+        if (this.squads.length === 0) {
+            this.bounds = { x: 0, y: 0, w: 0, h: 0 };
+            return;
+        }
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        this.squads.forEach(squad => {
+            const b = squad.bounds;
+            minX = Math.min(minX, b.x);
+            maxX = Math.max(maxX, b.x + b.w);
+            minY = Math.min(minY, b.y);
+            maxY = Math.max(maxY, b.y + b.h);
+        });
+        this.bounds = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+    }
+
+    determinePlatoonSize() {
+        const nemoCount = this.squads.reduce((sum, squad) => sum + squad.nemos.length, 0);
+
+        if (nemoCount >= 2 && nemoCount <= 5) return PlatoonSizes.SQUAD;
+        if (nemoCount >= 6 && nemoCount <= 12) return PlatoonSizes.TROOP;
+        if (nemoCount >= 13 && nemoCount <= 30) return PlatoonSizes.PLATOON;
+        if (nemoCount >= 31) return PlatoonSizes.COMPANY;
+        return null;
+    }
+
+    draw(ctx) {
+        if (!this.bounds) return;
+
+        // 소대 전체를 감싸는 외곽선 (선택 시)
+        if (this.selected) {
+            const { x, y, w, h } = this.bounds;
+            ctx.save();
+            const stroke = this.team === 'red' ? 'darkred' : 'darkblue';
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = 6;
+            ctx.shadowColor = stroke;
+            ctx.shadowBlur = 15;
+            ctx.strokeRect(x, y, w, h);
+            ctx.restore();
+        }
+
+        // 개별 분대 그리기
+        this.squads.forEach(s => s.draw(ctx));
+
+        // 소대 타입 표시
+        if (this.squads.length > 0) {
+            const { x, y, w } = this.bounds;
+            ctx.save();
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(this.type, x + w / 2, y - 15);
+            ctx.restore();
+        }
+    }
+
+    setDestination(pos) {
+        // 소대 이동 로직: 모든 분대에 동일한 목표 지점 설정
+        this.squads.forEach(squad => squad.setDestination(pos));
+    }
+
+    setFormationShape(startPos, endPos, destination) {
+        // 소대 진형 설정 로직: 모든 분대에 진형 설정
+        this.squads.forEach(squad => squad.setFormationShape(startPos, endPos, destination));
+    }
+}
+
+class NemoPlatoonManager {
     constructor(gridCellSize = 40) {
-        this.squads = [];
+        this.platoons = [];
         this.cellSize = gridCellSize;
         this.linkDist = this.cellSize * 15;
         this.maxGroup = this.cellSize * 40;
     }
 
     // Get random member of a squad
-    getRandomSquadMember(squad) {
-        if (!squad || !squad.nemos || squad.nemos.length === 0) {
+    getRandomSquadMember(nemoSquad) {
+        if (!nemoSquad || !nemoSquad.nemos || nemoSquad.nemos.length === 0) {
             return null; // Or handle the case where the squad is empty
         }
-        const randomIndex = Math.floor(Math.random() * squad.nemos.length);
-        return squad.nemos[randomIndex];
+        const randomIndex = Math.floor(Math.random() * nemoSquad.nemos.length);
+        return nemoSquad.nemos[randomIndex];
     }
 
     applyDamageToSquad(squad, damage) {
@@ -586,12 +616,12 @@ class SquadManager {
         
         const newNemos = [];
         sameTeamSquads.forEach(s => { newNemos.push(...s.nemos); s.nemos = []; });
-        this.squads = this.squads.filter(s => !s.selected);
+        this.platoons.forEach(p => p.squads = p.squads.filter(s => !s.selected));
         
-        const newSquad = new Squad(newNemos, team, this.cellSize);
+        const newSquad = new NemoSquad(newNemos, team, this.cellSize);
         newSquad.nemos.forEach(n => n.squad = newSquad);
         newSquad.selected = true;
-        this.squads.push(newSquad);
+        // this.squads.push(newSquad); // TODO: 어떻게 다시 소대에 넣을지?
         return newSquad;
     }
     
@@ -640,14 +670,14 @@ class SquadManager {
 
 
     // Build squads from given nemos array
-    updateSquads(nemos) {
+    updatePlatoons(nemos) {
         // 1. 각 스쿼드의 내부 상태를 먼저 업데이트 (리더 재임명 등)
-        this.squads.forEach(s => {
-            s.update();
+        this.platoons.forEach(p => {
+            p.update();
         });
 
         // 스쿼드별 주 경계 대상 및 정면 전투 상태 설정
-        this.squads.forEach(squad => {
+        this.platoons.flatMap(p => p.squads).forEach(squad => {
             let nearestEnemySquad = null;
             const recognitionRange = squad.calculateRecognitionRange(); // 스쿼드의 고유 인식 범위 계산
             let minDistance = recognitionRange; 
@@ -656,8 +686,8 @@ class SquadManager {
             squad.updateBounds();
             squad.updateDirections();
 
-            this.squads.forEach(otherSquad => {
-                if (squad.team !== otherSquad.team) {
+            this.platoons.flatMap(p => p.squads).forEach(otherSquad => {
+                if (squad.team !== otherSquad.team && squad.platoon !== otherSquad.platoon) {
                     const squadCenterX = squad.bounds.x + squad.bounds.w / 2;
                     const squadCenterY = squad.bounds.y + squad.bounds.h / 2;
                     const otherSquadCenterX = otherSquad.bounds.x + otherSquad.bounds.w / 2;
@@ -677,7 +707,7 @@ class SquadManager {
         });
 
         // 정면 전투 상태 확인
-        this.squads.forEach(squad => {
+        this.platoons.flatMap(p => p.squads).forEach(squad => {
             squad.isHeadOnBattle = false;
             squad.secondaryCombatTargets = [];
             squad.vigilanceBattleTarget = null;
@@ -689,7 +719,7 @@ class SquadManager {
             }
 
             // 나를 주 경계 대상으로 삼는 다른 스쿼드들을 찾는다.
-            this.squads.forEach(otherSquad => {
+            this.platoons.flatMap(p => p.squads).forEach(otherSquad => {
                 if (otherSquad.team !== squad.team) {
                     const isOtherPrimaryTargetingMe = otherSquad.primaryCombatTarget === squad;
                     const isMyPrimaryTargetingOther = squad.primaryCombatTarget === otherSquad;
@@ -719,12 +749,12 @@ class SquadManager {
     }
 
     draw(ctx) {
-        this.squads.forEach(g => g.draw(ctx));
+        this.platoons.forEach(p => p.draw(ctx));
     }
 
 }
 
 
 
-export { SquadSizes };
-export { SquadManager, Squad };
+export { PlatoonSizes };
+export { NemoPlatoonManager, NemoPlatoon, NemoSquad };
