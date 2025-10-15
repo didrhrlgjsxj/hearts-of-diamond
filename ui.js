@@ -72,11 +72,32 @@ export class GameUI {
         spawnBlueNemoUnitBtn.textContent = 'Nemo Blue Unit';
         spawnBlueNemoUnitBtn.onclick = () => this.spawnNemoSquad('A', 'blue');
 
+        // 시간 제어 버튼
+        const timeControlContainer = document.createElement('div');
+        timeControlContainer.style.marginTop = '15px';
+        timeControlContainer.innerHTML = '<h3>시간 제어</h3>';
+
+        const pauseBtn = this.createTimeControlButton('일시정지', 0);
+        const play1xBtn = this.createTimeControlButton('1x', 1);
+        const play2xBtn = this.createTimeControlButton('2x', 2);
+        const play3xBtn = this.createTimeControlButton('3x', 3);
+
+        play1xBtn.classList.add('active'); // 기본값으로 1배속 활성화
+
+        timeControlContainer.append(pauseBtn, play1xBtn, play2xBtn, play3xBtn);
 
         panel.append(this.resetFormationButton, '<h3>Armies 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
-        panel.append(document.createElement('hr'), '<h3>Nemos 소환</h3>', spawnRedNemoUnitBtn, spawnBlueNemoUnitBtn);
+        panel.append(document.createElement('hr'), '<h3>Nemos 소환</h3>', spawnRedNemoUnitBtn, spawnBlueNemoUnitBtn, timeControlContainer);
         document.body.appendChild(panel);
 
+    }
+
+    createTimeControlButton(text, scale) {
+        const button = document.createElement('button');
+        button.textContent = text;
+        button.className = 'time-control-btn';
+        button.onclick = () => window.setTimeScale(scale, button);
+        return button;
     }
 
     createSelect(id, labelText, options) {

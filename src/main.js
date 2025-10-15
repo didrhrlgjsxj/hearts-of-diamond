@@ -41,6 +41,8 @@ const camera = new Camera(canvas); // 카메라 인스턴스 생성
 let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
+let timeScale = 1.0; // 게임 시간 배율
+let isPaused = false; // 게임 일시정지 상태
 
 let layerManager; // 렌더링 레이어 매니저
 // 부대 고유 번호 생성을 위한 전역 카운터
@@ -85,6 +87,22 @@ canvas.addEventListener('mousemove', (e) => {
     mouseY = e.clientY - rect.top;
 });
 
+/**
+ * 게임 시간 배율을 설정합니다.
+ * @param {number} scale - 새로운 시간 배율 (0은 일시정지를 의미)
+ * @param {HTMLElement} clickedButton - 클릭된 버튼 요소
+ */
+window.setTimeScale = (scale, clickedButton) => {
+    if (scale === 0) {
+        isPaused = true;
+    } else {
+        isPaused = false;
+        timeScale = scale;
+    }
+    // 모든 속도 버튼에서 'active' 클래스를 제거하고, 클릭된 버튼에만 추가합니다.
+    document.querySelectorAll('.time-control-btn').forEach(btn => btn.classList.remove('active'));
+    clickedButton.classList.add('active');
+};
 // --- 입력 처리 (Event Listeners) ---
 
 canvas.addEventListener('click', (e) => {
@@ -350,15 +368,16 @@ function update(currentTime) {
     if (!lastTime) {
         lastTime = currentTime;
     }
-    const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
+    const deltaTime = (currentTime - lastTime) / 1000;
+    const effectiveDeltaTime = isPaused ? 0 : deltaTime * timeScale;
     lastTime = currentTime;
 
     layerManager.update();
-    camera.update(deltaTime);
+    camera.update(effectiveDeltaTime);
     
     // --- Armies 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
-    updateUnits(topLevelUnits, deltaTime);
+    updateUnits(topLevelUnits, effectiveDeltaTime);
 
     // --- Nemos 유닛 로직 업데이트 ---
     const allNemoEntities = [...nemos, ...workers];
@@ -465,10 +484,12 @@ function loop(currentTime) {
 background.onload = () => {
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
     layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
+    camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };
 background.onerror = () => { // 배경 이미지 로드 실패 시에도 게임 시작
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
     layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
+    camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };

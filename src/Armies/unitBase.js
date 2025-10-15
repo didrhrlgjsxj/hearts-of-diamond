@@ -477,8 +477,8 @@ export class Unit {
 
         const barWidth = 40;
             const barHeight = 5;
-            const barX = this.x - barWidth / 2;
-            const barY = this.y - 25;
+        const barX = this.x - barWidth / 2;
+        const barY = this.y - this.size - 15; // 아이콘 크기에 맞춰 동적으로 위치 조정
 
             // 1. 병력 바 배경 (어두운 회색)
             ctx.fillStyle = '#555';
