@@ -2,28 +2,9 @@
 
 class Grid {
     constructor(cellSize, width, height) {
-        this.cellSize = cellSize; // 셀 크기 설정
-        // 전체 그리드 영역을 맵 전체 크기로 설정
-        this.gridWidth = Math.ceil(width / this.cellSize);
-        this.gridHeight = Math.ceil(height / this.cellSize);
-
-        // 그리드를 한 번만 그려 두기 위한 오프스크린 캔버스 생성
-        this.canvas = document.createElement('canvas');
-        this.canvas.width = this.gridWidth * this.cellSize;
-        this.canvas.height = this.gridHeight * this.cellSize;
-        const gctx = this.canvas.getContext('2d');
-        gctx.strokeStyle = 'green';
-        gctx.lineWidth = 1;
-        gctx.beginPath();
-        for (let x = 0; x <= this.gridWidth; x++) {
-            gctx.moveTo(x * this.cellSize, 0);
-            gctx.lineTo(x * this.cellSize, this.canvas.height);
-        }
-        for (let y = 0; y <= this.gridHeight; y++) {
-            gctx.moveTo(0, y * this.cellSize);
-            gctx.lineTo(this.canvas.width, y * this.cellSize);
-        }
-        gctx.stroke();
+        this.cellSize = cellSize;
+        this.width = width;
+        this.height = height;
     }
 
     snap(x, y) {
@@ -32,8 +13,40 @@ class Grid {
         return { x: sx, y: sy };
     }
 
-    draw(ctx) {
-        ctx.drawImage(this.canvas, 0, 0);
+    /**
+     * 카메라에 보이는 영역의 그리드만 동적으로 그립니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     * @param {Camera} camera 
+     */
+    draw(ctx, camera) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
+        ctx.lineWidth = 1 / camera.zoom; // 줌 레벨에 따라 선 두께 조절
+
+        // 카메라 뷰포트 계산
+        const view = {
+            x: camera.x,
+            y: camera.y,
+            w: camera.canvas.width / camera.zoom,
+            h: camera.canvas.height / camera.zoom,
+        };
+
+        const startX = Math.floor(view.x / this.cellSize) * this.cellSize;
+        const endX = Math.ceil((view.x + view.w) / this.cellSize) * this.cellSize;
+        const startY = Math.floor(view.y / this.cellSize) * this.cellSize;
+        const endY = Math.ceil((view.y + view.h) / this.cellSize) * this.cellSize;
+
+        ctx.beginPath();
+        for (let x = startX; x < endX; x += this.cellSize) {
+            ctx.moveTo(x, startY);
+            ctx.lineTo(x, endY);
+        }
+        for (let y = startY; y < endY; y += this.cellSize) {
+            ctx.moveTo(startX, y);
+            ctx.lineTo(endX, y);
+        }
+        ctx.stroke();
+        ctx.restore();
     }
 
     // 주변 엔티티 찾기 (예시로만 구현)

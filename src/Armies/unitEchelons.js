@@ -210,14 +210,15 @@ export class CommandUnit extends Unit {
     drawEchelonSymbol(ctx) {
         if (!this.echelonSymbol) return;
 
-        const size = this.size * 2;
+        const yPos = this.y - this.size - 15; // 정보 영역의 상단
+        const size = 12; // 폰트 크기 고정
         // 심볼 길이에 따라 폰트 크기 동적 조절
-        const fontSize = this.echelonSymbol.length > 1 ? size * 0.8 : size;
+        const fontSize = this.echelonSymbol.length > 1 ? size * 0.9 : size;
         ctx.font = `bold ${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textBaseline = 'bottom';
         ctx.fillStyle = 'black';
-        ctx.fillText(this.echelonSymbol, this.x, this.y + size * 0.1);
+        ctx.fillText(this.echelonSymbol, this.x, yPos);
     }
 }
 /** 대대 (Battalion) */
@@ -237,9 +238,11 @@ export class Company extends Unit {
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
     drawEchelonSymbol(ctx) {
-        ctx.font = 'bold 12px sans-serif';
+        const yPos = this.y - this.size - 15;
+        ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('|', this.x, this.y - this.size - 5);
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('|', this.x, yPos);
     }
 }
 /** 소대 (Platoon) */
@@ -253,7 +256,7 @@ export class Platoon extends Unit {
         ctx.fillStyle = 'black';
         const dotSize = 2;
         const spacing = 5;
-        const yPos = this.y - this.size - 6;
+        const yPos = this.y - this.size - 18;
         // 3개의 점 그리기
         ctx.beginPath();
         ctx.arc(this.x - spacing, yPos, dotSize, 0, Math.PI * 2);
@@ -290,7 +293,7 @@ export class Squad extends Unit {
     drawEchelonSymbol(ctx) {
         ctx.fillStyle = 'black';
         const dotSize = 2;
-        const yPos = this.y - this.size - 6;
+        const yPos = this.y - this.size - 18;
         // 1개의 점 그리기
         ctx.beginPath();
         ctx.arc(this.x, yPos, dotSize, 0, Math.PI * 2);

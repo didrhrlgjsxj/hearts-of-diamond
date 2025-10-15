@@ -66,7 +66,7 @@ export const DIVISION_TEMPLATES = {
 
             // 5. 사단 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = division.getAllCompanies().length;
-            division.size = 150 + companyCount * 10; // 기본 크기150 + 중대당 10
+            division.size = 110 + companyCount * 5; // 기본 크기 110 + 중대당 5
 
             division.updateCombatSubUnitPositions();
             division.initializeOrganization(); // 모든 편제가 끝난 후 조직력 초기화
@@ -109,7 +109,7 @@ export const DIVISION_TEMPLATES = {
 
             // 5. 여단 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = brigade.getAllCompanies().length;
-            brigade.size = 100 + companyCount * 10; // 기본 크기 100 + 중대당 10
+            brigade.size = 60 + companyCount * 5;
 
             brigade.updateCombatSubUnitPositions();
             brigade.initializeOrganization();
@@ -147,7 +147,7 @@ export const DIVISION_TEMPLATES = {
             // 연대의 전투 단위는 휘하의 모든 중대들입니다.
             regiment.combatSubUnits = regiment.getAllCompanies();
             const companyCount = regiment.getAllCompanies().length;
-            regiment.size = 6 + companyCount * 0.5;
+            regiment.size = 40 + companyCount * 5;
             regiment.updateCombatSubUnitPositions();
             regiment.initializeOrganization();
             return regiment;
@@ -186,7 +186,7 @@ export const DIVISION_TEMPLATES = {
 
             // 대대 크기를 휘하 중대 수에 비례하여 조정합니다.
             const companyCount = battalion.getAllCompanies().length;
-            battalion.size = 50 + companyCount * 5; // 기본 크기 50 + 중대당 5
+            battalion.size = 20 + companyCount * 5;
             battalion.updateCombatSubUnitPositions();
             battalion.initializeOrganization();
             return battalion;
@@ -205,6 +205,7 @@ export const DIVISION_TEMPLATES = {
             // 미리 계산된 고정 능력치를 할당합니다.
             Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
             company.organization = company.maxOrganization;
+            company.size = 7; // 중대 기본 크기
 
             return company;
         }
