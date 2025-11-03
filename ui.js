@@ -1,13 +1,10 @@
-import { DIVISION_TEMPLATES } from './src/Armies/division_templates.js';
-import { CommandUnit } from './src/Armies/unitEchelons.js';
-
 // main.js에서 생성될 ghostSquad를 위한 전역 변수 선언
-window.ghostSquad = null;
+let ghostSquad = null;
 
 /**
  * 게임의 사용자 인터페이스(UI)를 관리하는 클래스입니다.
  */
-export class GameUI {
+class GameUI {
     /**
      * @param {Camera} camera
      * @param {Unit[]} topLevelUnits
@@ -63,7 +60,7 @@ export class GameUI {
         // Nemo 소환 버튼들
         const spawnRedNemoUnitBtn = document.createElement('button');
         spawnRedNemoUnitBtn.textContent = 'Nemo Red Unit';
-        spawnRedNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'red'); // createGhostSquad는 main.js에 정의되어야 합니다.
+        spawnRedNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'red');
 
         const spawnBlueNemoUnitBtn = document.createElement('button');
         spawnBlueNemoUnitBtn.textContent = 'Nemo Blue Unit';

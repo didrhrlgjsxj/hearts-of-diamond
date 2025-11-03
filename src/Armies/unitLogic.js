@@ -1,11 +1,9 @@
-import { CommandUnit } from "./unitEchelons.js";
-
 /**
  * 게임 내 모든 유닛의 상태 업데이트(이동, 전투, 조직력 등)를 담당합니다.
  * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
  * @param {number} deltaTime - 프레임 간 시간 간격 (초)
  */
-export function updateUnits(topLevelUnits, deltaTime) {
+function updateUnits(topLevelUnits, deltaTime) {
 
     // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
     const allCombatSubUnits = [];
@@ -178,7 +176,7 @@ function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
  * @param {Unit | null} selectedUnit - 현재 선택된 유닛
  * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
  */
-export function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
+function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
     const remainingUnits = [];
     let newSelectedUnit = selectedUnit;
 

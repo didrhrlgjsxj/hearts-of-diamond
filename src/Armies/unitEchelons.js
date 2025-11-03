@@ -1,11 +1,8 @@
-import { Unit } from './unitBase.js';
-import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, UNIT_TYPES, UNIT_STRENGTHS, UNIT_TYPE_STATS } from './unitConstants.js';
-
 /**
  * 지휘 부대 (사단, 여단, 연대, 대대)의 공통 로직을 담는 기본 클래스입니다.
  * Unit을 상속받습니다.
  */
-export class CommandUnit extends Unit {
+class CommandUnit extends Unit {
     constructor(name, x, y, team, size, echelon = null) {
         super(name, x, y, 0, size, team);
         this.isIndependentMoving = false; // 독립적으로 이동 중인지 여부
@@ -221,7 +218,7 @@ export class CommandUnit extends Unit {
     }
 }
 /** 대대 (Battalion) */
-export class Battalion extends CommandUnit {
+class Battalion extends CommandUnit {
     constructor(name, x, y, team, size) {
         super(name, x, y, team, size, 'BATTALION');
         this.role = BATTALION_ROLES.MAIN_FORCE; // 기본 역할은 '주력'
@@ -229,7 +226,7 @@ export class Battalion extends CommandUnit {
 
 }
 /** 중대 (Company) */
-export class Company extends Unit {
+class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
         this.role = COMPANY_ROLES.SUSTAINMENT; // 기본 역할. division_templates에서 덮어쓸 수 있음.
@@ -243,7 +240,7 @@ export class Company extends Unit {
     }
 }
 /** 소대 (Platoon) */
-export class Platoon extends Unit {
+class Platoon extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 6, team, UNIT_TYPES.INFANTRY);
         this.formationRadius = 10;
@@ -267,7 +264,7 @@ export class Platoon extends Unit {
     }
 }
 /** 분대 (Squad) */
-export class Squad extends Unit {
+class Squad extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, UNIT_TYPES.INFANTRY);
         this.setType(UNIT_TYPES.INFANTRY); // 기본 타입을 보병으로 설정

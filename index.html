@@ -56,7 +56,29 @@
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
+    <!-- Armies 시스템 스크립트 -->
+    <script src="src/camera.js"></script>
+    <script src="src/Armies/unitConstants.js"></script>
+    <script src="src/Armies/unitBase.js"></script>
+    <script src="src/Armies/unitEchelons.js"></script>
+    <script src="src/Armies/division_templates.js"></script>
+    <script src="src/Armies/unitLogic.js"></script>
 
-    <script type="module" src="src/main.js"></script>
+    <!-- Nemos 시스템 스크립트 (의존성 순서에 맞게 추가) -->
+    <script src="src/Grid.js"></script>
+    <script src="src/Resource.js"></script>
+    <script src="src/TeamManager.js"></script>
+    <script src="src/Nemos/HitEffect.js"></script>
+    <script src="src/Nemos/MuzzleFlash.js"></script>
+    <script src="src/Nemos/Platform.js"></script>
+    <script src="src/Nemos/Gear.js"></script>
+    <script src="src/Nemos/ShatterEffect.js"></script>
+    <script src="src/Nemos/MoveIndicator.js"></script>
+    <script src="src/Nemos/Nemo.js"></script>
+    <script src="src/Nemos/NemoSquadFormationManager.js"></script>
+    <script src="src/Nemos/NemoSquadManager.js"></script>
+
+    <script src="ui.js"></script>
+    <script src="src/main.js"></script>
 </body>
 </html>

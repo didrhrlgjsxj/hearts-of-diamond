@@ -1,16 +1,3 @@
-import { Camera } from './camera.js';
-import { GameUI } from '../ui.js';
-import { cleanupDestroyedUnits, updateUnits } from './Armies/unitLogic.js';
-import Grid from './Grid.js';
-import { Squad, SquadManager } from './Nemos/NemoSquadManager.js';
-import MoveIndicator from './Nemos/MoveIndicator.js';
-import { MineralPatch, Storage } from './Resource.js';
-import { TeamManagers } from './TeamManager.js';
-import Nemo, { Worker } from './Nemos/Nemo.js';
-import { CommandUnit } from './Armies/unitEchelons.js';
-import { deathEffects, gatherEffects } from './effects.js';
-
-
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
@@ -28,6 +15,8 @@ const mineralPatches = [];
 const mineralPieces = [];
 const storages = [];
 const moveIndicators = [];
+const deathEffects = [];
+const gatherEffects = [];
 let ghostWorker = null;
 let ghostBuilding = null;
 let pendingBuildWorker = null;
@@ -42,7 +31,7 @@ let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
 
 // 부대 고유 번호 생성을 위한 전역 카운터
-export const unitCounters = {
+const unitCounters = {
     'Division': 1,
     'Brigade': 1,
     'Regiment': 1,
@@ -55,7 +44,7 @@ let gameUI;
 
 // 배경 이미지 설정
 const background = new Image();
-background.src = "Background.webp"; // 배경 이미지 경로;
+background.src = "img/BackGround.webp"; // 배경 이미지 경로;
 const backgroundWidth = 4800; // 배경 너비 (1600 * 3)
 const backgroundHeight = 3600; // 배경 높이 (1200 * 3)
 

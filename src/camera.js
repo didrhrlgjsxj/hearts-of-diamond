@@ -2,7 +2,7 @@
  * 게임 월드를 비추는 카메라를 관리하는 클래스입니다.
  * 이동, 줌, 좌표 변환 기능을 담당합니다.
  */
-export class Camera {
+class Camera {
     /**
      * @param {HTMLCanvasElement} canvas 카메라가 상호작용할 캔버스 요소
      */

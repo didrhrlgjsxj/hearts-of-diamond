@@ -1,6 +1,3 @@
-import { BATTALION_ROLES, COMPANY_ROLES } from "./unitConstants.js";
-import { CommandUnit, Battalion, Company, Platoon, Squad } from "./unitEchelons.js";
-
 /**
  * 이 파일은 게임에서 사용될 부대 편제 설계를 정의합니다.
  * 각 설계는 유닛의 계층 구조와 타입을 명시합니다.
@@ -18,7 +15,7 @@ const INFANTRY_COMPANY_STATS = {
     maxOrganization: 190, // 100 + (10 * 9)
 };
 
-export const DIVISION_TEMPLATES = {
+const DIVISION_TEMPLATES = {
     "HQ Company": {
         name: "본부 중대",
         unitClass: Company,
@@ -224,6 +221,3 @@ export const DIVISION_TEMPLATES = {
         build: (parentName, x, y, team) => null,
     },
 };
-
-// To be used by main.js
-import { unitCounters } from "../main.js";
