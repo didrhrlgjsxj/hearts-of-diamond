@@ -7,7 +7,6 @@ export class Camera {
      * @param {HTMLCanvasElement} canvas 카메라가 상호작용할 캔버스 요소
      */
     constructor(canvas) {
-        this.layerManager = null; // LayerManager 참조를 저장할 속성
         this.canvas = canvas;
         this.x = 0;
         this.y = 0;
@@ -24,43 +23,15 @@ export class Camera {
     }
 
     /**
-     * LayerManager에 대한 참조를 설정하고 이벤트 리스너를 등록합니다.
-     * @param {LayerManager} layerManager
-     */
-    initialize(layerManager) {
-        this.layerManager = layerManager;
-        this._addEventListeners();
-    }
-
-    /**
      * 카메라 제어를 위한 이벤트 리스너를 등록합니다.
      */
     _addEventListeners() {
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
-            if (!this.layerManager) return;
-
-            const rect = this.canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            // 1. 줌 하기 전 월드 좌표 기록
-            const worldPosBeforeZoom = this.layerManager.screenToWorld(mouseX, mouseY);
-
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = this.zoom * zoomFactor;
             // 줌 레벨을 최소 0.5, 최대 2.5로 제한합니다.
             this.zoom = Math.max(0.5, Math.min(newZoom, 2.5));
-
-            // 2. LayerManager의 finalScale을 즉시 업데이트
-            this.layerManager.update();
-
-            // 3. 줌 한 후 월드 좌표 기록
-            const worldPosAfterZoom = this.layerManager.screenToWorld(mouseX, mouseY);
-
-            // 4. 월드 좌표 차이만큼 카메라 위치 보정
-            this.x += worldPosBeforeZoom.x - worldPosAfterZoom.x;
-            this.y += worldPosBeforeZoom.y - worldPosAfterZoom.y;
         });
 
         window.addEventListener('keydown', (e) => {
