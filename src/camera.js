@@ -52,7 +52,7 @@ export class Camera {
             // 줌 레벨을 최소 0.2, 최대 4.0으로 확장하여 더 넓은 범위의 줌을 지원합니다.
             this.zoom = Math.max(0.2, Math.min(newZoom, 4.0));
 
-            // 2. LayerManager의 상태를 즉시 업데이트하여 새 줌 레벨에 맞는 레이어와 스케일을 계산
+            // 2. LayerManager의 finalScale을 즉시 업데이트
             this.layerManager.update();
 
             // 3. 줌 한 후 월드 좌표 기록
@@ -88,7 +88,8 @@ export class Camera {
         // 3단계 전술 뷰에서는 좌표계가 확대되므로, 카메라 이동 속도를 보정합니다.
         if (this.layerManager && this.layerManager.currentRenderLayer === 3) {
             // LayerManager에 정의된 TACTICAL_SPACE_SCALE 값으로 나눕니다.
-            moveAmount /= this.layerManager.TACTICAL_SPACE_SCALE;
+            const TACTICAL_SPACE_SCALE = 20.0; 
+            moveAmount /= TACTICAL_SPACE_SCALE;
         }
         
         if (this.keys.w) {
