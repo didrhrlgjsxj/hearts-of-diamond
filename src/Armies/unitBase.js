@@ -26,7 +26,7 @@ export class Unit {
         this.isRetreating = false; // 후퇴 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this.direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
-        this.moveSpeed = 70; // 초당 이동 속도
+        this.moveSpeed = 30; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
         this.attackCooldown = 2.0; // 공격 주기 (초)

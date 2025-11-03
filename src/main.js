@@ -331,18 +331,11 @@ canvas.addEventListener("mouseup", (e) => {
 
 // LayerManager가 screenToWorld를 관리하도록 위임합니다.
 LayerManager.prototype.screenToWorld = function(screenX, screenY) {
-    if (this.currentRenderLayer === 3) {
-        const TACTICAL_SPACE_SCALE = 10.0;
-        return {
-            x: ((screenX / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.x,
-            y: ((screenY / this.finalScale) / TACTICAL_SPACE_SCALE) + this.camera.y,
-        };
-    } else {
-        return {
-            x: (screenX / this.finalScale) + this.camera.x,
-            y: (screenY / this.finalScale) + this.camera.y,
-        };
-    }
+    // LayerManager의 worldScale을 사용하여 좌표를 변환합니다.
+    return {
+        x: (screenX / this.finalScale) + this.camera.x,
+        y: (screenY / this.finalScale) + this.camera.y,
+    };
 };
 
 
@@ -350,13 +343,7 @@ function handleNemoRightClick(pos) {
     const hasCombatUnits = selectedNemos.length > 0 || selectedSquads.length > 0;
     if (hasCombatUnits) {
         if (selectedSquads.length > 0) {
-            // 전술 좌표계로 변환하여 목표 지점 설정
-            const TACTICAL_SPACE_SCALE = 10.0;
-            const tacticalPos = {
-                x: pos.x * TACTICAL_SPACE_SCALE,
-                y: pos.y * TACTICAL_SPACE_SCALE,
-            };
-            selectedSquads.forEach(squad => squad.setDestination(tacticalPos));
+            selectedSquads.forEach(squad => squad.setDestination(pos));
             moveIndicators.push(new MoveIndicator(pos.x, pos.y, 40, 20, 'yellow'));
         }
 
@@ -366,12 +353,8 @@ function handleNemoRightClick(pos) {
             currentCenter.x /= individualNemos.length;
             currentCenter.y /= individualNemos.length;
             individualNemos.forEach(n => {
-                // 전술 좌표계로 변환
-                const TACTICAL_SPACE_SCALE = 10.0;
-                const tacticalPosX = pos.x * TACTICAL_SPACE_SCALE;
-                const tacticalPosY = pos.y * TACTICAL_SPACE_SCALE;
-                const destX = tacticalPosX + (n.x - currentCenter.x);
-                const destY = tacticalPosY + (n.y - currentCenter.y);
+                const destX = pos.x + (n.x - currentCenter.x);
+                const destY = pos.y + (n.y - currentCenter.y);
                 n.setDestination(destX, destY);
             });
             if (selectedSquads.length === 0) {

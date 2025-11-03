@@ -49,14 +49,11 @@ export const COMPANY_ROLES = {
     SUSTAINMENT: '유지대',  // Sustainment: 본부와 함께 중심을 잡으며 전투 지속 지원
 };
 
-// 진형 내 유닛 간 간격 배율
-export const FORMATION_SPREAD_MULTIPLIER = 2.0;
-
 // 역할별 진형 오프셋 (상대적 거리)
 export const FORMATION_OFFSETS = {
-    [COMPANY_ROLES.VANGUARD]: { distance: 60, spread: 40 * FORMATION_SPREAD_MULTIPLIER },     // 선발대는 가장 앞에
-    [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 * FORMATION_SPREAD_MULTIPLIER }, // 지원대는 중간에
-    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 * FORMATION_SPREAD_MULTIPLIER },   // 유지대는 본부와 함께 중심에
+    [COMPANY_ROLES.VANGUARD]: { distance: 60, spread: 40 },     // 선발대는 가장 앞에
+    [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 }, // 지원대는 중간에
+    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에
 };
 
 // 대대 역할 정의
@@ -68,9 +65,9 @@ export const BATTALION_ROLES = {
 
 // 대대 역할별 진형 오프셋 (중대보다 훨씬 넓은 간격)
 export const BATTALION_FORMATION_OFFSETS = {
-    [BATTALION_ROLES.VANGUARD]: { distance: 250, spread: 150 * FORMATION_SPREAD_MULTIPLIER }, // 선봉대는 가장 앞에 넓게
-    [BATTALION_ROLES.MAIN_FORCE]: { distance: 100, spread: 200 * FORMATION_SPREAD_MULTIPLIER }, // 주력대는 중앙에 더 넓게
-    [BATTALION_ROLES.RESERVE]: { distance: -50, spread: 100 * FORMATION_SPREAD_MULTIPLIER },  // 예비대는 본부 약간 뒤에
+    [BATTALION_ROLES.VANGUARD]: { distance: 250, spread: 150 }, // 선봉대는 가장 앞에 넓게
+    [BATTALION_ROLES.MAIN_FORCE]: { distance: 100, spread: 200 }, // 주력대는 중앙에 더 넓게
+    [BATTALION_ROLES.RESERVE]: { distance: -50, spread: 100 },  // 예비대는 본부 약간 뒤에
 };
 
 // 유닛 간 최소 이격 거리
