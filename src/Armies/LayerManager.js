@@ -1,15 +1,9 @@
-import Nemo from './Nemos/Nemo.js';
-import { Squad } from './Nemos/NemoSquadManager.js';
+import Nemo from '../Nemos/Nemo.js';
+import { Squad } from '../Nemos/NemoSquadManager.js';
 
-const ZOOM_THRESHOLDS = { // 카메라의 zoom 값 기준
-    LEVEL_2: 0.8,
-    LEVEL_3: 1.5,
-};
-
-const LAYER_SCALES = { // 각 레이어별 실제 렌더링 배율
-    1: 0.5,  // 1단계 (전략 뷰): 부대 아이콘 위주
-    2: 0.8,  // 2단계 (작전 뷰): 대대/중대 아이콘 위주
-    3: 2.0,  // 3단계 (전술 뷰): 네모 객체 위주
+const ZOOM_THRESHOLDS = {
+    LEVEL_2: 0.8, // 이 줌 레벨보다 커지면 2단계 레이어
+    LEVEL_3: 1.5, // 이 줌 레벨보다 커지면 3단계 레이어
 };
 
 /**
@@ -24,8 +18,6 @@ export class LayerManager {
         this.squadManager = squadManager;
 
         this.currentRenderLayer = 1;
-        this.worldScale = LAYER_SCALES[1]; // 현재 레이어의 월드 스케일
-        this.finalScale = this.worldScale * this.camera.zoom; // 최종 렌더링 스케일
         this.wasOnLayer3 = false;
     }
 
@@ -33,17 +25,11 @@ export class LayerManager {
         // 현재 줌 레벨에 따라 렌더링 레이어를 결정합니다.
         if (this.camera.zoom >= ZOOM_THRESHOLDS.LEVEL_3) {
             this.currentRenderLayer = 3;
-            this.worldScale = LAYER_SCALES[3];
         } else if (this.camera.zoom >= ZOOM_THRESHOLDS.LEVEL_2) {
             this.currentRenderLayer = 2;
-            this.worldScale = LAYER_SCALES[2];
         } else {
             this.currentRenderLayer = 1;
-            this.worldScale = LAYER_SCALES[1];
         }
-
-        // 최종 스케일을 다시 계산합니다.
-        this.finalScale = this.worldScale * this.camera.zoom;
 
         // 3단계 레이어에서 벗어났는지 확인하고 네모 객체를 정리합니다.
         if (this.wasOnLayer3 && this.currentRenderLayer !== 3) {
@@ -58,23 +44,14 @@ export class LayerManager {
         this.wasOnLayer3 = (this.currentRenderLayer === 3);
     }
 
-    /**
-     * 캔버스 컨텍스트에 현재 레이어에 맞는 변환(이동, 스케일)을 적용합니다.
-     * @param {CanvasRenderingContext2D} ctx
-     */
-    applyTransform(ctx) {
-        ctx.scale(this.finalScale, this.finalScale);
-        ctx.translate(-this.camera.x, -this.camera.y);
-    }
-
     draw(ctx) {
         if (this.currentRenderLayer === 3) {
             // 3단계: 중대와 네모를 함께 렌더링
             const viewRect = {
                 x: this.camera.x,
                 y: this.camera.y,
-                w: this.canvas.width / this.finalScale,
-                h: this.canvas.height / this.finalScale,
+                w: this.canvas.width / this.camera.zoom,
+                h: this.canvas.height / this.camera.zoom,
             };
 
             this.topLevelUnits.forEach(unit => {

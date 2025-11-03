@@ -9,7 +9,7 @@ import { TeamManagers } from './TeamManager.js';
 import Nemo, { Worker } from './Nemos/Nemo.js';
 import { CommandUnit } from './Armies/unitEchelons.js';
 import { deathEffects, gatherEffects } from './effects.js';
-import { LayerManager } from './LayerManager.js';
+import { LayerManager } from './rendering/LayerManager.js';
 
 
 const canvas = document.getElementById('gameCanvas');
@@ -89,7 +89,7 @@ canvas.addEventListener('mousemove', (e) => {
 
 canvas.addEventListener('click', (e) => {
     // Armies 유닛 선택 로직
-    const worldCoords = layerManager.screenToWorld(mouseX, mouseY);
+    const worldCoords = camera.screenToWorld(mouseX, mouseY);
 
     let clickedUnit = null;
     // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
@@ -118,7 +118,7 @@ canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
 
     if (selectedUnit) {
-        const worldCoords = layerManager.screenToWorld(mouseX, mouseY);
+        const worldCoords = camera.screenToWorld(mouseX, mouseY);
         // Shift 키를 누르고 우클릭하면 후퇴, 아니면 일반 이동
         // if (e.shiftKey) {
         //     selectedUnit.retreatTo(worldCoords.x, worldCoords.y);
@@ -175,7 +175,7 @@ let rightClickDragStarted = false;
 let moveRect = null;
 
 canvas.addEventListener("mousedown", (e) => {
-    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    const pos = camera.screenToWorld(e.clientX, e.clientY);
     const selectedAnyNemo = selectedNemos.length > 0 || selectedSquads.length > 0 || selectedWorkers.length > 0;
 
     if (e.button === 0) { // 좌클릭
@@ -219,7 +219,7 @@ canvas.addEventListener("mousedown", (e) => {
 });
 
 canvas.addEventListener("mousemove", (e) => {
-    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    const pos = camera.screenToWorld(e.clientX, e.clientY);
     if (isSelecting && selectionRect) {
         selectionRect.x2 = pos.x;
         selectionRect.y2 = pos.y;
@@ -244,7 +244,7 @@ canvas.addEventListener("mousemove", (e) => {
 });
 
 canvas.addEventListener("mouseup", (e) => {
-    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    const pos = camera.screenToWorld(e.clientX, e.clientY);
 
     if (isSelecting && e.button === 0) {
         isSelecting = false;
@@ -310,16 +310,6 @@ canvas.addEventListener("mouseup", (e) => {
         moveRect = null;
     }
 });
-
-// LayerManager가 screenToWorld를 관리하도록 위임합니다.
-LayerManager.prototype.screenToWorld = function(screenX, screenY) {
-    // LayerManager의 worldScale을 사용하여 좌표를 변환합니다.
-    return {
-        x: (screenX / this.finalScale) + this.camera.x,
-        y: (screenY / this.finalScale) + this.camera.y,
-    };
-};
-
 
 function handleNemoRightClick(pos) {
     const hasCombatUnits = selectedNemos.length > 0 || selectedSquads.length > 0;
@@ -409,11 +399,11 @@ function draw() {
     ctx.save();
     ctx.canvas.deltaTime = (performance.now() - lastTime) / 1000; // draw에서도 deltaTime 사용 가능하도록
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
-    layerManager.applyTransform(ctx); // LayerManager가 변환을 적용하도록 변경
+    camera.applyTransform(ctx); // 카메라 변환 적용
 
     // 배경 그리기
     ctx.drawImage(background, 0, 0, backgroundWidth, backgroundHeight);
-    mainGrid.draw(ctx, layerManager); // LayerManager를 전달하여 finalScale 사용
+    mainGrid.draw(ctx, camera);
 
     layerManager.draw(ctx);
 
