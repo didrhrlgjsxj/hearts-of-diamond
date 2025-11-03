@@ -49,8 +49,8 @@ export class Camera {
 
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = this.zoom * zoomFactor;
-            // 줌 레벨을 최소 0.2, 최대 4.0으로 확장하여 더 넓은 범위의 줌을 지원합니다.
-            this.zoom = Math.max(0.2, Math.min(newZoom, 4.0));
+            // 줌 레벨을 최소 0.5, 최대 2.5로 제한합니다.
+            this.zoom = Math.max(0.5, Math.min(newZoom, 2.5));
 
             // 2. LayerManager의 finalScale을 즉시 업데이트
             this.layerManager.update();
@@ -83,14 +83,8 @@ export class Camera {
      * @param {number} deltaTime 프레임 간 시간 간격 (초)
      */
     update(deltaTime) {
-        let moveAmount = this.moveSpeed * deltaTime;
-
-        // 3단계 전술 뷰에서는 좌표계가 확대되므로, 카메라 이동 속도를 보정합니다.
-        if (this.layerManager && this.layerManager.currentRenderLayer === 3) {
-            // LayerManager에 정의된 TACTICAL_SPACE_SCALE 값으로 나눕니다.
-            const TACTICAL_SPACE_SCALE = 20.0; 
-            moveAmount /= TACTICAL_SPACE_SCALE;
-        }
+        // 월드 좌표 기준 이동량. 줌 레벨과 무관하게 동일한 속도로 이동합니다.
+        const moveAmount = this.moveSpeed * deltaTime;
         
         if (this.keys.w) {
             this.y -= moveAmount;

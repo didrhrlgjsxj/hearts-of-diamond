@@ -4,17 +4,17 @@ import { CommandUnit } from './Armies/unitEchelons.js';
 
 const ZOOM_THRESHOLDS = { // 카메라의 zoom 값 기준
     LEVEL_2: 0.8,
-    LEVEL_3: 1.2, // 3단계 진입 시점을 낮춰 더 빨리 전술 뷰로 전환
+    LEVEL_3: 1.5,
 };
 
 const LAYER_SCALES = { // 각 레이어별 실제 렌더링 배율
-    1: 0.3,  // 1단계 (전략 뷰): 부대 아이콘 위주 (더 넓게 보도록 조정)
+    1: 0.4,  // 1단계 (전략 뷰): 부대 아이콘 위주
     2: 0.8,  // 2단계 (작전 뷰): 대대/중대 아이콘 위주
     3: 1.0,  // 3단계 (전술 뷰): 네모 객체 위주 (이 값은 이제 최종 배율에 직접 사용되지 않음)
 };
 
 // 전술 뷰(레이어 3)로 전환될 때 적용될 좌표계 배율
-const TACTICAL_SPACE_SCALE = 20.0;
+const TACTICAL_SPACE_SCALE = 2.0;
 
 /**
  * 카메라 줌 레벨에 따라 다른 객체를 렌더링하는 레이어 시스템을 관리합니다.
@@ -47,7 +47,11 @@ export class LayerManager {
         }
 
         // 최종 스케일을 다시 계산합니다.
-        this.finalScale = this.worldScale * this.camera.zoom;
+        if (this.currentRenderLayer === 3) {
+            this.finalScale = this.camera.zoom; // 레이어 3에서는 카메라 줌만 사용
+        } else {
+            this.finalScale = this.worldScale * this.camera.zoom;
+        }
 
         // 3단계 레이어에서 벗어났는지 확인하고 네모 객체를 정리합니다.
         if (this.wasOnLayer3 && this.currentRenderLayer !== 3) {
