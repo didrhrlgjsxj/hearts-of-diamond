@@ -333,16 +333,7 @@ class Nemo {
         const prevX = this.x;
         const prevY = this.y;
 
-        // 매 프레임마다 상위 중대의 상태를 자신의 HP에 반영합니다.
-        if (this.squad?.platoon?.parentCompany) {
-            const company = this.squad.platoon.parentCompany;
-            const strengthRatio = company.currentStrength / company.baseStrength;
-            this.hp = (company.baseStrength / (company.getAllSquads().length * 3)) * strengthRatio;
-        }
-
         this.allEnemies = enemies;
-
-        
 
         // 스쿼드 기반의 확률적 타겟팅 로직
         if (this.squad && this.squad.attackMoveTargetSquad && squadManager) {
