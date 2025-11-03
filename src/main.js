@@ -9,7 +9,6 @@ import { TeamManagers } from './TeamManager.js';
 import Nemo, { Worker } from './Nemos/Nemo.js';
 import { CommandUnit } from './Armies/unitEchelons.js';
 import { deathEffects, gatherEffects } from './effects.js';
-import { LayerManager } from './rendering/LayerManager.js';
 
 
 const canvas = document.getElementById('gameCanvas');
@@ -42,7 +41,6 @@ let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
 
-let layerManager; // 렌더링 레이어 매니저
 // 부대 고유 번호 생성을 위한 전역 카운터
 export const unitCounters = {
     'Division': 1,
@@ -343,7 +341,6 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
     lastTime = currentTime;
 
-    layerManager.update();
     camera.update(deltaTime);
     
     // --- Armies 유닛 로직 업데이트 ---
@@ -405,14 +402,16 @@ function draw() {
     ctx.drawImage(background, 0, 0, backgroundWidth, backgroundHeight);
     mainGrid.draw(ctx, camera);
 
-    layerManager.draw(ctx);
-
     // Nemos 시스템 객체 그리기
     mineralPatches.forEach(p => p.draw(ctx));
     storages.forEach(s => s.draw(ctx));
     mineralPieces.forEach(p => p.draw(ctx));
     workers.forEach(w => w.draw(ctx));
+    nemos.forEach(nemo => nemo.draw(ctx));
+    squadManager.draw(ctx);
     moveIndicators.forEach(ind => ind.draw(ctx));
+    gatherEffects.forEach(e => e.draw(ctx));
+    deathEffects.forEach(e => e.draw(ctx));
 
     if (window.ghostSquad) {
         ctx.save();
@@ -420,6 +419,11 @@ function draw() {
         window.ghostSquad.nemos.forEach(n => n.draw(ctx));
         window.ghostSquad.draw(ctx);
         ctx.restore();
+    }
+
+    // Armies 시스템 객체 그리기
+    for (const unit of topLevelUnits) {
+        unit.draw(ctx);
     }
 
     // 선택 영역 그리기
@@ -454,11 +458,9 @@ function loop(currentTime) {
 // UI 초기화
 background.onload = () => {
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
-    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
     loop();
 };
 background.onerror = () => { // 배경 이미지 로드 실패 시에도 게임 시작
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
-    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
     loop();
 };
