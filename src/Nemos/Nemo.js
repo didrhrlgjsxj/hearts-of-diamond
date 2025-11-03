@@ -518,13 +518,13 @@ class Nemo {
     // 네모가 죽을 때 호출되는 함수
     destroyed(reason = "알 수 없는 이유") {
         if (this.dead) return; // 중복 호출 방지
-        
+
+        // [디버그] 네모가 어떤 이유로 파괴되었는지, 호출 스택과 함께 기록합니다.
+        console.error(`[Nemo #${this.id}] 파괴됨! 이유: ${reason}`, new Error("호출 스택 추적").stack);
         // 시각적 효과를 위해 사망 이펙트를 생성합니다.
         deathEffects.push(new ShatterEffect(this.x, this.y, this.size, this.borderColor));
         deathEffects.push(new ShatterEffect(this.x, this.y, this.gear.size, 'gray', 10));
         this.dead = true; // 사망 플래그 설정
-        // [디버그] 네모가 어떤 이유로 파괴되었는지, 호출 스택과 함께 기록합니다.
-        console.error(`[Nemo #${this.id}] 파괴됨! 이유: ${reason}`, new Error("호출 스택 추적").stack);
 
         // 상위 중대의 nemoAvatars 목록에서도 자신을 제거합니다.
         if (this.squad?.platoon?.parentCompany) {
@@ -536,7 +536,7 @@ class Nemo {
         }
     }
     
-    draw(ctx) {
+    draw(ctx, tacticalScale = 1) {
         // 플랫폼 본체와 총알을 먼저 그린다
         this.platforms.forEach(platform => platform.draw(ctx));
 

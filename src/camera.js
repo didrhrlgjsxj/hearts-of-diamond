@@ -45,21 +45,22 @@ export class Camera {
             const mouseY = e.clientY - rect.top;
 
             // 1. 줌 하기 전 월드 좌표 기록
-            const worldPosBeforeZoom = this.layerManager.screenToWorld(mouseX, mouseY); // 마우스 포인터의 현재 월드 좌표
+            const worldPosBeforeZoom = this.layerManager.screenToWorld(mouseX, mouseY);
 
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             const newZoom = this.zoom * zoomFactor;
             // 줌 레벨을 최소 0.2, 최대 4.0으로 확장하여 더 넓은 범위의 줌을 지원합니다.
             this.zoom = Math.max(0.2, Math.min(newZoom, 4.0));
 
-            // 2. LayerManager의 상태를 즉시 업데이트하여 새 줌 레벨에 맞는 finalScale을 계산
+            // 2. LayerManager의 상태를 즉시 업데이트하여 새 줌 레벨에 맞는 레이어와 스케일을 계산
             this.layerManager.update();
 
-            // 3. 줌 이후, 마우스 포인터가 동일한 월드 좌표를 가리키도록 카메라 위치를 보정합니다.
-            // 새로운 카메라 중심 = 마우스 월드 좌표 - (마우스 화면 좌표 - 캔버스 중심) / 새 스케일
-            this.x = worldPosBeforeZoom.x - (mouseX - this.canvas.width / 2) / this.layerManager.finalScale;
-            this.y = worldPosBeforeZoom.y - (mouseY - this.canvas.height / 2) / this.layerManager.finalScale;
+            // 3. 줌 한 후 월드 좌표 기록
+            const worldPosAfterZoom = this.layerManager.screenToWorld(mouseX, mouseY);
 
+            // 4. 월드 좌표 차이만큼 카메라 위치 보정
+            this.x += worldPosBeforeZoom.x - worldPosAfterZoom.x;
+            this.y += worldPosBeforeZoom.y - worldPosAfterZoom.y;
         });
 
         window.addEventListener('keydown', (e) => {
