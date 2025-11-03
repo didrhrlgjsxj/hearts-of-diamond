@@ -125,11 +125,11 @@ class Nemo {
     
     // Nemo가 생성될 때, 상위 중대의 상태에 따라 자신의 HP를 설정합니다.
     // 이 HP는 시각적 표현을 위한 '가상'의 값입니다.
-    // if (this.squad && this.squad.platoon && this.squad.platoon.parentCompany) {
-    //     const company = this.squad.platoon.parentCompany;
-    //     const durabilityPerNemo = company.baseDurability / (company.getAllSquads().length * 3);
-    //     this.hp = durabilityPerNemo * (company.currentDurability / company.baseDurability);
-    // }
+    if (this.squad && this.squad.platoon && this.squad.platoon.parentCompany) {
+        const company = this.squad.platoon.parentCompany;
+        const strengthPerNemo = company.baseStrength / (company.getAllSquads().length * 3);
+        this.hp = strengthPerNemo * (company.currentStrength / company.baseStrength);
+    }
     
         // 팀에 따른 색상 설정: fillColor는 연한 색, borderColor는 진한 색
         if (team === "red") {
@@ -334,12 +334,10 @@ class Nemo {
         const prevY = this.y;
 
         // 매 프레임마다 상위 중대의 상태를 자신의 HP에 반영합니다.
-        const company = this.squad?.platoon?.parent; // NemoSquad.platoon is Armies.Platoon, parent is Company
-        if (company) {
-            const baseDurability = company.baseDurability || 1; // 0으로 나누는 것을 방지
-            const durabilityRatio = company.currentDurability / baseDurability;
-            const durabilityPerNemo = baseDurability / (company.getAllSquads().length * 3 || 1);
-            this.hp = durabilityPerNemo * durabilityRatio;
+        if (this.squad?.platoon?.parentCompany) {
+            const company = this.squad.platoon.parentCompany;
+            const strengthRatio = company.currentStrength / company.baseStrength;
+            this.hp = (company.baseStrength / (company.getAllSquads().length * 3)) * strengthRatio;
         }
 
         this.allEnemies = enemies;
@@ -516,11 +514,10 @@ class Nemo {
     }
 
     // 네모가 죽을 때 호출되는 함수
-    destroyed(reason = "알 수 없는 이유") {
+    destroyed() {
         if (this.dead) return; // 중복 호출 방지
 
-        // [디버그] 네모가 어떤 이유로 파괴되었는지, 호출 스택과 함께 기록합니다.
-        console.error(`[Nemo #${this.id}] 파괴됨! 이유: ${reason}`, new Error("호출 스택 추적").stack);
+        console.log(`${this.team} 팀의 네모가 사망했습니다!`);
         // 시각적 효과를 위해 사망 이펙트를 생성합니다.
         deathEffects.push(new ShatterEffect(this.x, this.y, this.size, this.borderColor));
         deathEffects.push(new ShatterEffect(this.x, this.y, this.gear.size, 'gray', 10));

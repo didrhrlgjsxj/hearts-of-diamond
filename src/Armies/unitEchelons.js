@@ -1,5 +1,5 @@
 import { Unit } from './unitBase.js';
-import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, UNIT_TYPES, UNIT_DURABILITIES, UNIT_TYPE_STATS } from './unitConstants.js';
+import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, UNIT_TYPES, UNIT_STRENGTHS, UNIT_TYPE_STATS } from './unitConstants.js';
 
 /**
  * 지휘 부대 (사단, 여단, 연대, 대대)의 공통 로직을 담는 기본 클래스입니다.
@@ -275,8 +275,7 @@ export class Platoon extends Unit {
 /** 분대 (Squad) */
 export class Squad extends Unit {
     constructor(name, x, y, team) {
-        super(name, x, y, UNIT_DURABILITIES.SQUAD, 4, team, UNIT_TYPES.INFANTRY); // UNIT_DURABILITIES는 내구력을 의미
-        this.nemoSquad = null; // 이 분대에 해당하는 NemoSquad 참조
+        super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, UNIT_TYPES.INFANTRY);
         this.setType(UNIT_TYPES.INFANTRY); // 기본 타입을 보병으로 설정
 
         // 분대는 최하위 단위이므로, combatSubUnits는 상위에서 설정합니다.

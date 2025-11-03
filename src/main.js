@@ -81,6 +81,12 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = e.clientX - rect.left;
+    mouseY = e.clientY - rect.top;
+});
+
 /**
  * 게임 시간 배율을 설정합니다.
  * @param {number} scale - 새로운 시간 배율 (0은 일시정지를 의미)
@@ -93,9 +99,92 @@ window.setTimeScale = (scale, clickedButton) => {
         isPaused = false;
         timeScale = scale;
     }
+    // 모든 속도 버튼에서 'active' 클래스를 제거하고, 클릭된 버튼에만 추가합니다.
     document.querySelectorAll('.time-control-btn').forEach(btn => btn.classList.remove('active'));
     clickedButton.classList.add('active');
 };
+// --- 입력 처리 (Event Listeners) ---
+
+canvas.addEventListener('click', (e) => {
+    // Armies 유닛 선택 로직
+    const worldCoords = layerManager.screenToWorld(mouseX, mouseY);
+
+    let clickedUnit = null;
+    // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
+    for (let i = topLevelUnits.length - 1; i >= 0; i--) {
+        const unit = topLevelUnits[i];
+        clickedUnit = unit.getUnitAt(worldCoords.x, worldCoords.y);
+        if (clickedUnit) break;
+    }
+
+    // 이전에 선택된 유닛의 선택 상태를 해제
+    if (selectedUnit) {
+        selectedUnit.setSelected(false);
+    }
+
+    // 새로 클릭된 유닛을 선택 상태로 만듦
+    selectedUnit = clickedUnit;
+    if (selectedUnit) {
+        selectedUnit.setSelected(true);
+    }
+
+    // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
+    gameUI.updateCompositionPanel(selectedUnit);
+});
+
+canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
+
+    if (selectedUnit) {
+        const worldCoords = layerManager.screenToWorld(mouseX, mouseY);
+        // Shift 키를 누르고 우클릭하면 후퇴, 아니면 일반 이동
+        // if (e.shiftKey) {
+        //     selectedUnit.retreatTo(worldCoords.x, worldCoords.y);
+        // } else {
+        //     selectedUnit.moveTo(worldCoords.x, worldCoords.y, topLevelUnits);
+        // }
+    }
+});
+
+window.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (key in camera.keys) {
+        camera.keys[key] = true;
+    }
+    if (key === 'a') {
+        attackKey = true;
+        e.preventDefault();
+    }
+    if (key === 'm') {
+        mineKey = true;
+        e.preventDefault();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key in camera.keys) {
+        camera.keys[key] = false;
+    }
+    if (key === 'a') {
+        attackKey = false;
+        e.preventDefault();
+    }
+    if (key === 'm') {
+        mineKey = false;
+        e.preventDefault();
+    }
+    if (key === 'x') {
+        const newSquad = platoonManager.mergeSelectedSquads();
+        if (newSquad) {
+            selectedNemoSquads.forEach(n => n.selected = false);
+            selectedSquads.forEach(s => s.selected = false);
+            selectedNemoSquads = [];
+            selectedSquads = [newSquad];
+        }
+        e.preventDefault();
+    }
+});
 
 let isSelecting = false;
 let selectionStart = null;
@@ -103,214 +192,142 @@ let selectionRect = null;
 let rightClickDragStarted = false;
 let moveRect = null;
 
-function initEventListeners() {
-    canvas.addEventListener('mousemove', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        mouseX = e.clientX - rect.left;
-        mouseY = e.clientY - rect.top;
-    });
+canvas.addEventListener("mousedown", (e) => {
+    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    const selectedAnyNemo = selectedNemoSquads.length > 0 || selectedSquads.length > 0 || selectedWorkers.length > 0;
 
-    canvas.addEventListener('click', (e) => {
-        // Armies 유닛 선택 로직
-        const worldCoords = layerManager.screenToWorld(mouseX, mouseY);
-
-        let clickedUnit = null;
-        // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
-        for (let i = topLevelUnits.length - 1; i >= 0; i--) {
-            const unit = topLevelUnits[i];
-            clickedUnit = unit.getUnitAt(worldCoords.x, worldCoords.y);
-            if (clickedUnit) break;
-        }
-
-        // 이전에 선택된 유닛의 선택 상태를 해제
-        if (selectedUnit) {
-            selectedUnit.setSelected(false);
-        }
-
-        // 새로 클릭된 유닛을 선택 상태로 만듦
-        selectedUnit = clickedUnit;
-        if (selectedUnit) {
-            selectedUnit.setSelected(true);
-        }
-
-        // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
-        gameUI.updateCompositionPanel(selectedUnit);
-    });
-
-    canvas.addEventListener('contextmenu', (e) => {
-        e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
-    });
-
-    window.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase();
-        if (key in camera.keys) {
-            camera.keys[key] = true;
-        }
-        if (key === 'a') {
-            attackKey = true;
-            e.preventDefault();
-        }
-        if (key === 'm') {
-            mineKey = true;
-            e.preventDefault();
-        }
-    });
-
-    window.addEventListener('keyup', (e) => {
-        const key = e.key.toLowerCase();
-        if (key in camera.keys) {
-            camera.keys[key] = false;
-        }
-        if (key === 'a') {
-            attackKey = false;
-            e.preventDefault();
-        }
-        if (key === 'm') {
-            mineKey = false;
-            e.preventDefault();
-        }
-        if (key === 'x') {
-            const newSquad = platoonManager.mergeSelectedSquads();
-            if (newSquad) {
-                selectedNemoSquads.forEach(n => n.selected = false);
-                selectedSquads.forEach(s => s.selected = false);
-                selectedNemoSquads = [];
-                selectedSquads = [newSquad];
-            }
-            e.preventDefault();
-        }
-    });
-
-    canvas.addEventListener("mousedown", (e) => {
-        const pos = layerManager.screenToWorld(e.clientX, e.clientY);
-        const selectedAnyNemo = selectedNemoSquads.length > 0 || selectedSquads.length > 0 || selectedWorkers.length > 0;
-
-        if (e.button === 0) { // 좌클릭
-            if (attackKey && selectedAnyNemo) {
-                // issueAttackMove([], pos); // TODO: Implement
-                return;
-            }
-            if (window.ghostSquad) {
-                const squadNemos = [];
-                window.ghostSquad.nemos.forEach(ghostNemo => {
-                    ghostNemo.ghost = false;
-                    squadNemos.push(ghostNemo);
-                    nemos.push(ghostNemo);
-                });
-
-                const newSquad = new NemoSquad(squadNemos, window.ghostSquad.team, mainGrid.cellSize);
-                squadNemos.forEach(n => n.squad = newSquad);
-                // platoonManager.platoons.push(new NemoPlatoon([newSquad])); // 임시로 소대에 넣어줌
-
-                window.ghostSquad = null;
-            } else {
-                isSelecting = true;
-                selectionStart = pos;
-                selectionRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
-            }
-        }
-
-        if (e.button === 2) { // 우클릭
-            e.preventDefault();
-            if (selectedUnit) { // Armies 유닛 이동
-                if (e.shiftKey) {
-                    selectedUnit.retreatTo(pos.x, pos.y);
-                } else {
-                    selectedUnit.moveTo(pos.x, pos.y, topLevelUnits);
-                }
-            } else if (selectedAnyNemo) { // Nemos 유닛 이동/공격
-                rightClickDragStarted = true;
-                moveRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
-            }
-        }
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-        const pos = layerManager.screenToWorld(e.clientX, e.clientY);
-        if (isSelecting && selectionRect) {
-            selectionRect.x2 = pos.x;
-            selectionRect.y2 = pos.y;
-        }
-        if (rightClickDragStarted && moveRect) {
-            moveRect.x2 = pos.x;
-            moveRect.y2 = pos.y;
+    if (e.button === 0) { // 좌클릭
+        if (attackKey && selectedAnyNemo) {
+            // issueAttackMove([], pos); // TODO: Implement
+            return;
         }
         if (window.ghostSquad) {
-            let dx = 0;
-            let dy = 0;
-            if (window.ghostSquad.leader) {
-                dx = pos.x - window.ghostSquad.leader.x;
-                dy = pos.y - window.ghostSquad.leader.y;
-            }
-            window.ghostSquad.nemos.forEach(n => {
-                n.x += dx;
-                n.y += dy;
+            const squadNemos = [];
+            window.ghostSquad.nemos.forEach(ghostNemo => {
+                ghostNemo.ghost = false;
+                squadNemos.push(ghostNemo);
+                nemos.push(ghostNemo);
             });
-            window.ghostSquad.update();
+
+            const newSquad = new NemoSquad(squadNemos, window.ghostSquad.team, mainGrid.cellSize);
+            squadNemos.forEach(n => n.squad = newSquad);
+            // platoonManager.platoons.push(new NemoPlatoon([newSquad])); // 임시로 소대에 넣어줌
+
+            window.ghostSquad = null;
+        } else {
+            isSelecting = true;
+            selectionStart = pos;
+            selectionRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
         }
-    });
+    }
 
-    canvas.addEventListener("mouseup", (e) => {
-        const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    if (e.button === 2) { // 우클릭
+        e.preventDefault();
+        if (selectedUnit) { // Armies 유닛 이동
+            if (e.shiftKey) {
+                selectedUnit.retreatTo(pos.x, pos.y);
+            } else {
+                selectedUnit.moveTo(pos.x, pos.y, topLevelUnits);
+            }
+        } else if (selectedAnyNemo) { // Nemos 유닛 이동/공격
+            rightClickDragStarted = true;
+            moveRect = { x1: pos.x, y1: pos.y, x2: pos.x, y2: pos.y };
+        }
+    }
+});
 
-        if (isSelecting && e.button === 0) {
-            isSelecting = false;
-            selectionRect.x2 = pos.x;
-            selectionRect.y2 = pos.y;
-            const dragWidth = Math.abs(selectionRect.x2 - selectionRect.x1);
-            const dragHeight = Math.abs(selectionRect.y2 - selectionRect.y1);
+canvas.addEventListener("mousemove", (e) => {
+    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
+    if (isSelecting && selectionRect) {
+        selectionRect.x2 = pos.x;
+        selectionRect.y2 = pos.y;
+    }
+    if (rightClickDragStarted && moveRect) {
+        moveRect.x2 = pos.x;
+        moveRect.y2 = pos.y;
+    }
+    if (window.ghostSquad) {
+        let dx = 0;
+        let dy = 0;
+        if (window.ghostSquad.leader) {
+            dx = pos.x - window.ghostSquad.leader.x;
+            dy = pos.y - window.ghostSquad.leader.y;
+        }
+        window.ghostSquad.nemos.forEach(n => {
+            n.x += dx;
+            n.y += dy;
+        });
+        window.ghostSquad.update();
+    }
+});
 
-            if (dragWidth < 5 && dragHeight < 5) { // 클릭으로 간주
-                // Nemos 클릭 선택 로직 (기존 Armies 선택 로직은 유지)
-                // 여기서는 Nemos 선택 로직만 추가하고, Armies 선택은 기존 click 핸들러에서 처리
-            } else { // 드래그 선택
-                const minX = Math.min(selectionRect.x1, selectionRect.x2);
-                const maxX = Math.max(selectionRect.x1, selectionRect.x2);
-                const minY = Math.min(selectionRect.y1, selectionRect.y2);
-                const maxY = Math.max(selectionRect.y1, selectionRect.y2);
+canvas.addEventListener("mouseup", (e) => {
+    const pos = layerManager.screenToWorld(e.clientX, e.clientY);
 
-                if (!e.shiftKey) {
-                    selectedNemoSquads.forEach(n => (n.selected = false));
-                    selectedWorkers.forEach(w => (w.selected = false));
-                    selectedSquads.forEach(s => (s.selected = false));
-                    selectedNemoSquads = [];
-                    selectedWorkers = [];
-                    selectedSquads = [];
+    if (isSelecting && e.button === 0) {
+        isSelecting = false;
+        selectionRect.x2 = pos.x;
+        selectionRect.y2 = pos.y;
+        const dragWidth = Math.abs(selectionRect.x2 - selectionRect.x1);
+        const dragHeight = Math.abs(selectionRect.y2 - selectionRect.y1);
+
+        if (dragWidth < 5 && dragHeight < 5) { // 클릭으로 간주
+            // Nemos 클릭 선택 로직 (기존 Armies 선택 로직은 유지)
+            // 여기서는 Nemos 선택 로직만 추가하고, Armies 선택은 기존 click 핸들러에서 처리
+        } else { // 드래그 선택
+            const minX = Math.min(selectionRect.x1, selectionRect.x2);
+            const maxX = Math.max(selectionRect.x1, selectionRect.x2);
+            const minY = Math.min(selectionRect.y1, selectionRect.y2);
+            const maxY = Math.max(selectionRect.y1, selectionRect.y2);
+
+            if (!e.shiftKey) {
+                selectedNemoSquads.forEach(n => (n.selected = false));
+                selectedWorkers.forEach(w => (w.selected = false));
+                selectedSquads.forEach(s => (s.selected = false));
+                selectedNemoSquads = [];
+                selectedWorkers = [];
+                selectedSquads = [];
+            }
+
+            const selectedInSquads = new Set();
+            platoonManager.platoons.flatMap(p => p.squads).forEach(squad => {
+                const b = squad.bounds;
+                if (b.x >= minX && b.x + b.w <= maxX && b.y >= minY && b.y + b.h <= maxY) {
+                    squad.selected = true;
+                    if (!selectedNemoSquads.includes(squad)) selectedNemoSquads.push(squad);
+                    squad.nemos.forEach(n => selectedInSquads.add(n.id));
                 }
+            });
 
-                const selectedInSquads = new Set();
-                platoonManager.platoons.flatMap(p => p.squads).forEach(squad => {
-                    const b = squad.bounds;
-                    if (b.x >= minX && b.x + b.w <= maxX && b.y >= minY && b.y + b.h <= maxY) {
-                        squad.selected = true;
-                        if (!selectedNemoSquads.includes(squad)) selectedNemoSquads.push(squad);
-                        squad.nemos.forEach(n => selectedInSquads.add(n.id));
-                    }
-                });
-            }
-            selectionRect = null;
+            // nemos.forEach(nemo => {
+            //     if (!selectedInSquads.has(nemo.id) && nemo.x >= minX && nemo.x <= maxX && nemo.y >= minY && nemo.y <= maxY) {
+            //         nemo.selected = true;
+            //         if (!selectedNemos.includes(nemo)) selectedNemos.push(nemo);
+            //     }
+            // });
         }
+        selectionRect = null;
+    }
 
-        if (rightClickDragStarted && e.button === 2) {
-            rightClickDragStarted = false;
-            moveRect.x2 = pos.x;
-            moveRect.y2 = pos.y;
-            const dragW = Math.abs(moveRect.x2 - moveRect.x1);
-            const dragH = Math.abs(moveRect.y2 - moveRect.y1);
+    if (rightClickDragStarted && e.button === 2) {
+        rightClickDragStarted = false;
+        moveRect.x2 = pos.x;
+        moveRect.y2 = pos.y;
+        const dragW = Math.abs(moveRect.x2 - moveRect.x1);
+        const dragH = Math.abs(moveRect.y2 - moveRect.y1);
 
-            if (dragW < 5 && dragH < 5) {
-                handleNemoRightClick(pos);
-            } else if (selectedSquads.length > 0) {
-                const startPos = { x: moveRect.x1, y: moveRect.y1 };
-                const endPos = { x: moveRect.x2, y: moveRect.y2 };
-                const centerPos = { x: (startPos.x + endPos.x) / 2, y: (startPos.y + endPos.y) / 2 };
-                selectedSquads.forEach(squad => squad.setFormationShape(startPos, endPos, centerPos));
-                moveIndicators.push(new MoveIndicator(centerPos.x, centerPos.y, 40, 20, 'yellow'));
-            }
-            moveRect = null;
+        if (dragW < 5 && dragH < 5) {
+            handleNemoRightClick(pos);
+        } else if (selectedSquads.length > 0) {
+            const startPos = { x: moveRect.x1, y: moveRect.y1 };
+            const endPos = { x: moveRect.x2, y: moveRect.y2 };
+            const centerPos = { x: (startPos.x + endPos.x) / 2, y: (startPos.y + endPos.y) / 2 };
+            selectedSquads.forEach(squad => squad.setFormationShape(startPos, endPos, centerPos));
+            moveIndicators.push(new MoveIndicator(centerPos.x, centerPos.y, 40, 20, 'yellow'));
         }
-    });
-}
+        moveRect = null;
+    }
+});
 
 // LayerManager가 screenToWorld를 관리하도록 위임합니다.
 LayerManager.prototype.screenToWorld = function(screenX, screenY) {
@@ -371,11 +388,11 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000;
     const effectiveDeltaTime = isPaused ? 0 : deltaTime * timeScale;
     lastTime = currentTime;
-    
-    // 1. 렌더링 레이어를 가장 먼저 업데이트하여 현재 프레임의 상태를 확정합니다.
+
     layerManager.update();
     camera.update(effectiveDeltaTime);
-
+    
+    // --- Armies 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
     updateUnits(topLevelUnits, effectiveDeltaTime);
 
@@ -397,10 +414,7 @@ function update(currentTime) {
 
     // 사망한 네모/워커 제거
     for (let i = nemos.length - 1; i >= 0; i--) {
-        if (nemos[i].dead) {
-            console.log(`[main.js] 전역 nemos 배열에서 사망한 Nemo #${nemos[i].id} 제거.`);
-            nemos.splice(i, 1);
-        }
+        if (nemos[i].dead) nemos.splice(i, 1);
     }
     for (let i = workers.length - 1; i >= 0; i--) {
         if (workers[i].dead) workers.splice(i, 1);
@@ -435,6 +449,7 @@ function draw() {
 
     // 배경 그리기
     ctx.drawImage(background, 0, 0, backgroundWidth, backgroundHeight);
+    mainGrid.draw(ctx, layerManager); // LayerManager를 전달하여 finalScale 사용
 
     layerManager.draw(ctx);
 
@@ -486,14 +501,12 @@ function loop(currentTime) {
 background.onload = () => {
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, platoonManager);
     layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, platoonManager);
-    camera.initialize(layerManager); // 카메라에 LayerManager 참조 전달
-    initEventListeners(); // 모든 이벤트 리스너 초기화
+    camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };
 background.onerror = () => { // 배경 이미지 로드 실패 시에도 게임 시작
     gameUI = new GameUI(camera, topLevelUnits, nemos, workers, platoonManager);
     layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, platoonManager);
-    camera.initialize(layerManager); // 카메라에 LayerManager 참조 전달
-    initEventListeners(); // 모든 이벤트 리스너 초기화
+    camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };

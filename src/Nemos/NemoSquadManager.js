@@ -23,11 +23,11 @@ function lerpAngle(start, end, amount) {
 }
 
 class NemoSquad {
-    constructor(nemos = [], team = 'blue', platoon = null) {
+    constructor(nemos = [], team = 'blue', cellSize = 40) {
         this.nemos = nemos;
         this.team = team;
         this.leader = null;
-        this.platoon = platoon; // 상위 소대(NemoPlatoon) 참조
+        this.platoon = null; // 상위 소대(NemoPlatoon) 참조
         this.selected = false;
         this.squadDestination = null; // 스쿼드 전체의 목표 지점        
         this.currentPos = { x: 0, y: 0 }; // 스쿼드의 현재 가상 중심 위치
@@ -159,7 +159,6 @@ class NemoSquad {
         let minY = Infinity;
         let maxY = -Infinity;
         this.nemos.forEach(n => {
-            if (!n) return; // nemo가 아직 생성되지 않았으면 건너뜁니다.
             const half = n.size / 2;
 
             minX = Math.min(minX, n.x - half);
@@ -225,19 +224,18 @@ class NemoSquad {
 
     // 이제 분대의 조직력은 상위 중대의 조직력을 직접 반영합니다.
     calculateOrganization() {
-        const company = this.platoon?.parentCompany;
-        if (company) {
-            return company.organization / (company.maxOrganization || 1);
+        if (this.platoon && this.platoon.parentCompany) {
+            return this.platoon.parentCompany.organization / this.platoon.parentCompany.maxOrganization;
         }
         return 0;
     }
 
     // 이제 분대의 내구력은 상위 중대의 현재 병력을 직접 반영합니다.
     calculateDurability() {
-        if (this.platoon?.parentCompany) {
-            return this.platoon.parentCompany.currentDurability || 0;
+        if (this.platoon && this.platoon.parentCompany) {
+            return this.platoon.parentCompany.currentStrength;
         }
-        return 1; // 0으로 나누는 것을 방지
+        return 0;
     }
 
     getMaxDurability() {
