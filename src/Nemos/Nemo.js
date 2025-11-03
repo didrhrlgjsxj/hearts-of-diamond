@@ -122,15 +122,7 @@ class Nemo {
             this.isMoving = false; // Add isMoving property
             this.hp = 30;
         }
-    
-    // Nemo가 생성될 때, 상위 중대의 상태에 따라 자신의 HP를 설정합니다.
-    // 이 HP는 시각적 표현을 위한 '가상'의 값입니다.
-    if (this.squad && this.squad.platoon && this.squad.platoon.parentCompany) {
-        const company = this.squad.platoon.parentCompany;
-        const strengthPerNemo = company.baseStrength / (company.getAllSquads().length * 3);
-        this.hp = strengthPerNemo * (company.currentStrength / company.baseStrength);
-    }
-    
+
         // 팀에 따른 색상 설정: fillColor는 연한 색, borderColor는 진한 색
         if (team === "red") {
             this.fillColor = "white";
@@ -504,24 +496,31 @@ class Nemo {
         this.gear.update();
     }
 
+    takeDamage(amount) {
+        const dmg = Math.max(0, amount - this.shieldStrength);
+        if (this.shieldHp > 0) {
+            if(dmg > 0){
+                this.shieldHp -= dmg;
+                if (this.shieldHp < 0) {
+                    this.hp += this.shieldHp; // apply remaining damage
+                    this.shieldHp = 0;
+                }
+            }
+        } else {
+            this.hp -= dmg;
+        }
+        if (this.shieldMaxHp > 0 && this.shieldHp <= 0) {
+            this.shieldFlash = 10;
+        }
+    }
+
     // 네모가 죽을 때 호출되는 함수
     destroyed() {
-        if (this.dead) return; // 중복 호출 방지
-
         console.log(`${this.team} 팀의 네모가 사망했습니다!`);
-        // 시각적 효과를 위해 사망 이펙트를 생성합니다.
         deathEffects.push(new ShatterEffect(this.x, this.y, this.size, this.borderColor));
         deathEffects.push(new ShatterEffect(this.x, this.y, this.gear.size, 'gray', 10));
         this.dead = true; // 사망 플래그 설정
-
-        // 상위 중대의 nemoAvatars 목록에서도 자신을 제거합니다.
-        if (this.squad?.platoon?.parentCompany) {
-            const company = this.squad.platoon.parentCompany;
-            const index = company.nemoAvatars.indexOf(this);
-            if (index > -1) {
-                company.nemoAvatars.splice(index, 1);
-            }
-        }
+        // 필요한 경우 추가적인 정리 작업을 여기서 수행할 수 있습니다.
     }
     
     draw(ctx, tacticalScale = 1) {

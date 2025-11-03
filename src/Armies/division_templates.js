@@ -200,22 +200,15 @@ export const DIVISION_TEMPLATES = {
             const unitNumber = unitCounters['Company']++;
             const unitName = `제${unitNumber}중대 - ${parentName}`;
 
-            const company = new Company(unitName, x, y, team, 7);
-            // Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
-
-            // 보병 중대는 3개의 보병 소대로 구성됩니다.
-            for (let i = 0; i < 3; i++) {
-                const platoon = DIVISION_TEMPLATES["Infantry Platoon"].build(unitName, x, y, team);
-                company.addUnit(platoon);
-            }
-            company.size = 20; // 기본 크기 설정
-
-            // 중대의 전투 단위는 자기 자신이므로, combatSubUnits에 자신을 추가합니다.
-            // 실제 전투 로직은 중대 단위로 돌아갑니다.
-            company.combatSubUnits.push(company);
-
-            company.updateStatsFromSubUnits(); // 하위 유닛으로부터 능력치 재계산
-            company.initializeOrganization();
+            const company = new Company(unitName, x, y, team);
+            
+            // 미리 계산된 고정 능력치를 할당합니다.
+            Object.assign(company, DIVISION_TEMPLATES["Infantry Company"].stats);
+            company.organization = company.maxOrganization;
+            company.size = 20; // 중대 기본 크기
+            
+            // 이 중대가 어떤 종류와 수의 네모 스쿼드로 구성되는지 정의합니다.
+            company.setNemoSquadComposition('infantry', 9);
 
             return company;
         }
@@ -224,30 +217,15 @@ export const DIVISION_TEMPLATES = {
         name: "보병 소대",
         unitClass: Platoon,
         build: (parentName, x, y, team) => {
-            const unitNumber = unitCounters['Platoon']++;
-            const unitName = `제${unitNumber}소대 - ${parentName}`;
-            const platoon = new Platoon(unitName, x, y, team);
-
-            // 보병 소대는 3개의 보병 분대로 구성됩니다.
-            for (let i = 0; i < 3; i++) {
-                const squad = DIVISION_TEMPLATES["Infantry Squad"].build(unitName, x, y, team);
-                platoon.addUnit(squad);
-            }
-            platoon.updateStatsFromSubUnits();
-            return platoon;
+            // 소대와 분대는 이제 실제 게임 객체로 생성되지 않습니다.
+            // 중대 이상의 단위만 생성됩니다.
+            return null;
         }
     },
     "Infantry Squad": {
         name: "보병 분대",
         unitClass: Squad,
-        build: (parentName, x, y, team) => {
-            const unitNumber = unitCounters['Squad']++;
-            const unitName = `제${unitNumber}분대 - ${parentName}`;
-            const squad = new Squad(unitName, x, y, team);
-            // 분대는 최하위 단위이므로, 기본 능력치를 가집니다.
-            // setType에서 능력치가 할당됩니다.
-            return squad;
-        }
+        build: (parentName, x, y, team) => null,
     },
 };
 

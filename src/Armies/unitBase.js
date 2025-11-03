@@ -1,4 +1,4 @@
-import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, MIN_UNIT_SPACING, UNIT_TYPE_ICONS, UNIT_TYPE_STATS } from "./unitConstants.js";
+import { BATTALION_ROLES, BATTALION_FORMATION_OFFSETS, COMPANY_ROLES, ECHELON_SYMBOLS, FORMATION_OFFSETS, MIN_UNIT_SPACING, UNIT_TYPE_ICONS } from "./unitConstants.js";
 
 /**
  * 모든 군사 유닛의 기본이 되는 클래스입니다.
@@ -26,7 +26,7 @@ export class Unit {
         this.isRetreating = false; // 후퇴 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this.direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
-        this.moveSpeed = 150; // 초당 이동 속도
+        this.moveSpeed = 70; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
         this.attackCooldown = 2.0; // 공격 주기 (초)
@@ -45,7 +45,6 @@ export class Unit {
         this.softAttack = 0;
         this.hardAttack = 0;
         this.reconnaissance = 0;
-        this.nemoAvatars = []; // 이 유닛을 시각적으로 대표하는 Nemo 객체들의 배열
         this.armor = 0;
         this.tracers = []; // 예광탄 효과 배열
 
@@ -117,28 +116,6 @@ export class Unit {
     initializeOrganization() {
         this.organization = this.maxOrganization;
         this.subUnits.forEach(subUnit => subUnit.initializeOrganization());
-    }
-
-    /**
-     * 하위 유닛들의 능력치를 합산하여 자신의 능력치를 업데이트합니다.
-     * 분대(Squad)는 기본 능력치를 가지며, 상위 부대는 이 메서드를 통해 능력치를 결정합니다.
-     */
-    updateStatsFromSubUnits() {
-        if (this.subUnits.length === 0) {
-            // 분대(Squad)의 경우, 자신의 타입에 맞는 기본 능력치를 설정합니다.
-            if (this.type && UNIT_TYPE_STATS[this.type]) {
-                Object.assign(this, UNIT_TYPE_STATS[this.type]);
-            }
-            return;
-        }
-
-        // 상위 부대의 경우, 하위 유닛의 능력치를 합산합니다.
-        this._baseStrength = this.subUnits.reduce((sum, unit) => sum + unit._baseStrength, 0);
-        this.firepower = this.subUnits.reduce((sum, unit) => sum + unit.firepower, 0);
-        this.softAttack = this.subUnits.reduce((sum, unit) => sum + unit.softAttack, 0);
-        this.hardAttack = this.subUnits.reduce((sum, unit) => sum + unit.hardAttack, 0);
-        this.reconnaissance = this.subUnits.reduce((sum, unit) => sum + unit.reconnaissance, 0);
-        this.maxOrganization = 100 + this.subUnits.reduce((sum, unit) => sum + (unit.maxOrganization - 100), 0);
     }
 
     /**
@@ -384,20 +361,6 @@ export class Unit {
                     if (topLevelParent) topLevelParent.reserveUnits.push(company);
                 });
             }
-        }
-    }
-
-    /**
-     * 이 중대에 속한 Nemo 중 하나를 무작위로 파괴합니다.
-     * 중대의 병력 손실을 시각적으로 표현하기 위해 호출됩니다.
-     */
-    destroyOneNemo() {
-        if (this.nemoAvatars.length > 0) {
-            const randomIndex = Math.floor(Math.random() * this.nemoAvatars.length);
-            const nemoToDestroy = this.nemoAvatars[randomIndex];
-            
-            // Nemo의 파괴 메서드를 호출합니다.
-            nemoToDestroy.destroyed();
         }
     }
 

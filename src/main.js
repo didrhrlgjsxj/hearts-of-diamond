@@ -1,8 +1,8 @@
 import { Camera } from './camera.js';
 import { GameUI } from '../ui.js';
 import { cleanupDestroyedUnits, updateUnits } from './Armies/unitLogic.js';
-import Grid from './Grid.js';
-import { NemoPlatoon, NemoSquad, NemoPlatoonManager } from './Nemos/NemoSquadManager.js';
+import Grid from './Grid.js'; // NemoSquadManager.js에서 Squad를 import하므로 Nemo도 필요합니다.
+import { Squad, SquadManager } from './Nemos/NemoSquadManager.js';
 import MoveIndicator from './Nemos/MoveIndicator.js';
 import { MineralPatch, Storage } from './Resource.js';
 import { TeamManagers } from './TeamManager.js';
@@ -22,7 +22,7 @@ let selectedUnit = null;   // 현재 선택된 유닛
 // --- Nemos 시스템 변수 ---
 const nemos = [];
 const workers = [];
-let selectedNemoSquads = [];
+let selectedNemos = [];
 let selectedSquads = [];
 let selectedWorkers = [];
 const mineralPatches = [];
@@ -65,7 +65,7 @@ const backgroundHeight = 3600; // 배경 높이 (1200 * 3)
 
 // 그리드 및 스쿼드 매니저
 const mainGrid = new Grid(40, backgroundWidth, backgroundHeight);
-const platoonManager = new NemoPlatoonManager(mainGrid.cellSize);
+const squadManager = new SquadManager(mainGrid.cellSize);
 
 // 자원 초기화
 TeamManagers.blue.minerals = 0;
@@ -175,11 +175,11 @@ window.addEventListener('keyup', (e) => {
         e.preventDefault();
     }
     if (key === 'x') {
-        const newSquad = platoonManager.mergeSelectedSquads();
+        const newSquad = squadManager.mergeSelectedSquads();
         if (newSquad) {
-            selectedNemoSquads.forEach(n => n.selected = false);
+            selectedNemos.forEach(n => n.selected = false);
             selectedSquads.forEach(s => s.selected = false);
-            selectedNemoSquads = [];
+            selectedNemos = [];
             selectedSquads = [newSquad];
         }
         e.preventDefault();
@@ -194,7 +194,7 @@ let moveRect = null;
 
 canvas.addEventListener("mousedown", (e) => {
     const pos = layerManager.screenToWorld(e.clientX, e.clientY);
-    const selectedAnyNemo = selectedNemoSquads.length > 0 || selectedSquads.length > 0 || selectedWorkers.length > 0;
+    const selectedAnyNemo = selectedNemos.length > 0 || selectedSquads.length > 0 || selectedWorkers.length > 0;
 
     if (e.button === 0) { // 좌클릭
         if (attackKey && selectedAnyNemo) {
@@ -209,9 +209,9 @@ canvas.addEventListener("mousedown", (e) => {
                 nemos.push(ghostNemo);
             });
 
-            const newSquad = new NemoSquad(squadNemos, window.ghostSquad.team, mainGrid.cellSize);
+            const newSquad = new Squad(squadNemos, window.ghostSquad.team, mainGrid.cellSize);
             squadNemos.forEach(n => n.squad = newSquad);
-            // platoonManager.platoons.push(new NemoPlatoon([newSquad])); // 임시로 소대에 넣어줌
+            squadManager.squads.push(newSquad);
 
             window.ghostSquad = null;
         } else {
@@ -281,30 +281,30 @@ canvas.addEventListener("mouseup", (e) => {
             const maxY = Math.max(selectionRect.y1, selectionRect.y2);
 
             if (!e.shiftKey) {
-                selectedNemoSquads.forEach(n => (n.selected = false));
+                selectedNemos.forEach(n => (n.selected = false));
                 selectedWorkers.forEach(w => (w.selected = false));
                 selectedSquads.forEach(s => (s.selected = false));
-                selectedNemoSquads = [];
+                selectedNemos = [];
                 selectedWorkers = [];
                 selectedSquads = [];
             }
 
             const selectedInSquads = new Set();
-            platoonManager.platoons.flatMap(p => p.squads).forEach(squad => {
+            squadManager.squads.forEach(squad => {
                 const b = squad.bounds;
                 if (b.x >= minX && b.x + b.w <= maxX && b.y >= minY && b.y + b.h <= maxY) {
                     squad.selected = true;
-                    if (!selectedNemoSquads.includes(squad)) selectedNemoSquads.push(squad);
+                    if (!selectedSquads.includes(squad)) selectedSquads.push(squad);
                     squad.nemos.forEach(n => selectedInSquads.add(n.id));
                 }
             });
 
-            // nemos.forEach(nemo => {
-            //     if (!selectedInSquads.has(nemo.id) && nemo.x >= minX && nemo.x <= maxX && nemo.y >= minY && nemo.y <= maxY) {
-            //         nemo.selected = true;
-            //         if (!selectedNemos.includes(nemo)) selectedNemos.push(nemo);
-            //     }
-            // });
+            nemos.forEach(nemo => {
+                if (!selectedInSquads.has(nemo.id) && nemo.x >= minX && nemo.x <= maxX && nemo.y >= minY && nemo.y <= maxY) {
+                    nemo.selected = true;
+                    if (!selectedNemos.includes(nemo)) selectedNemos.push(nemo);
+                }
+            });
         }
         selectionRect = null;
     }
@@ -347,7 +347,7 @@ LayerManager.prototype.screenToWorld = function(screenX, screenY) {
 
 
 function handleNemoRightClick(pos) {
-    const hasCombatUnits = selectedNemoSquads.length > 0 || selectedSquads.length > 0;
+    const hasCombatUnits = selectedNemos.length > 0 || selectedSquads.length > 0;
     if (hasCombatUnits) {
         if (selectedSquads.length > 0) {
             // 전술 좌표계로 변환하여 목표 지점 설정
@@ -360,7 +360,7 @@ function handleNemoRightClick(pos) {
             moveIndicators.push(new MoveIndicator(pos.x, pos.y, 40, 20, 'yellow'));
         }
 
-        const individualNemos = selectedNemoSquads.map(s => s.nemos).flat().filter(n => !n.squad);
+        const individualNemos = selectedNemos.filter(n => !n.squad);
         if (individualNemos.length > 0) {
             const currentCenter = individualNemos.reduce((acc, n) => ({ x: acc.x + n.x, y: acc.y + n.y }), { x: 0, y: 0 });
             currentCenter.x /= individualNemos.length;
@@ -398,9 +398,9 @@ function update(currentTime) {
 
     // --- Nemos 유닛 로직 업데이트 ---
     const allNemoEntities = [...nemos, ...workers];
-    nemos.forEach(nemo => nemo.update(allNemoEntities, platoonManager));
+    nemos.forEach(nemo => nemo.update(allNemoEntities, squadManager));
     workers.forEach(w => w.update(mineralPatches, mineralPieces, storages));
-    platoonManager.updatePlatoons(nemos);
+    squadManager.updateSquads(nemos);
 
     // 이펙트 업데이트
     [moveIndicators, deathEffects, gatherEffects].forEach(effectArray => {
@@ -419,8 +419,8 @@ function update(currentTime) {
     for (let i = workers.length - 1; i >= 0; i--) {
         if (workers[i].dead) workers.splice(i, 1);
     }
-    platoonManager.platoons.forEach(p => p.squads.forEach(squad => squad.nemos = squad.nemos.filter(n => !n.dead)));
-    platoonManager.platoons.forEach(p => p.squads = p.squads.filter(squad => squad.nemos.length > 0));
+    squadManager.squads.forEach(squad => squad.nemos = squad.nemos.filter(n => !n.dead));
+    squadManager.squads = squadManager.squads.filter(squad => squad.nemos.length > 0);
 
 
     // --- Armies 파괴된 유닛 제거 ---
@@ -499,14 +499,14 @@ function loop(currentTime) {
 
 // UI 초기화
 background.onload = () => {
-    gameUI = new GameUI(camera, topLevelUnits, nemos, workers, platoonManager);
-    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, platoonManager);
+    gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
+    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
     camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };
 background.onerror = () => { // 배경 이미지 로드 실패 시에도 게임 시작
-    gameUI = new GameUI(camera, topLevelUnits, nemos, workers, platoonManager);
-    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, platoonManager);
+    gameUI = new GameUI(camera, topLevelUnits, nemos, workers, squadManager);
+    layerManager = new LayerManager(camera, canvas, topLevelUnits, nemos, squadManager);
     camera.initialize(layerManager); // 카메라에 LayerManager 참조를 전달하고 이벤트 리스너 활성화
     loop();
 };
