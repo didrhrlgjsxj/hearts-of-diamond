@@ -400,7 +400,7 @@ function draw() {
 
     // 배경 그리기
     ctx.drawImage(background, 0, 0, backgroundWidth, backgroundHeight);
-    mainGrid.draw(ctx, camera);
+    mainGrid.draw(ctx);
 
     // Nemos 시스템 객체 그리기
     mineralPatches.forEach(p => p.draw(ctx));

@@ -472,9 +472,6 @@ export class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
-        // 부대 종류별 심볼을 먼저 그립니다.
-        this.drawEchelonSymbol(ctx);
-
         const barWidth = 40;
             const barHeight = 5;
             const barX = this.x - barWidth / 2;
@@ -534,6 +531,7 @@ export class Unit {
                 ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
             }
         }
+        // 부대 종류별 심볼을 그립니다.
         // 적 발견 상태일 때 초록색으로 빛나게 표시 (테두리)
         if (this.isEnemyDetected) {
             ctx.beginPath();
@@ -542,6 +540,7 @@ export class Unit {
             ctx.lineWidth = 3;
             ctx.stroke();
         }
+        this.drawEchelonSymbol(ctx);
 
         // 부대 방향을 나타내는 선을 그립니다.
         ctx.save();
