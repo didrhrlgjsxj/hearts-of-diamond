@@ -79,7 +79,7 @@ class Nemo {
         this.id = Nemo.nextId++;
         this.x = x;
         this.y = y;
-        this.angle = 0; // 현재 각도
+        this.angle = 0;          // 현재 각도
         this.size = 50;
         this.speed = 0;
         this.maxSpeed = 3;      // Nemo의 최고 속도

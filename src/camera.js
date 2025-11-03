@@ -31,7 +31,7 @@ export class Camera {
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             this.zoom *= zoomFactor;
             // 줌 레벨을 최소 0.5, 최대 5로 제한합니다.
-            this.zoom = Math.max(0.05, Math.min(this.zoom, 5));
+            this.zoom = Math.max(0.5, Math.min(this.zoom, 5));
         });
 
         window.addEventListener('keydown', (e) => {
