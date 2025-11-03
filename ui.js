@@ -1,22 +1,14 @@
-// main.js에서 생성될 ghostSquad를 위한 전역 변수 선언
-let ghostSquad = null;
-
 /**
  * 게임의 사용자 인터페이스(UI)를 관리하는 클래스입니다.
  */
 class GameUI {
     /**
-     * @param {Camera} camera
-     * @param {Unit[]} topLevelUnits
-     * @param {Nemo[]} nemos
-     * @param {Worker[]} workers
-     * @param {SquadManager} squadManager
+     * @param {Camera} camera - 게임 카메라 인스턴스
+     * @param {Unit[]} unitList - 게임의 최상위 유닛 목록
      */
-    constructor(camera, topLevelUnits, nemos, workers, squadManager) {
+    constructor(camera, unitList) {
         this.camera = camera;
-        this.topLevelUnits = topLevelUnits;
-        this.nemos = nemos;
-        this.squadManager = squadManager;
+        this.topLevelUnits = unitList;
         this.createControlPanel();
 
 
@@ -55,22 +47,10 @@ class GameUI {
         // 소환 버튼
         const spawnButton = document.createElement('button');
         spawnButton.textContent = '소환';
-        spawnButton.onclick = () => this.spawnArmyUnit();
+        spawnButton.onclick = () => this.spawnUnit();
 
-        // Nemo 소환 버튼들
-        const spawnRedNemoUnitBtn = document.createElement('button');
-        spawnRedNemoUnitBtn.textContent = 'Nemo Red Unit';
-        spawnRedNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'red');
-
-        const spawnBlueNemoUnitBtn = document.createElement('button');
-        spawnBlueNemoUnitBtn.textContent = 'Nemo Blue Unit';
-        spawnBlueNemoUnitBtn.onclick = () => this.createGhostSquad('A', 'blue');
-
-
-        panel.append(this.resetFormationButton, '<h3>Armies 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
-        panel.append(document.createElement('hr'), '<h3>Nemos 소환</h3>', spawnRedNemoUnitBtn, spawnBlueNemoUnitBtn);
+        panel.append(this.resetFormationButton, '<h3>유닛 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
         document.body.appendChild(panel);
-
     }
 
     createSelect(id, labelText, options) {
@@ -89,7 +69,7 @@ class GameUI {
         return { label, select };
     }
 
-    spawnArmyUnit() {
+    spawnUnit() {
         const team = document.getElementById('team-select').value;
         const templateKey = document.getElementById('unit-type-select').value;
         const template = DIVISION_TEMPLATES[templateKey];
@@ -100,12 +80,8 @@ class GameUI {
         if (template && template.build) {
             // 최상위 부대는 부모 이름이 없으므로 null을 전달합니다.
             const newUnit = template.build(null, spawnPos.x, spawnPos.y, team);
-            if (newUnit) {
-                this.topLevelUnits.push(newUnit);
-                console.log(`Spawned: ${newUnit.name}`);
-            } else {
-                console.warn(`Could not spawn unit. The template "${template.name}" is not spawnable as a top-level unit.`);
-            }
+            this.topLevelUnits.push(newUnit);
+            console.log(`Spawned: ${newUnit.name}`);
         }
     }
 
