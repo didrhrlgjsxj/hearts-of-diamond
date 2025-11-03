@@ -94,3 +94,16 @@ class Camera {
         };
     }
 }
+
+/**
+ * 카메라의 현재 뷰포트(보이는 영역)를 월드 좌표 기준으로 반환합니다.
+ * @returns {{left: number, right: number, top: number, bottom: number}}
+ */
+Camera.prototype.getViewport = function() {
+    const { width, height } = this.canvas;
+    const left = this.x;
+    const top = this.y;
+    const right = this.x + width / this.zoom;
+    const bottom = this.y + height / this.zoom;
+    return { left, right, top, bottom };
+};

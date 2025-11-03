@@ -2,6 +2,7 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 // --- 게임 월드 설정 ---
+let mapGrid; // 맵 데이터 관리 인스턴스
 const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
@@ -115,16 +116,42 @@ function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
     camera.applyTransform(ctx); // 카메라 변환 적용
 
-    const tileSize = 50;
-    const mapWidth = 20;
-    const mapHeight = 20;
+    // --- 맵 렌더링 최적화 ---
+    // 카메라에 보이는 영역의 타일만 그리도록 계산합니다.
+    const view = camera.getViewport();
+    const startCol = Math.floor(view.left / mapGrid.tileSize);
+    const endCol = Math.ceil(view.right / mapGrid.tileSize);
+    const startRow = Math.floor(view.top / mapGrid.tileSize);
+    const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
 
-    ctx.fillStyle = '#ccc';
-    ctx.strokeStyle = '#999';
-    for (let y = 0; y < mapHeight; y++) {
-        for (let x = 0; x < mapWidth; x++) {
-            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+    for (let y = startRow; y < endRow; y++) {
+        for (let x = startCol; x < endCol; x++) {
+            if (x < 0 || x >= mapGrid.width || y < 0 || y >= mapGrid.height) continue;
+
+            const tileX = x * mapGrid.tileSize;
+            const tileY = y * mapGrid.tileSize;
+
+            // 기본 타일 색상 설정
+            ctx.fillStyle = '#ccc';
+            ctx.strokeStyle = '#999';
+
+            // 기본 타일 그리기
+            ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
+
+            // 국가 영토 색상 칠하기
+            const owner = mapGrid.grid[x][y];
+            if (owner) {
+                ctx.fillStyle = owner.color;
+                ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
+
+                // 수도 타일인지 확인하고 별 아이콘 그리기
+                if (owner.capital.x === x && owner.capital.y === y) {
+                    drawStar(ctx, tileX + mapGrid.tileSize / 2, tileY + mapGrid.tileSize / 2, 5, 15, 7);
+                }
+            }
+
+            // 타일 테두리 그리기
+            ctx.strokeRect(x * mapGrid.tileSize, y * mapGrid.tileSize, mapGrid.tileSize, mapGrid.tileSize);
         }
     }
 
@@ -136,12 +163,65 @@ function draw() {
     ctx.restore();
 }
 
+/**
+ * 카메라의 현재 뷰포트(보이는 영역)를 월드 좌표 기준으로 반환합니다.
+ * @returns {{left: number, right: number, top: number, bottom: number}}
+ */
+Camera.prototype.getViewport = function() {
+    const { width, height } = this.canvas;
+    const left = this.x;
+    const top = this.y;
+    const right = this.x + width / this.zoom;
+    const bottom = this.y + height / this.zoom;
+    return { left, right, top, bottom };
+};
+
+
+/**
+ * 지정된 위치에 별 모양을 그립니다.
+ * @param {CanvasRenderingContext2D} ctx 
+ * @param {number} cx 별의 중심 X 좌표
+ * @param {number} cy 별의 중심 Y 좌표
+ * @param {number} spikes 별의 뾰족한 부분 개수
+ * @param {number} outerRadius 바깥쪽 반지름
+ * @param {number} innerRadius 안쪽 반지름
+ */
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+    let rot = Math.PI / 2 * 3;
+    let x = cx;
+    let y = cy;
+    const step = Math.PI / spikes;
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - outerRadius);
+    for (let i = 0; i < spikes; i++) {
+        x = cx + Math.cos(rot) * outerRadius;
+        y = cy + Math.sin(rot) * outerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+
+        x = cx + Math.cos(rot) * innerRadius;
+        y = cy + Math.sin(rot) * innerRadius;
+        ctx.lineTo(x, y);
+        rot += step;
+    }
+    ctx.lineTo(cx, cy - outerRadius);
+    ctx.closePath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'gold';
+    ctx.stroke();
+    ctx.fillStyle = 'yellow';
+    ctx.fill();
+}
+
 function loop(currentTime) {
     update(currentTime);
     draw();
     requestAnimationFrame(loop);
 }
 
+// 맵 초기화
+mapGrid = new MapGrid();
 // UI 초기화
 gameUI = new GameUI(camera, topLevelUnits);
 loop();
