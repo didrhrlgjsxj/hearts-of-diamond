@@ -1,6 +1,6 @@
 const MAP_WIDTH = 200;
 const MAP_HEIGHT = 200;
-const TILE_SIZE = 50;
+const TILE_SIZE = 70;
 
 /**
  * 게임 맵의 그리드와 국가 소유권을 관리하는 클래스입니다.
