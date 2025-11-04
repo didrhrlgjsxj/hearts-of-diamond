@@ -71,6 +71,7 @@ class Nation {
             assignedFactories: assignedFactories,
             progress: 0,       // 현재 생산 진행도
             efficiency: 0.5,   // 생산 효율 (50%에서 시작)
+            productionTick: Math.floor(Math.random() * 5) // 0~4 사이의 랜덤한 생산 주기 할당
         });
     }
 
@@ -93,47 +94,45 @@ class Nation {
     }
 
     /**
-     * 매 프레임 생산 라인을 업데이트합니다.
-     * @param {number} deltaTime - 프레임 간 시간 간격 (초)
+     * 매 시간, 해당 틱에 할당된 생산 라인만 업데이트합니다.
+     * @param {number} currentTick - 현재 계산해야 할 생산 주기 (0-4)
+     * @param {number} hoursPassed - 경과 시간 (시간 단위)
      */
-    updateProduction(deltaTime) {
+    updateHourlyProduction(currentTick, hoursPassed) {
         if (this.productionLines.length === 0) {
             return;
         }
 
         // TODO: 총 할당된 공장 수가 보유 공장 수를 넘지 않도록 제한하는 로직 필요
 
-        this.productionLines.forEach(line => {
+        this.productionLines.filter(line => line.productionTick === currentTick).forEach(line => {
             const equipment = EQUIPMENT_TYPES[line.equipmentKey];
             if (!equipment) return;
 
             // 1. 이 라인에 적용될 총 생산력을 계산합니다.
-            let totalProductionPower = 0;
             const baseProductionPerFactory = 1.5; // 공장당 기본 생산력
 
             // 5단계 카테고리에 따른 생산 효율을 가져옵니다.
             const efficiencyMultipliers = PRODUCTION_EFFICIENCY[equipment.category] || { light: 1.0, heavy: 1.0 };
 
-            const lightIndustryPower = this.lightIndustry * efficiencyMultipliers.light;
-            const heavyIndustryPower = this.heavyIndustry * efficiencyMultipliers.heavy;
-            totalProductionPower = lightIndustryPower + heavyIndustryPower;
+            const totalProductionPower = (this.lightIndustry * efficiencyMultipliers.light) + (this.heavyIndustry * efficiencyMultipliers.heavy);
             
-            // 할당된 공장 수, 기본 생산력, 생산 효율을 모두 곱합니다.
-            const appliedProduction = line.assignedFactories * baseProductionPerFactory * totalProductionPower * line.efficiency * deltaTime;
+            // 할당된 공장 수, 기본 생산력, 생산 효율, 경과 시간을 모두 곱합니다.
+            const appliedProduction = line.assignedFactories * baseProductionPerFactory * totalProductionPower * line.efficiency * hoursPassed;
 
             // 2. 생산 진행도를 높입니다.
             line.progress += appliedProduction;
 
             // 3. 생산이 완료되었는지 확인합니다.
             if (line.progress >= equipment.productionCost) {
-                const completedUnits = Math.floor(line.progress / equipment.productionCost);
+                const completedUnits = Math.floor(line.progress / equipment.productionCost); // 시간당 생산량
                 
                 // 비축량에 추가
                 if (!this.equipmentStockpile[line.equipmentKey]) {
                     this.equipmentStockpile[line.equipmentKey] = 0;
                 }
                 this.equipmentStockpile[line.equipmentKey] += completedUnits;
-                console.log(`${this.name}에서 ${equipment.name} ${completedUnits}개 생산 완료! (총: ${this.equipmentStockpile[line.equipmentKey]})`);
+                console.log(`[Tick ${currentTick}] ${this.name}에서 ${equipment.name} ${completedUnits}개 생산 완료! (총: ${this.equipmentStockpile[line.equipmentKey]})`);
 
                 // 진행도 리셋
                 line.progress %= equipment.productionCost;

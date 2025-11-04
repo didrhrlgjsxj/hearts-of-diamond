@@ -8,6 +8,14 @@ const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
 
+// --- 게임 시간 및 생산 주기 설정 ---
+const SECONDS_PER_GAME_HOUR = 0.5; // 현실 시간 0.5초 = 게임 시간 1시간
+const PRODUCTION_TICKS = 5; // 생산 계산을 분산할 주기(틱)의 수
+let gameTime = {
+    totalHours: 0,
+    timeAccumulator: 0, // 시간 경과를 누적하는 변수
+};
+
 let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
@@ -25,6 +33,10 @@ const unitCounters = {
 // UI 인스턴스를 저장할 변수
 let gameUI;
 
+// --- 시간 표시 UI 요소 ---
+const timeDisplay = document.createElement('div');
+timeDisplay.id = 'time-display';
+
 // --- 초기 국가 설정 ---
 function initializeNations() {
     const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', { x: 2, y: 2 });
@@ -33,6 +45,10 @@ function initializeNations() {
     const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', { x: 10, y: 10 });
     nations.set('red', redNation);
 }
+
+// --- UI 초기화 ---
+document.body.appendChild(timeDisplay);
+
 
 
 function resize() {
@@ -96,16 +112,26 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
     lastTime = currentTime;
 
+    // --- 게임 시간 업데이트 ---
+    gameTime.timeAccumulator += deltaTime;
+    if (gameTime.timeAccumulator >= SECONDS_PER_GAME_HOUR) {
+        gameTime.timeAccumulator -= SECONDS_PER_GAME_HOUR;
+        gameTime.totalHours++;
+
+        // --- 시간당 생산 업데이트 ---
+        const currentTick = gameTime.totalHours % PRODUCTION_TICKS;
+        nations.forEach((nation) => {
+            // 1시간 분량의 생산을 계산하도록 요청
+            nation.updateHourlyProduction(currentTick, 1);
+        });
+    }
+
     camera.update(deltaTime);
     
     // --- 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
     updateUnits(topLevelUnits, deltaTime);
 
-    // --- 국가별 생산 업데이트 ---
-    nations.forEach((nation) => {
-        nation.updateProduction(deltaTime);
-    });
     gameUI.updateProductionPanel();
 
     // --- 파괴된 유닛 제거 ---
@@ -131,6 +157,10 @@ function draw() {
     ctx.canvas.deltaTime = (performance.now() - lastTime) / 1000; // draw에서도 deltaTime 사용 가능하도록
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
     camera.applyTransform(ctx); // 카메라 변환 적용
+
+    // --- 시간 UI 업데이트 ---
+    const days = Math.floor(gameTime.totalHours / 24);
+    timeDisplay.textContent = `Day ${days + 1}, ${gameTime.totalHours % 24}:00`;
 
     // --- 맵 렌더링 최적화 ---
     // 카메라에 보이는 영역의 타일만 그리도록 계산합니다.
@@ -242,4 +272,4 @@ mapGrid = new MapGrid(); // MapGrid는 현재 자체적으로 디버그 국가�
 initializeNations();
 // UI 초기화
 gameUI = new GameUI(camera, nations);
-loop();
+requestAnimationFrame(loop);

@@ -17,7 +17,7 @@
             width: 100%;
             height: 100%;
         }
-        #control-panel {
+        #main-ui-container {
             position: absolute;
             top: 10px;
             left: 10px;
@@ -25,19 +25,38 @@
             padding: 15px;
             border-radius: 8px;
             font-family: sans-serif;
+            width: 250px;
         }
-        #control-panel h3 {
+        #main-ui-container h3 {
             margin-top: 0;
         }
-        #control-panel label, #control-panel select, #control-panel button {
+        .panel-toggle-buttons {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .panel-toggle-buttons button {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            background: #f0f0f0;
+            cursor: pointer;
+        }
+        .panel-toggle-buttons button.active {
+            background: #fff;
+            border-bottom-color: #fff;
+        }
+        .main-panel {
+            display: none; /* 기본적으로 모든 패널 숨김 */
+        }
+        .main-panel.active {
+            display: block; /* 활성화된 패널만 보임 */
+        }
+        .main-panel label, .main-panel select, .main-panel button, .main-panel input {
             display: block;
             margin-bottom: 10px;
+            width: calc(100% - 10px); /* 패딩 고려 */
         }
-        #control-panel input {
-            display: block;
-            width: 100%;
-        }
-        #reset-formation-button {
+        #unit-debug-panel #reset-formation-button {
             display: none; /* 기본적으로 숨김 */
             background-color: #ffc107;
             border: none;
@@ -66,6 +85,19 @@
             min-width: 250px;
             max-height: 90vh;
             overflow-y: auto;
+        }
+        #time-display {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px;
+            font-weight: bold;
         }
     </style>
 </head>
