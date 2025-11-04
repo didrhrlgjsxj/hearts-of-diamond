@@ -4,11 +4,11 @@
 class GameUI {
     /**
      * @param {Camera} camera - 게임 카메라 인스턴스
-     * @param {Unit[]} unitList - 게임의 최상위 유닛 목록
+     * @param {Map<string, Nation>} nations - 국가 목록
      */
-    constructor(camera, unitList) {
+    constructor(camera, nations) {
         this.camera = camera;
-        this.topLevelUnits = unitList;
+        this.nations = nations;
         this.createControlPanel();
 
 
@@ -17,39 +17,58 @@ class GameUI {
         this.compositionPanel.id = 'composition-panel';
         document.body.appendChild(this.compositionPanel);
         this.updateCompositionPanel(null); // 처음에는 숨김
+
+        // 생산 정보 패널 생성
+        this.productionPanel = document.createElement('div');
+        this.productionPanel.id = 'production-panel';
+        document.body.appendChild(this.productionPanel);
     }
 
     /**
-     * 유닛 소환을 위한 컨트롤 패널 UI를 생성합니다.
+     * 생산 관리를 위한 컨트롤 패널 UI를 생성합니다.
      */
     createControlPanel() {
         const panel = document.createElement('div');
         panel.id = 'control-panel';
 
-        // 진형 리셋 버튼 (처음에는 숨김)
+        // --- 기존 유닛 관련 UI ---
         this.resetFormationButton = document.createElement('button');
         this.resetFormationButton.id = 'reset-formation-button';
         this.resetFormationButton.textContent = '기본 진형으로 복귀';
 
-        // 팀 선택
-        const teamSelect = this.createSelect('team-select', '팀 선택:', {
-            blue: '블루',
-            red: '레드'
+        // --- 새로운 생산 관련 UI ---
+        const productionHeader = document.createElement('h3');
+        productionHeader.textContent = '생산 관리';
+
+        // 국가 선택
+        const teamSelect = this.createSelect('team-select', '국가 선택:', {
+            blue: '블루 공화국',
+            red: '레드 왕국'
         });
 
-        // 유닛 타입 선택
-        const templateOptions = {};
-        Object.keys(DIVISION_TEMPLATES).forEach(key => {
-            templateOptions[key] = DIVISION_TEMPLATES[key].name;
+        // 생산할 장비 선택
+        const equipmentOptions = {};
+        Object.keys(EQUIPMENT_TYPES).forEach(key => {
+            equipmentOptions[key] = EQUIPMENT_TYPES[key].name;
         });
-        const unitTypeSelect = this.createSelect('unit-type-select', '부대 설계:', templateOptions);
+        const equipmentSelect = this.createSelect('equipment-select', '장비 선택:', equipmentOptions);
 
-        // 소환 버튼
-        const spawnButton = document.createElement('button');
-        spawnButton.textContent = '소환';
-        spawnButton.onclick = () => this.spawnUnit();
+        // 할당할 공장 수 입력
+        const factoryInputLabel = document.createElement('label');
+        factoryInputLabel.htmlFor = 'factory-input';
+        factoryInputLabel.textContent = '할당 공장 수:';
+        const factoryInput = document.createElement('input');
+        factoryInput.type = 'number';
+        factoryInput.id = 'factory-input';
+        factoryInput.value = '5';
+        factoryInput.min = '1';
 
-        panel.append(this.resetFormationButton, '<h3>유닛 소환</h3>', teamSelect.label, teamSelect.select, unitTypeSelect.label, unitTypeSelect.select, spawnButton);
+        // 생산 라인 추가 버튼
+        const addLineButton = document.createElement('button');
+        addLineButton.textContent = '생산 라인 추가';
+        addLineButton.onclick = () => this.addProductionLine();
+
+        panel.append(this.resetFormationButton, productionHeader, teamSelect.label, teamSelect.select, equipmentSelect.label, equipmentSelect.select, factoryInputLabel, factoryInput, addLineButton);
         document.body.appendChild(panel);
     }
 
@@ -69,19 +88,17 @@ class GameUI {
         return { label, select };
     }
 
-    spawnUnit() {
+    addProductionLine() {
         const team = document.getElementById('team-select').value;
-        const templateKey = document.getElementById('unit-type-select').value;
-        const template = DIVISION_TEMPLATES[templateKey];
+        const equipmentKey = document.getElementById('equipment-select').value;
+        const assignedFactories = parseInt(document.getElementById('factory-input').value, 10);
+        const nation = this.nations.get(team);
 
-        // 카메라 중앙 위치에 유닛을 소환합니다.
-        const spawnPos = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
-
-        if (template && template.build) {
-            // 최상위 부대는 부모 이름이 없으므로 null을 전달합니다.
-            const newUnit = template.build(null, spawnPos.x, spawnPos.y, team);
-            this.topLevelUnits.push(newUnit);
-            console.log(`Spawned: ${newUnit.name}`);
+        if (nation && equipmentKey && assignedFactories > 0) {
+            nation.addProductionLine(equipmentKey, assignedFactories);
+            console.log(`${nation.name}에 ${EQUIPMENT_TYPES[equipmentKey].name} 생산 라인을 ${assignedFactories}개 공장으로 추가합니다.`);
+        } else {
+            console.error("국가, 장비 또는 공장 수를 올바르게 선택해주세요.");
         }
     }
 
@@ -136,5 +153,49 @@ class GameUI {
         }
         this.compositionPanel.innerHTML = html;
         this.compositionPanel.style.display = 'block';
+    }
+
+    /**
+     * 모든 국가의 생산 현황과 장비 비축량을 UI에 업데이트합니다.
+     */
+    updateProductionPanel() {
+        let html = ``;
+        this.nations.forEach(nation => {
+            html += `<h3>${nation.name} 현황</h3>`;
+            html += `<div>(경공업: ${nation.lightIndustry} / 중공업: ${nation.heavyIndustry})</div>`;
+
+            // 장비 비축량 표시
+            html += `<h4>장비 비축량</h4>`;
+            const stockpile = nation.equipmentStockpile;
+            if (Object.keys(stockpile).length > 0) {
+                html += '<ul>';
+                Object.keys(stockpile).forEach(key => {
+                    html += `<li>${EQUIPMENT_TYPES[key].name}: ${stockpile[key]}</li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<p>비축 장비 없음</p>';
+            }
+
+            // 생산 라인 표시
+            html += `<h4>생산 라인</h4>`;
+            if (nation.productionLines.length > 0) {
+                html += '<ul>';
+                nation.productionLines.forEach((line) => {
+                    const equipment = EQUIPMENT_TYPES[line.equipmentKey];
+                    const progressPercent = (line.progress / equipment.productionCost * 100).toFixed(1);
+                    const efficiencyPercent = (line.efficiency * 100).toFixed(1);
+                    html += `<li>
+                        ${equipment.name} (공장: ${line.assignedFactories})<br>
+                        <progress value="${progressPercent}" max="100"></progress> ${progressPercent}%<br>
+                        <small>효율: ${efficiencyPercent}%</small>
+                    </li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<p>가동중인 생산 라인 없음</p>';
+            }
+        });
+        this.productionPanel.innerHTML = html;
     }
 }

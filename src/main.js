@@ -3,6 +3,7 @@ const ctx = canvas.getContext('2d');
 
 // --- 게임 월드 설정 ---
 let mapGrid; // 맵 데이터 관리 인스턴스
+const nations = new Map(); // 국가 인스턴스 관리
 const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
@@ -23,6 +24,15 @@ const unitCounters = {
 
 // UI 인스턴스를 저장할 변수
 let gameUI;
+
+// --- 초기 국가 설정 ---
+function initializeNations() {
+    const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', { x: 2, y: 2 });
+    nations.set('blue', blueNation);
+
+    const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', { x: 10, y: 10 });
+    nations.set('red', redNation);
+}
 
 
 function resize() {
@@ -91,6 +101,12 @@ function update(currentTime) {
     // --- 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
     updateUnits(topLevelUnits, deltaTime);
+
+    // --- 국가별 생산 업데이트 ---
+    nations.forEach((nation) => {
+        nation.updateProduction(deltaTime);
+    });
+    gameUI.updateProductionPanel();
 
     // --- 파괴된 유닛 제거 ---
     const cleanupResult = cleanupDestroyedUnits(topLevelUnits, selectedUnit);
@@ -221,7 +237,9 @@ function loop(currentTime) {
 }
 
 // 맵 초기화
-mapGrid = new MapGrid();
+mapGrid = new MapGrid(); // MapGrid는 현재 자체적으로 디버그 국가를 생성하므로 nations와는 별개로 동작합니다.
+// 국가 초기화
+initializeNations();
 // UI 초기화
-gameUI = new GameUI(camera, topLevelUnits);
+gameUI = new GameUI(camera, nations);
 loop();

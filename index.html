@@ -32,6 +32,9 @@
         #control-panel label, #control-panel select, #control-panel button {
             display: block;
             margin-bottom: 10px;
+        }
+        #control-panel input {
+            display: block;
             width: 100%;
         }
         #reset-formation-button {
@@ -52,12 +55,25 @@
         #composition-panel ul {
             padding-left: 20px;
         }
+        #production-panel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: sans-serif;
+            min-width: 250px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
     <script src="src/camera.js"></script>
     <!-- 게임 데이터 및 클래스 로드 순서가 중요합니다. -->
+    <script src="src/equipment_types.js"></script>
     <script src="src/unit/unitConstants.js"></script>
     <script src="src/nation/nation.js"></script>
     <script src="src/map/map.js"></script>
