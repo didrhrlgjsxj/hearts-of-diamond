@@ -53,7 +53,7 @@ const COMPANY_ROLES = {
 const FORMATION_OFFSETS = {
     [COMPANY_ROLES.VANGUARD]: { distance: 60, spread: 40 },     // 선발대는 가장 앞에
     [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 }, // 지원대는 중간에
-    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에
+    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에 (이전 SUPPORT 역할)
 };
 
 // 대대 역할 정의

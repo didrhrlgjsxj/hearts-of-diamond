@@ -130,9 +130,7 @@ function updateUnits(topLevelUnits, deltaTime) {
  */
 function processUnitMovement(unit, deltaTime) {
     if (unit.isDestroyed) return;
-    if (unit.updateMovement) {
-        unit.updateMovement(deltaTime);
-    }
+    unit.updateMovement(deltaTime);
     unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, deltaTime));
 }
 /**

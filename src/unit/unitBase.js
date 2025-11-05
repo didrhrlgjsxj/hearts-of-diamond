@@ -23,7 +23,7 @@ class Unit {
         this.destination = null; // 이동 목표 지점 {x, y}
         this.isRetreating = false; // 후퇴 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
-        this.direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
+        this._direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
         this.moveSpeed = 30; // 초당 이동 속도
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
@@ -74,6 +74,15 @@ class Unit {
     set y(value) {
         this._y = value;
     }
+
+    get direction() {
+        return this._direction;
+    }
+
+    set direction(value) {
+        this._direction = value;
+    }
+
 
     /**
      * 현재 병력을 계산합니다.
@@ -266,7 +275,7 @@ class Unit {
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // 목표 지점까지의 거리가 1픽셀 이상일 때만 이동 방향을 업데이트합니다.
-        if (distance > 1) this.direction = Math.atan2(dy, dx);
+        if (distance > 1) this._direction = Math.atan2(dy, dx);
 
         const moveDistance = this.moveSpeed * deltaTime;
 
@@ -456,6 +465,10 @@ class Unit {
         // 하위 유닛에서 클릭된 것이 없거나, 자신이 최하위 유닛이면 자기 자신을 확인합니다.
         const distance = Math.hypot(x - this.x, y - this.y);
         if (distance < this.size) {
+            // 중대는 직접 선택할 수 없고, 상위 대대를 대신 선택하도록 합니다.
+            if (this instanceof Company) {
+                return this.parent || this;
+            }
             return this;
         }
 
@@ -485,19 +498,23 @@ class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
-        // 대대급 이상(CommandUnit) 유닛만 내구력/조직력 바를 표시합니다.
+        // 지휘 부대(CommandUnit)만 내구력/조직력 바를 표시합니다.
         if (this instanceof CommandUnit) {
+            // 바를 표시할 대상 유닛을 결정합니다.
+            // 본부 대대가 있으면 본부 대대의 상태를, 없으면(대대 자신) 자신의 상태를 표시합니다.
+            const displayUnit = this.hqBattalion || this;
+
             const barWidth = 40;
             const barHeight = 5;
-            const barX = this.x - barWidth / 2;
-            const barY = this.y - 25;
+            const barX = displayUnit.x - barWidth / 2;
+            const barY = displayUnit.y - 25;
 
             // 1. 병력 바 배경 (어두운 회색)
             ctx.fillStyle = '#555';
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
             // 2. 현재 내구력(Strength) 바
-            const strengthRatio = this.baseStrength > 0 ? this.currentStrength / this.baseStrength : 0;
+            const strengthRatio = displayUnit.baseStrength > 0 ? displayUnit.currentStrength / displayUnit.baseStrength : 0;
 
             const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
             ctx.fillStyle = '#ff8c00'; // DarkOrange
@@ -511,7 +528,7 @@ class Unit {
             const orgBarY = barY + barHeight + 2;
             ctx.fillStyle = '#555';
             ctx.fillRect(barX, orgBarY, barWidth, barHeight);
-            const orgRatio = this.organization / this.maxOrganization;
+            const orgRatio = displayUnit.organization / displayUnit.maxOrganization;
             ctx.fillStyle = '#00ff00'; // Lime Green
             ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
             ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
@@ -557,7 +574,7 @@ class Unit {
         ctx.translate(this.x, this.y);
         ctx.rotate(this.direction);
         ctx.beginPath();
-        ctx.moveTo(0, 0);
+        ctx.moveTo(0, 0); // 부대 중심에서
         ctx.lineTo(this.size, 0);
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
         ctx.lineWidth = 2;
@@ -613,7 +630,10 @@ class Unit {
                     ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                     ctx.stroke();
 
-                    subUnit.draw(ctx);
+                    // 본부 대대는 상위 부대 아이콘이 그 역할을 대신하므로, 그리지 않습니다.
+                    if (this.hqBattalion !== subUnit) {
+                        subUnit.draw(ctx);
+                    }
                 } 
             });
         }
