@@ -622,13 +622,17 @@ class Unit {
             ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
             ctx.moveTo(t.from.x, t.from.y);
-            ctx.lineTo(t.to.x, t.to.y); 
-            if (t.type === 'frontal') {
+            ctx.lineTo(t.to.x, t.to.y);
+            if (t.type === 'company') {
+                ctx.strokeStyle = `rgba(255, 255, 150, ${t.alpha * 0.7})`; // 중대 교전: 밝은 노란색
+                ctx.lineWidth = 1.0;
+            } else if (t.type === 'frontal') {
                 ctx.strokeStyle = `rgba(255, 0, 0, ${t.alpha * 0.5})`; // 정면전투: 반투명 빨간색
+                ctx.lineWidth = 5; // 선 두께를 5로 늘림
             } else { // 'flank'
                 ctx.strokeStyle = `rgba(0, 150, 255, ${t.alpha * 0.5})`; // 측면전투: 반투명 파란색
+                ctx.lineWidth = 5; // 선 두께를 5로 늘림
             }
-            ctx.lineWidth = 5; // 선 두께를 5로 늘림
             ctx.lineCap = 'round'; // 선의 끝을 둥글게 처리
             ctx.stroke();
             ctx.restore(); // 저장했던 캔버스 상태 복원

@@ -306,8 +306,11 @@ class Battalion extends CommandUnit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
-        this.role = COMPANY_ROLES.REARGUARD; // 기본 역할. division_templates에서 덮어쓸 수 있음.
+        this.role = COMPANY_ROLES.REARGUARD; // 기본 역할은 '후위'
         this.formationRadius = 20;
+        this.combatParticipation = 0; // 전투 참여도 (0 to 1, 거리에 따라)
+        this.combatEffectiveness = 1.0; // 전투 효율성 계수
+        this.companyTarget = null; // 중대가 조준하는 적 중대
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
 

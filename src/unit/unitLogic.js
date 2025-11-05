@@ -95,11 +95,40 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
-            // 1. 방어자의 기갑화율에 따라 유효 공격력을 계산합니다.
+            // --- 중대별 전투 참여도 및 효율성 계산 ---
+            let totalEffectivePower = 0;
+            const attackerCompanies = attacker.getAllCompanies();
+            const targetCompanies = target.getAllCompanies();
+
+            attackerCompanies.forEach(myCompany => {
+                // 1. 각 중대의 목표 설정 (가장 가까운 적 중대)
+                myCompany.companyTarget = targetCompanies.reduce((closest, enemy) => {
+                    if (!closest) return enemy;
+                    const dist = Math.hypot(myCompany.x - enemy.x, myCompany.y - enemy.y);
+                    const closestDist = Math.hypot(myCompany.x - closest.x, myCompany.y - closest.y);
+                    return dist < closestDist ? enemy : closest;
+                }, null);
+
+                if (!myCompany.companyTarget) return;
+
+                // 2. 전투 참여도 계산 (거리에 따라 0~1)
+                const distToTarget = Math.hypot(myCompany.x - myCompany.companyTarget.x, myCompany.y - myCompany.companyTarget.y);
+                myCompany.combatParticipation = Math.max(0, 1 - (distToTarget / attacker.engagementRange)); // 교전 범위에 가까울수록 참여도 하락
+
+                // 3. 전투 효율성 계산 (최적 교전 거리에 따라 0~1)
+                const range = UNIT_TYPE_EFFECTIVENESS_RANGE[myCompany.type] || { optimal: 100, max: 200 };
+                const effectivenessFalloff = (distToTarget - range.optimal) / (range.max - range.optimal);
+                myCompany.combatEffectiveness = Math.max(0, 1 - Math.abs(effectivenessFalloff));
+
+                // 4. 중대의 유효 공격력 계산 (공격력 * 참여도 * 효율성)
+                const defenderHardness = myCompany.companyTarget.hardness;
+                const companyBaseAttack = myCompany.softAttack * (1 - defenderHardness) + myCompany.hardAttack * defenderHardness;
+                totalEffectivePower += companyBaseAttack * myCompany.combatParticipation * myCompany.combatEffectiveness;
+            });
+
+            // 5. 대대의 최종 공격력 계산
             const tacticAttackModifier = attacker.tactic ? attacker.tactic.attackModifier : 1.0;
-            const defenderHardness = target.hardness; // 목표 중대의 기갑화율
-            const baseAttack = attacker.softAttack * (1 - defenderHardness) + attacker.hardAttack * defenderHardness;
-            const effectiveAttack = baseAttack * tacticAttackModifier;
+            const effectiveAttack = totalEffectivePower * tacticAttackModifier;
             const totalAttackPower = Math.max(0, effectiveAttack - target.armor);
 
             // 2. 화력은 조직력에 직접적인 추가 피해를 줍니다.
@@ -108,13 +137,21 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
             target.takeDamage(totalAttackPower, firepowerDamage);
         }
 
-        // 전투 시각 효과 (예광탄)
+        // --- 시각 효과 ---
+        // 대대 간의 굵은 전투선
         const isFrontal = target.currentTarget === attacker;
         attackerTopLevel.tracers.push({
             from: attacker,
             to: target,
             life: 0.5,
             type: isFrontal ? 'frontal' : 'flank'
+        });
+
+        // 중대 간의 얇은 예광탄 (쇼 연출)
+        attacker.getAllCompanies().forEach(myCompany => {
+            if (myCompany.companyTarget && myCompany.combatParticipation > 0.1) {
+                attackerTopLevel.tracers.push({ from: myCompany, to: myCompany.companyTarget, life: 0.3, type: 'company' });
+            }
         });
 
         // 첫 번째 정면 전투를 중계 대상으로 설정

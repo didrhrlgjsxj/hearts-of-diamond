@@ -41,16 +41,37 @@ const UNIT_TYPE_STATS = {
     [UNIT_TYPES.ENGINEER]: { firepower: 1, softAttack: 1, hardAttack: 6, reconnaissance: 1, armor: 2, organizationBonus: 3 },
 };
 
+// 병과별 최적 교전 거리 및 최대 교전 거리 정의
+const UNIT_TYPE_EFFECTIVENESS_RANGE = {
+    [UNIT_TYPES.INFANTRY]: { optimal: 100, max: 200 }, // 보병: 100 거리에서 효율 100%, 200 이상부터 효율 감소
+    [UNIT_TYPES.RECON]:    { optimal: 150, max: 250 }, // 정찰: 150 거리에서 효율 100%
+    [UNIT_TYPES.ARMOR]:    { optimal: 120, max: 220 }, // 기갑: 120 거리에서 효율 100%
+    [UNIT_TYPES.ARTILLERY]:{ optimal: 250, max: 350 }, // 포병: 250 거리에서 효율 100%, 가까울수록 효율 급감
+    [UNIT_TYPES.ENGINEER]: { optimal: 80,  max: 150 }, // 공병: 80 거리에서 효율 100%
+};
+
 // 중대 역할 정의
 const COMPANY_ROLES = {
-    VANGUARD: '전위', // Vanguard: 전방에서 교전
-    REARGUARD: '후위', // Rearguard: 후방에서 지원
+    VANGUARD: '선봉대',   // Vanguard: 가장 앞에서 적과 처음으로 교전하며 시야 확보
+    FRONTLINE: '전위',   // Frontline: 주력 전투를 담당하는 부대
+    REARGUARD: '후위',   // Rearguard: 후방에서 화력 지원 및 예비대 역할
 };
 
 // 역할별 진형 오프셋 (상대적 거리)
 const FORMATION_OFFSETS = {
-    [COMPANY_ROLES.VANGUARD]: { distance: 50, spread: 50 }, // 전위는 앞에 배치
-    [COMPANY_ROLES.REARGUARD]: { distance: 0, spread: 70 },  // 후위는 중앙에 배치
+    [COMPANY_ROLES.VANGUARD]: { distance: 80, spread: 60 },  // 선봉대는 가장 앞에
+    [COMPANY_ROLES.FRONTLINE]: { distance: 40, spread: 80 }, // 전위는 중간에 넓게
+    [COMPANY_ROLES.REARGUARD]: { distance: 0, spread: 50 },   // 후위는 본부와 함께 중앙에
+};
+
+// 역할과 병과에 따른 전투 효율성 계수
+const EFFECTIVENESS_MODIFIERS = {
+    // 선봉대: 정찰, 기갑 유닛이 효율적
+    [COMPANY_ROLES.VANGUARD]:  { [UNIT_TYPES.INFANTRY]: 0.9, [UNIT_TYPES.RECON]: 1.2, [UNIT_TYPES.ARMOR]: 1.1, [UNIT_TYPES.ARTILLERY]: 0.3, [UNIT_TYPES.ENGINEER]: 0.7 },
+    // 전위: 보병, 기갑, 공병 유닛이 효율적
+    [COMPANY_ROLES.FRONTLINE]: { [UNIT_TYPES.INFANTRY]: 1.2, [UNIT_TYPES.RECON]: 0.7, [UNIT_TYPES.ARMOR]: 1.2, [UNIT_TYPES.ARTILLERY]: 0.6, [UNIT_TYPES.ENGINEER]: 1.1 },
+    // 후위: 포병 유닛이 매우 효율적
+    [COMPANY_ROLES.REARGUARD]: { [UNIT_TYPES.INFANTRY]: 1.0, [UNIT_TYPES.RECON]: 0.8, [UNIT_TYPES.ARMOR]: 0.8, [UNIT_TYPES.ARTILLERY]: 1.5, [UNIT_TYPES.ENGINEER]: 0.9 },
 };
 
 // 대대 역할 정의

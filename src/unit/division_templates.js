@@ -151,10 +151,12 @@ const DIVISION_TEMPLATES = {
 
             const battalion = new Battalion(unitName, x, y, team, 8);
 
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 4; i++) {
                 const company = DIVISION_TEMPLATES["Infantry Company"].build(unitName, x, y, team);
-                // 4개 중대를 전위 2, 후위 2로 나눕니다.
-                company.role = (i < 3) ? COMPANY_ROLES.VANGUARD : COMPANY_ROLES.REARGUARD;
+                // 4개 중대를 선봉 1, 전위 2, 후위 1로 나눕니다.
+                if (i === 0) company.role = COMPANY_ROLES.VANGUARD;
+                else if (i < 3) company.role = COMPANY_ROLES.FRONTLINE;
+                else company.role = COMPANY_ROLES.REARGUARD;
                 battalion.addUnit(company);
             }
 
