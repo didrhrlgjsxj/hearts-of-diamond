@@ -1,9 +1,9 @@
 /**
  * 게임 내 모든 유닛의 상태 업데이트(이동, 전투, 조직력 등)를 담당합니다.
  * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
- * @param {number} deltaTime - 프레임 간 시간 간격 (초)
+ * @param {number} scaledDeltaTime - 게임 속도가 적용된 프레임 간 시간 간격 (초)
  */
-function updateUnits(topLevelUnits, deltaTime) {
+function updateUnits(topLevelUnits, scaledDeltaTime) {
 
     // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
     const allCombatSubUnits = [];
@@ -11,7 +11,7 @@ function updateUnits(topLevelUnits, deltaTime) {
         unit.isInCombat = false;
         unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
         unit.tracers = []; // 예광탄 효과 초기화
-        unit.updateVisuals(deltaTime); // 데미지 텍스트 등 시각 효과 업데이트
+        unit.updateVisuals(scaledDeltaTime); // 데미지 텍스트 등 시각 효과 업데이트
         unit.getAllBattalions().forEach(b => b.isBeingTargeted = false); // 대대별 피격 상태 초기화
 
         // 모든 전투 가능 부대를 하나의 배열로 모읍니다.
@@ -76,7 +76,7 @@ function updateUnits(topLevelUnits, deltaTime) {
         targetTopLevel.isInCombat = true;
 
         // 전술 변경 로직 (3초마다)
-        attacker.tacticChangeProgress += deltaTime;
+        attacker.tacticChangeProgress += scaledDeltaTime;
         if (attacker.tacticChangeProgress >= attacker.tacticChangeCooldown) {
             attacker.tacticChangeProgress = 0;
             const tacticKeys = Object.keys(TACTICS);
@@ -91,7 +91,7 @@ function updateUnits(topLevelUnits, deltaTime) {
         }
 
         // 공격 턴 계산
-        attacker.attackProgress += deltaTime;
+        attacker.attackProgress += scaledDeltaTime;
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
@@ -135,14 +135,14 @@ function updateUnits(topLevelUnits, deltaTime) {
         for (const battalion of unit.getAllBattalions()) {
             if (battalion.organization < battalion.maxOrganization) {
                 const recoveryRate = battalion.isInCombat ? battalion.organizationRecoveryRateInCombat : battalion.organizationRecoveryRate;
-                battalion.organization = Math.min(battalion.maxOrganization, battalion.organization + recoveryRate * deltaTime);
+                battalion.organization = Math.min(battalion.maxOrganization, battalion.organization + recoveryRate * scaledDeltaTime);
             }
         }
     }
 
     // --- 이동 및 진형 업데이트 ---
     // 1단계: 모든 유닛의 이동을 먼저 처리합니다.
-    topLevelUnits.forEach(unit => processUnitMovement(unit, deltaTime));
+    topLevelUnits.forEach(unit => processUnitMovement(unit, scaledDeltaTime));
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
 }
@@ -150,12 +150,12 @@ function updateUnits(topLevelUnits, deltaTime) {
 /**
  * 유닛과 그 하위 유닛들의 이동 로직(updateMovement)을 재귀적으로 처리합니다.
  * @param {Unit} unit 
- * @param {number} deltaTime 
+ * @param {number} scaledDeltaTime 
  */
-function processUnitMovement(unit, deltaTime) {
+function processUnitMovement(unit, scaledDeltaTime) {
     if (unit.isDestroyed) return;
-    unit.updateMovement(deltaTime);
-    unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, deltaTime));
+    unit.updateMovement(scaledDeltaTime);
+    unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, scaledDeltaTime));
 }
 /**
  * 유닛과 그 하위 유닛들의 진형 로직(updateCombatSubUnitPositions)을 재귀적으로 처리합니다.

@@ -280,7 +280,13 @@ class Unit {
         // 목표 지점까지의 거리가 1픽셀 이상일 때만 이동 방향을 업데이트합니다.
         if (distance > 1) this._direction = Math.atan2(dy, dx);
 
-        const moveDistance = this.moveSpeed * deltaTime;
+        // 현재 이동 속도를 결정합니다. 전투 중일 경우 10% 페널티를 적용합니다.
+        let currentMoveSpeed = this.moveSpeed;
+        if (this.isInCombat) {
+            currentMoveSpeed *= 0.9; // 10% 속도 감소
+        }
+
+        const moveDistance = currentMoveSpeed * deltaTime;
 
         if (distance < moveDistance) {
             // 목표에 도달함

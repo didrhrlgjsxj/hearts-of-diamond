@@ -99,6 +99,22 @@
             font-size: 16px;
             font-weight: bold;
         }
+        #time-controls {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        #time-controls button {
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            background: #555;
+            color: white;
+            cursor: pointer;
+        }
+        #time-controls button.active {
+            background: #eee;
+            color: black;
+        }
         #battle-panel {
             position: absolute;
             display: none; /* 기본적으로 숨김 */

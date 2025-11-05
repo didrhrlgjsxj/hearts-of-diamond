@@ -180,6 +180,48 @@ class GameUI {
         }
     }
 
+    /**
+     * 시간 및 속도 제어 UI를 생성합니다.
+     */
+    createTimeControls() {
+        const timeControls = document.createElement('div');
+        timeControls.id = 'time-controls';
+
+        const speeds = [1, 2, 3, 4];
+        speeds.forEach(speed => {
+            const button = document.createElement('button');
+            button.textContent = `${speed}x`;
+            button.dataset.speed = speed;
+            button.onclick = () => {
+                setGameSpeed(speed);
+                this.updateTimeControls();
+            };
+            timeControls.appendChild(button);
+        });
+
+        // timeDisplay 요소는 main.js에서 생성되므로, 그 안에 컨트롤을 추가합니다.
+        const timeDisplayContainer = document.getElementById('time-display');
+        if (timeDisplayContainer) {
+            timeDisplayContainer.appendChild(timeControls); // 시간 텍스트(span)와 나란히 추가됩니다.
+        }
+
+        this.updateTimeControls(); // 초기 활성 버튼 설정
+    }
+
+    /**
+     * 현재 게임 속도에 맞춰 시간 제어 버튼의 활성 상태를 업데이트합니다.
+     */
+    updateTimeControls() {
+        const buttons = document.querySelectorAll('#time-controls button');
+        buttons.forEach(button => {
+            if (parseInt(button.dataset.speed, 10) === gameSpeed) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+    }
+
     spawnUnit() {
         const team = document.getElementById('unit-team-select').value;
         const templateKey = document.getElementById('template-select').value;

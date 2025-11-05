@@ -7,10 +7,18 @@ const nations = new Map(); // 국가 인스턴스 관리
 const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
 let selectedUnit = null;   // 현재 선택된 유닛
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
+let broadcastedBattle = null; // 현재 중계 중인 전투
 
 // --- 게임 시간 및 생산 주기 설정 ---
-const SECONDS_PER_GAME_HOUR = 0.5; // 현실 시간 0.5초 = 게임 시간 1시간
+const GAME_SPEED_MULTIPLIERS = {
+    1: 0.5, // 1배속 (느리게)
+    2: 1.0, // 2배속 (기본 속도)
+    3: 2.0, // 3배속 (빠르게)
+    4: 4.0, // 4배속 (매우 빠르게)
+};
+let gameSpeed = 2; // 기본 게임 속도: 2배속
 const PRODUCTION_TICKS = 3; // 생산 계산을 분산할 주기(틱)의 수
+let lastHour = -1; // 마지막으로 생산이 처리된 시간
 let gameTime = {
     totalHours: 0,
     timeAccumulator: 0, // 시간 경과를 누적하는 변수
@@ -36,6 +44,17 @@ let gameUI;
 // --- 시간 표시 UI 요소 ---
 const timeDisplay = document.createElement('div');
 timeDisplay.id = 'time-display';
+const timeText = document.createElement('span'); // 시간 텍스트만 담을 요소
+timeText.id = 'time-text';
+timeDisplay.appendChild(timeText);
+
+/**
+ * 게임 속도를 설정합니다.
+ * @param {number} speed - 1, 2, 3, 4 중 하나의 값
+ */
+function setGameSpeed(speed) {
+    gameSpeed = speed;
+}
 
 // --- 초기 국가 설정 ---
 function initializeNations() {
@@ -112,25 +131,31 @@ function update(currentTime) {
     const deltaTime = (currentTime - lastTime) / 1000; // 초 단위로 변환
     lastTime = currentTime;
 
-    // --- 게임 시간 업데이트 ---
-    gameTime.timeAccumulator += deltaTime;
-    if (gameTime.timeAccumulator >= SECONDS_PER_GAME_HOUR) {
-        gameTime.timeAccumulator -= SECONDS_PER_GAME_HOUR;
-        gameTime.totalHours++;
+    // 게임 속도에 따라 조정된 deltaTime을 계산합니다.
+    const gameSpeedMultiplier = GAME_SPEED_MULTIPLIERS[gameSpeed];
+    const scaledDeltaTime = deltaTime * gameSpeedMultiplier;
 
-        // --- 일간 업데이트 (게임 시간 기준 24시간마다) ---
-        if (gameTime.totalHours % 24 === 0) {
+    // --- 게임 시간 업데이트 ---
+    gameTime.timeAccumulator += scaledDeltaTime;
+    gameTime.totalHours = Math.floor(gameTime.timeAccumulator);
+
+    // 매 게임 시간(hour)이 바뀔 때마다 생산 및 경제 업데이트를 처리합니다.
+    if (gameTime.totalHours > lastHour) {
+        const hoursPassed = gameTime.totalHours - lastHour;
+
+        // --- 일간 업데이트 (자정마다) ---
+        if (Math.floor(lastHour / 24) < Math.floor(gameTime.totalHours / 24)) {
             nations.forEach((nation) => {
                 nation.economy.updateDailyEconomy();
             });
         }
 
         // --- 시간당 생산 업데이트 ---
-        const currentTick = gameTime.totalHours % PRODUCTION_TICKS;
         nations.forEach((nation) => {
-            // 1시간 분량의 생산을 계산하도록 요청
-            nation.economy.updateHourlyProduction(currentTick, 1);
+            const currentTick = gameTime.totalHours % PRODUCTION_TICKS;
+            nation.economy.updateHourlyProduction(currentTick, hoursPassed);
         });
+        lastHour = gameTime.totalHours;
     }
 
     camera.update(deltaTime);
@@ -138,7 +163,7 @@ function update(currentTime) {
     // --- 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
     broadcastedBattle = null; // 매 프레임 중계 전투 초기화
-    updateUnits(topLevelUnits, deltaTime);
+    updateUnits(topLevelUnits, scaledDeltaTime);
 
     // 전투 중계 UI 업데이트
     if (broadcastedBattle && (broadcastedBattle.unitA.isDestroyed || broadcastedBattle.unitB.isDestroyed)) {
@@ -174,7 +199,7 @@ function draw() {
 
     // --- 시간 UI 업데이트 ---
     const days = Math.floor(gameTime.totalHours / 24);
-    timeDisplay.textContent = `Day ${days + 1}, ${gameTime.totalHours % 24}:00`;
+    timeText.textContent = `Day ${days + 1}, ${gameTime.totalHours % 24}:00`;
 
     // --- 맵 렌더링 최적화 ---
     // 카메라에 보이는 영역의 타일만 그리도록 계산합니다.
@@ -286,4 +311,6 @@ mapGrid = new MapGrid(); // MapGrid는 현재 자체적으로 디버그 국가�
 initializeNations();
 // UI 초기화
 gameUI = new GameUI(camera, nations);
+gameUI.createTimeControls(); // timeDisplay가 DOM에 추가된 후, 시간 제어 UI를 생성합니다.
+
 requestAnimationFrame(loop);
