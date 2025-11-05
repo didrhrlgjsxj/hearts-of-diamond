@@ -137,8 +137,15 @@ function update(currentTime) {
     
     // --- 유닛 로직 업데이트 ---
     // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
+    broadcastedBattle = null; // 매 프레임 중계 전투 초기화
     updateUnits(topLevelUnits, deltaTime);
 
+    // 전투 중계 UI 업데이트
+    if (broadcastedBattle && (broadcastedBattle.unitA.isDestroyed || broadcastedBattle.unitB.isDestroyed)) {
+        broadcastedBattle = null; // 전투 종료 시 중계 해제
+    }
+    gameUI.updateBattlePanel(broadcastedBattle);
+    
     gameUI.updateProductionPanel();
 
     // --- 파괴된 유닛 제거 ---

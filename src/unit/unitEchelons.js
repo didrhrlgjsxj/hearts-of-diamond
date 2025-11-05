@@ -272,6 +272,7 @@ class Battalion extends CommandUnit {
         // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         // 따라서 hqBattalion은 null로 유지됩니다.
         this.hqBattalion = null; 
+        this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 CommandUnit이므로, x, y, direction getter/setter는 CommandUnit의 것을 사용합니다.
         // CommandUnit의 x, y, direction은 hqBattalion이 없으면 _x, _y, _direction을 사용합니다.
     }
@@ -305,7 +306,7 @@ class Battalion extends CommandUnit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
-        this.role = COMPANY_ROLES.SUSTAINMENT; // 기본 역할. division_templates에서 덮어쓸 수 있음.
+        this.role = COMPANY_ROLES.REARGUARD; // 기본 역할. division_templates에서 덮어쓸 수 있음.
         this.formationRadius = 20;
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }

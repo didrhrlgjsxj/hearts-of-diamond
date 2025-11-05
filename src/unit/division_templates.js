@@ -153,7 +153,8 @@ const DIVISION_TEMPLATES = {
 
             for (let i = 0; i < 4; i++) {
                 const company = DIVISION_TEMPLATES["Infantry Company"].build(unitName, x, y, team);
-                company.role = COMPANY_ROLES.SUSTAINMENT; // '유지대'
+                // 4개 중대를 전위 2, 후위 2로 나눕니다.
+                company.role = (i < 2) ? COMPANY_ROLES.VANGUARD : COMPANY_ROLES.REARGUARD;
                 battalion.addUnit(company);
             }
 

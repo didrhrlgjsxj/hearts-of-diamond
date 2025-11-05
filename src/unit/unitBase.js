@@ -33,6 +33,9 @@ class Unit {
         this.isBeingTargeted = false; // 다른 유닛에게 공격받고 있는지 여부
         this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
         this.formationRadius = 0; // 전투 부대 배치 반경
+        this.tactic = null; // 현재 전투 전술
+        this.tacticChangeCooldown = 3.0; // 전술 변경 주기 (초)
+        this.tacticChangeProgress = 0;   // 현재 전술 변경 진행도
         this.organizationRecoveryRate = 5; // 초당 조직력 회복량 (비전투)
         this.organizationRecoveryRateInCombat = 0.5; // 초당 조직력 회복량 (전투 중)
         this.minOrgDamageAbsorption = 0.1; // 조직력 0%일 때의 최소 피해 흡수율
@@ -360,7 +363,11 @@ class Unit {
 
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
         const finalOrgDamage = orgDamage + firepowerDamage;
-        this.organization = Math.max(0, this.organization - finalOrgDamage);
+
+        // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
+        const tacticModifier = this.tactic ? this.tactic.orgDamageModifier : 1.0;
+        const modifiedOrgDamage = finalOrgDamage * tacticModifier;
+        this.organization = Math.max(0, this.organization - modifiedOrgDamage);
 
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
         if (strDamage > 0) {
@@ -606,16 +613,19 @@ class Unit {
 
         // 예광탄 그리기
         this.tracers.forEach(t => {
+            ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
             ctx.moveTo(t.from.x, t.from.y);
             ctx.lineTo(t.to.x, t.to.y); 
             if (t.type === 'frontal') {
-                ctx.strokeStyle = `rgba(255, 0, 0, ${t.alpha})`; // 정면전투: 빨간색
+                ctx.strokeStyle = `rgba(255, 0, 0, ${t.alpha * 0.5})`; // 정면전투: 반투명 빨간색
             } else { // 'flank'
-                ctx.strokeStyle = `rgba(0, 150, 255, ${t.alpha})`; // 측면전투: 파란색
+                ctx.strokeStyle = `rgba(0, 150, 255, ${t.alpha * 0.5})`; // 측면전투: 반투명 파란색
             }
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 5; // 선 두께를 5로 늘림
+            ctx.lineCap = 'round'; // 선의 끝을 둥글게 처리
             ctx.stroke();
+            ctx.restore(); // 저장했던 캔버스 상태 복원
         });
 
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.

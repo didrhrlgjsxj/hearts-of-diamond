@@ -22,6 +22,11 @@ class GameUI {
         this.productionPanel = document.createElement('div');
         this.productionPanel.id = 'production-panel';
         document.body.appendChild(this.productionPanel);
+
+        // 전투 정보 패널 생성
+        this.battlePanel = document.createElement('div');
+        this.battlePanel.id = 'battle-panel';
+        document.body.appendChild(this.battlePanel);
     }
 
     /**
@@ -303,5 +308,99 @@ class GameUI {
             }
         });
         this.productionPanel.innerHTML = html;
+    }
+
+    /**
+     * 전투 중계 패널의 내용을 업데이트합니다.
+     * @param {{unitA: Unit, unitB: Unit} | null} battle 
+     */
+    updateBattlePanel(battle) {
+        if (!battle || battle.unitA.isDestroyed || battle.unitB.isDestroyed) {
+            this.battlePanel.style.display = 'none';
+            return;
+        }
+
+        // 1. 두 부대의 중간 지점(월드 좌표)을 계산
+        const midX = (battle.unitA.x + battle.unitB.x) / 2;
+        const midY = (battle.unitA.y + battle.unitB.y) / 2;
+
+        // 2. 월드 좌표를 화면 좌표로 변환
+        const screenPos = this.camera.worldToScreen(midX, midY);
+
+        // 3. UI 패널의 위치와 내용을 설정
+        this.battlePanel.style.display = 'block'; // flex 대신 block으로 변경
+        this.battlePanel.style.left = `${screenPos.x}px`;
+        this.battlePanel.style.top = `${screenPos.y}px`;
+        // 패널의 중앙이 계산된 위치에 오도록 transform을 사용합니다.
+        this.battlePanel.style.transform = 'translate(-50%, -50%)';
+
+        this.battlePanel.innerHTML = `
+            <div class="battle-indicator"></div>
+            <div class="battle-details">
+                <div class="battle-unit-display" style="color: ${battle.unitA.team === 'blue' ? '#6495ED' : '#FF6347'};">
+                    ${this.getUnitBattleHTML(battle.unitA)}
+                </div>
+                <div class="battle-unit-display" style="color: ${battle.unitB.team === 'blue' ? '#6495ED' : '#FF6347'}; text-align: right;">
+                    ${this.getUnitBattleHTML(battle.unitB)}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 전투 중계 패널에 표시될 개별 유닛의 HTML을 생성합니다.
+     * @param {Unit} unit 
+     * @returns {string}
+     */
+    getUnitBattleHTML(unit) {
+        const orgPercent = (unit.organization / unit.maxOrganization * 100).toFixed(1);
+        const strPercent = (unit.currentStrength / unit.baseStrength * 100).toFixed(1);
+
+        // 전술에 따른 공격력 변화를 계산하고 표시 형식 생성
+        let softAttackDisplay = unit.softAttack.toFixed(1);
+        let hardAttackDisplay = unit.hardAttack.toFixed(1);
+
+        if (unit.tactic && unit.tactic.attackModifier !== 1.0) {
+            const modifier = unit.tactic.attackModifier;
+            const softAttackChange = unit.softAttack * (modifier - 1);
+            const hardAttackChange = unit.hardAttack * (modifier - 1);
+
+            const formatChange = (change) => (change >= 0 ? `+${change.toFixed(1)}` : `${change.toFixed(1)}`);
+
+            softAttackDisplay += ` (${formatChange(softAttackChange)})`;
+            hardAttackDisplay += ` (${formatChange(hardAttackChange)})`;
+        }
+
+        let tacticInfo = '선택 중...';
+        if (unit.tactic) {
+            const tactic = unit.tactic;
+            let effects = [];
+
+            // 공격력 보너스/페널티
+            if (tactic.attackModifier !== 1.0) {
+                const modifier = ((tactic.attackModifier - 1) * 100).toFixed(0);
+                effects.push(`공격력 ${modifier > 0 ? '+' : ''}${modifier}%`);
+            }
+            // 조직력 피해 보너스/페널티
+            if (tactic.orgDamageModifier !== 1.0) {
+                const modifier = ((tactic.orgDamageModifier - 1) * 100).toFixed(0);
+                effects.push(`조직력 피해 ${modifier > 0 ? '+' : ''}${modifier}%`);
+            }
+            tacticInfo = `${tactic.name} <small>(${effects.join(', ')})</small>`;
+        }
+
+        return `
+            <h4>${unit.name}</h4>
+            <div>
+                <strong>조직력:</strong> ${Math.floor(unit.organization)} / ${Math.floor(unit.maxOrganization)}
+                <progress value="${orgPercent}" max="100" style="width: 100%;"></progress>
+            </div>
+            <div>
+                <strong>내구력:</strong> ${Math.floor(unit.currentStrength)} / ${Math.floor(unit.baseStrength)}
+                <progress value="${strPercent}" max="100" style="width: 100%;"></progress>
+            </div>
+            <p><strong>공격력(소프트/하드):</strong> ${softAttackDisplay} / ${hardAttackDisplay}</p>
+            <p><strong>현재 전술:</strong> ${tacticInfo}</p>
+        `;
     }
 }

@@ -43,17 +43,14 @@ const UNIT_TYPE_STATS = {
 
 // 중대 역할 정의
 const COMPANY_ROLES = {
-    HQ: '본부',           // Headquarters: 지휘부
-    VANGUARD: '선발대',     // Vanguard: 선두에서 정찰 및 초동 교전 담당 (구 정찰대)
-    FIRE_SUPPORT: '지원대', // Fire Support: 주력 화력 지원 담당 (구 타격대)
-    SUSTAINMENT: '유지대',  // Sustainment: 본부와 함께 중심을 잡으며 전투 지속 지원
+    VANGUARD: '전위', // Vanguard: 전방에서 교전
+    REARGUARD: '후위', // Rearguard: 후방에서 지원
 };
 
 // 역할별 진형 오프셋 (상대적 거리)
 const FORMATION_OFFSETS = {
-    [COMPANY_ROLES.VANGUARD]: { distance: 60, spread: 40 },     // 선발대는 가장 앞에
-    [COMPANY_ROLES.FIRE_SUPPORT]: { distance: 30, spread: 60 }, // 지원대는 중간에
-    [COMPANY_ROLES.SUSTAINMENT]: { distance: 0, spread: 80 },   // 유지대는 본부와 함께 중심에 (이전 SUPPORT 역할)
+    [COMPANY_ROLES.VANGUARD]: { distance: 50, spread: 50 }, // 전위는 앞에 배치
+    [COMPANY_ROLES.REARGUARD]: { distance: 0, spread: 70 },  // 후위는 중앙에 배치
 };
 
 // 대대 역할 정의
@@ -80,6 +77,22 @@ const ECHELON_SYMBOLS = {
     'REGIMENT': '|||',
     'BATTALION': '||',
     // 중대 이하는 각 클래스에서 직접 그림
+};
+
+/**
+ * 전투 시 대대가 사용할 수 있는 전술을 정의합니다.
+ */
+const TACTICS = {
+    ASSAULT: {
+        name: '돌격',
+        attackModifier: 1.10, // 공격력 10% 증가
+        orgDamageModifier: 1.20, // 받는 조직력 피해 20% 증가
+    },
+    STANDOFF: {
+        name: '대치',
+        attackModifier: 0.95, // 공격력 5% 감소
+        orgDamageModifier: 0.90, // 받는 조직력 피해 10% 감소
+    },
 };
 
 /**

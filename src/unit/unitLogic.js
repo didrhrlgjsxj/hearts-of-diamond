@@ -60,6 +60,8 @@ function updateUnits(topLevelUnits, deltaTime) {
     // --- 3. 실제 공격 및 피해 계산 (턴 기반) ---
     targetMap.forEach((target, attacker) => {
         if (!target) {
+            attacker.tactic = null; // 전투가 끝나면 전술 해제
+            attacker.tacticChangeProgress = 0;
             attacker.currentTarget = null;
             attacker.attackProgress = 0; // 공격 대상이 없으면 초기화
             return;
@@ -73,14 +75,31 @@ function updateUnits(topLevelUnits, deltaTime) {
         attackerTopLevel.isInCombat = true;
         targetTopLevel.isInCombat = true;
 
+        // 전술 변경 로직 (3초마다)
+        attacker.tacticChangeProgress += deltaTime;
+        if (attacker.tacticChangeProgress >= attacker.tacticChangeCooldown) {
+            attacker.tacticChangeProgress = 0;
+            const tacticKeys = Object.keys(TACTICS);
+            const randomTacticKey = tacticKeys[Math.floor(Math.random() * tacticKeys.length)];
+            attacker.tactic = TACTICS[randomTacticKey];
+        }
+        // 전투 시작 시 첫 전술을 즉시 선택
+        if (!attacker.tactic) {
+            const tacticKeys = Object.keys(TACTICS);
+            const randomTacticKey = tacticKeys[Math.floor(Math.random() * tacticKeys.length)];
+            attacker.tactic = TACTICS[randomTacticKey];
+        }
+
         // 공격 턴 계산
         attacker.attackProgress += deltaTime;
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
             // 1. 방어자의 기갑화율에 따라 유효 공격력을 계산합니다.
+            const tacticAttackModifier = attacker.tactic ? attacker.tactic.attackModifier : 1.0;
             const defenderHardness = target.hardness; // 목표 중대의 기갑화율
-            const effectiveAttack = attacker.softAttack * (1 - defenderHardness) + attacker.hardAttack * defenderHardness;
+            const baseAttack = attacker.softAttack * (1 - defenderHardness) + attacker.hardAttack * defenderHardness;
+            const effectiveAttack = baseAttack * tacticAttackModifier;
             const totalAttackPower = Math.max(0, effectiveAttack - target.armor);
 
             // 2. 화력은 조직력에 직접적인 추가 피해를 줍니다.
@@ -97,6 +116,11 @@ function updateUnits(topLevelUnits, deltaTime) {
             life: 0.5,
             type: isFrontal ? 'frontal' : 'flank'
         });
+
+        // 첫 번째 정면 전투를 중계 대상으로 설정
+        if (isFrontal && !broadcastedBattle) {
+            broadcastedBattle = { unitA: attacker, unitB: target };
+        }
 
         // 전투 중 방향 전환
         if (!attackerTopLevel.destination) {

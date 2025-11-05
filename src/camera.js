@@ -93,6 +93,19 @@ class Camera {
             y: (screenY / this.zoom) + this.y,
         };
     }
+
+    /**
+     * 월드 좌표를 화면 좌표로 변환합니다.
+     * @param {number} worldX 월드 X 좌표
+     * @param {number} worldY 월드 Y 좌표
+     * @returns {{x: number, y: number}} 화면 좌표
+     */
+    worldToScreen(worldX, worldY) {
+        return {
+            x: (worldX - this.x) * this.zoom,
+            y: (worldY - this.y) * this.zoom,
+        };
+    }
 }
 
 /**
