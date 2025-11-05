@@ -10,7 +10,7 @@ const camera = new Camera(canvas); // 카메라 인스턴스 생성
 
 // --- 게임 시간 및 생산 주기 설정 ---
 const SECONDS_PER_GAME_HOUR = 0.5; // 현실 시간 0.5초 = 게임 시간 1시간
-const PRODUCTION_TICKS = 5; // 생산 계산을 분산할 주기(틱)의 수
+const PRODUCTION_TICKS = 3; // 생산 계산을 분산할 주기(틱)의 수
 let gameTime = {
     totalHours: 0,
     timeAccumulator: 0, // 시간 경과를 누적하는 변수
@@ -118,11 +118,18 @@ function update(currentTime) {
         gameTime.timeAccumulator -= SECONDS_PER_GAME_HOUR;
         gameTime.totalHours++;
 
+        // --- 일간 업데이트 (게임 시간 기준 24시간마다) ---
+        if (gameTime.totalHours % 24 === 0) {
+            nations.forEach((nation) => {
+                nation.economy.updateDailyEconomy();
+            });
+        }
+
         // --- 시간당 생산 업데이트 ---
         const currentTick = gameTime.totalHours % PRODUCTION_TICKS;
         nations.forEach((nation) => {
             // 1시간 분량의 생산을 계산하도록 요청
-            nation.updateHourlyProduction(currentTick, 1);
+            nation.economy.updateHourlyProduction(currentTick, 1);
         });
     }
 

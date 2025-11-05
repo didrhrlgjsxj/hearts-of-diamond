@@ -79,20 +79,31 @@ class GameUI {
         });
         const equipmentSelect = this.createSelect('equipment-select', '장비 선택:', equipmentOptions);
 
-        const factoryInputLabel = document.createElement('label');
-        factoryInputLabel.htmlFor = 'factory-input';
-        factoryInputLabel.textContent = '할당 공장 수:';
-        const factoryInput = document.createElement('input');
-        factoryInput.type = 'number';
-        factoryInput.id = 'factory-input';
-        factoryInput.value = '1';
-        factoryInput.min = '1';
+        const lightFactoryLabel = document.createElement('label');
+        lightFactoryLabel.htmlFor = 'light-factory-input';
+        lightFactoryLabel.textContent = '할당 경공업 수:';
+        const lightFactoryInput = document.createElement('input');
+        lightFactoryInput.type = 'number';
+        lightFactoryInput.id = 'light-factory-input';
+        lightFactoryInput.value = '1';
+        lightFactoryInput.min = '0';
+
+        const heavyFactoryLabel = document.createElement('label');
+        heavyFactoryLabel.htmlFor = 'heavy-factory-input';
+        heavyFactoryLabel.textContent = '할당 중공업 수:';
+        const heavyFactoryInput = document.createElement('input');
+        heavyFactoryInput.type = 'number';
+        heavyFactoryInput.id = 'heavy-factory-input';
+        heavyFactoryInput.value = '0';
+        heavyFactoryInput.min = '0';
 
         const addLineButton = document.createElement('button');
         addLineButton.textContent = '생산 라인 추가';
         addLineButton.onclick = () => this.addProductionLine();
 
-        panel.append(productionHeader, teamSelect.label, teamSelect.select, equipmentSelect.label, equipmentSelect.select, factoryInputLabel, factoryInput, addLineButton);
+        panel.append(productionHeader, teamSelect.label, teamSelect.select, equipmentSelect.label, equipmentSelect.select, 
+                     lightFactoryLabel, lightFactoryInput, heavyFactoryLabel, heavyFactoryInput, 
+                     addLineButton);
         return panel;
     }
 
@@ -179,14 +190,18 @@ class GameUI {
     addProductionLine() {
         const team = document.getElementById('team-select').value;
         const equipmentKey = document.getElementById('equipment-select').value;
-        const assignedFactories = parseInt(document.getElementById('factory-input').value, 10);
+        const assignedLight = parseInt(document.getElementById('light-factory-input').value, 10);
+        const assignedHeavy = parseInt(document.getElementById('heavy-factory-input').value, 10);
         const nation = this.nations.get(team);
+        const totalFactories = assignedLight + assignedHeavy;
 
-        if (nation && equipmentKey && assignedFactories > 0) {
-            nation.addProductionLine(equipmentKey, assignedFactories);
-            console.log(`${nation.name}에 ${EQUIPMENT_TYPES[equipmentKey].name} 생산 라인을 ${assignedFactories}개 공장으로 추가합니다.`);
+        if (nation && equipmentKey && totalFactories > 0) {
+            const success = nation.economy.addProductionLine(equipmentKey, assignedLight, assignedHeavy);
+            if (success) {
+                console.log(`${nation.name}에 ${EQUIPMENT_TYPES[equipmentKey].name} 생산 라인을 경공업 ${assignedLight}, 중공업 ${assignedHeavy}으로 추가합니다.`);
+            }
         } else {
-            console.error("국가, 장비 또는 공장 수를 올바르게 선택해주세요.");
+            console.error("국가, 장비를 올바르게 선택하고, 최소 1개 이상의 공장을 할당해주세요.");
         }
     }
 
@@ -249,12 +264,15 @@ class GameUI {
     updateProductionPanel() {
         let html = ``;
         this.nations.forEach(nation => {
+            const availableFactories = nation.economy.getAvailableFactories();
             html += `<h3>${nation.name} 현황</h3>`;
-            html += `<div>(경공업: ${nation.lightIndustry} / 중공업: ${nation.heavyIndustry})</div>`;
+            html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry})</div>`;
+            html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
+            html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)}</div>`;
 
             // 장비 비축량 표시
             html += `<h4>장비 비축량</h4>`;
-            const stockpile = nation.equipmentStockpile;
+            const stockpile = nation.economy.equipmentStockpile;
             if (Object.keys(stockpile).length > 0) {
                 html += '<ul>';
                 Object.keys(stockpile).forEach(key => {
@@ -267,14 +285,14 @@ class GameUI {
 
             // 생산 라인 표시
             html += `<h4>생산 라인</h4>`;
-            if (nation.productionLines.length > 0) {
+            if (nation.economy.productionLines.length > 0) {
                 html += '<ul>';
-                nation.productionLines.forEach((line) => {
+                nation.economy.productionLines.forEach((line) => {
                     const equipment = EQUIPMENT_TYPES[line.equipmentKey];
                     const progressPercent = (line.progress / equipment.productionCost * 100).toFixed(1);
                     const efficiencyPercent = (line.efficiency * 100).toFixed(1);
                     html += `<li>
-                        ${equipment.name} (공장: ${line.assignedFactories})<br>
+                        ${equipment.name} (경: ${line.assignedLightFactories} / 중: ${line.assignedHeavyFactories})<br>
                         <progress value="${progressPercent}" max="100"></progress> ${progressPercent}%<br>
                         <small>효율: ${efficiencyPercent}%</small>
                     </li>`;
