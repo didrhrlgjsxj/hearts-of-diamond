@@ -12,9 +12,7 @@ function updateUnits(topLevelUnits, deltaTime) {
         unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
         unit.tracers = []; // 예광탄 효과 초기화
         unit.updateVisuals(deltaTime); // 데미지 텍스트 등 시각 효과 업데이트
-        unit.getAllCompanies().forEach(c => {
-            c.isBeingTargeted = false; // 중대별 피격 상태 초기화
-        });
+        unit.getAllBattalions().forEach(b => b.isBeingTargeted = false); // 대대별 피격 상태 초기화
 
         // 모든 전투 가능 부대를 하나의 배열로 모읍니다.
         if (!unit.isDestroyed) {
@@ -88,7 +86,7 @@ function updateUnits(topLevelUnits, deltaTime) {
             // 2. 화력은 조직력에 직접적인 추가 피해를 줍니다.
             const firepowerDamage = attacker.firepower * 1.5;
 
-            target.takeDamage(totalAttackPower, firepowerDamage, { x: attacker.x, y: attacker.y });
+            target.takeDamage(totalAttackPower, firepowerDamage);
         }
 
         // 전투 시각 효과 (예광탄)
@@ -109,9 +107,12 @@ function updateUnits(topLevelUnits, deltaTime) {
     // --- 4. 조직력 회복 및 최종 업데이트 ---
     for (const unit of topLevelUnits) {
         // --- 조직력 회복 로직 ---
-        if (unit.organization < unit.maxOrganization) {
-            const recoveryRate = unit.isInCombat ? unit.organizationRecoveryRateInCombat : unit.organizationRecoveryRate;
-            unit.organization = Math.min(unit.maxOrganization, unit.organization + recoveryRate * deltaTime);
+        // 모든 대대의 조직력을 회복시킵니다.
+        for (const battalion of unit.getAllBattalions()) {
+            if (battalion.organization < battalion.maxOrganization) {
+                const recoveryRate = battalion.isInCombat ? battalion.organizationRecoveryRateInCombat : battalion.organizationRecoveryRate;
+                battalion.organization = Math.min(battalion.maxOrganization, battalion.organization + recoveryRate * deltaTime);
+            }
         }
     }
 
@@ -177,15 +178,25 @@ function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
  * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
  */
 function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
-    const remainingUnits = [];
     let newSelectedUnit = selectedUnit;
 
-    for (const unit of topLevelUnits) {
-        if (!unit.isDestroyed) {
-            remainingUnits.push(unit);
-        } else if (newSelectedUnit === unit) {
+    // 1. 각 최상위 부대 내에서 파괴된 하위 대대를 제거합니다.
+    topLevelUnits.forEach(unit => {
+        if (unit instanceof CommandUnit) {
+            unit.subUnits = unit.subUnits.filter(sub => !sub.isDestroyed);
+            unit.combatSubUnits = unit.combatSubUnits.filter(sub => !sub.isDestroyed);
+        }
+    });
+
+    // 2. 최상위 부대 자체가 파괴되었는지 확인하고 목록에서 제거합니다.
+    const remainingUnits = topLevelUnits.filter(unit => {
+        // 부대가 파괴되었고, 하위 유닛도 모두 없어졌을 때 완전히 제거합니다.
+        const isTotallyDestroyed = unit.isDestroyed && unit.subUnits.length === 0;
+        if (isTotallyDestroyed && newSelectedUnit === unit) {
             newSelectedUnit = null;
         }
-    }
+        return !isTotallyDestroyed;
+    });
+
     return { remainingUnits, newSelectedUnit };
 }

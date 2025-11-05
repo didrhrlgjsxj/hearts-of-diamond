@@ -895,6 +895,7 @@ class Squad extends Unit {
     setType(type) {
         this.type = type;
         const stats = UNIT_TYPE_STATS[type];
+        this._baseStrength = UNIT_STRENGTHS.SQUAD;
         Object.assign(this, stats); // stats 객체의 모든 속성을 this에 복사
         this.organization = this.maxOrganization; // 조직력을 최대로 재설정
     }

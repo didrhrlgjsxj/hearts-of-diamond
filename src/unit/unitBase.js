@@ -108,12 +108,38 @@ class Unit {
     }
 
     /**
+     * 모든 하위 분대(Squad)를 기반으로 이 유닛의 모든 전투 능력치를 계산하고 업데이트합니다.
+     * 이 메서드는 편제가 변경될 때마다 호출되어야 합니다.
+     */
+    calculateStats() {
+        // 최하위 전투 단위인 분대(Squad)는 이 메서드를 실행할 필요가 없습니다.
+        if (this instanceof Squad) return;
+
+        const allSquads = this.getAllSquads();
+
+        // UNIT_STAT_AGGREGATORS에 정의된 각 계산 함수를 실행하여 능력치를 할당합니다.
+        this.firepower = UNIT_STAT_AGGREGATORS.firepower(allSquads);
+        this.softAttack = UNIT_STAT_AGGREGATORS.softAttack(allSquads);
+        this.hardAttack = UNIT_STAT_AGGREGATORS.hardAttack(allSquads);
+        this.reconnaissance = UNIT_STAT_AGGREGATORS.reconnaissance(allSquads);
+        this.armor = UNIT_STAT_AGGREGATORS.armor(allSquads);
+        this._baseStrength = UNIT_STAT_AGGREGATORS.baseStrength(allSquads);
+    }
+
+    /**
      * 부대 편제가 완료된 후, 최대 조직력에 맞춰 현재 조직력을 초기화합니다.
      * 이 메서드는 재귀적으로 모든 하위 유닛에 대해 호출됩니다.
      */
     initializeOrganization() {
         this.organization = this.maxOrganization;
         this.subUnits.forEach(subUnit => subUnit.initializeOrganization());
+    }
+
+    get maxOrganization() {
+        if (this instanceof Squad) {
+            return 100 + (this.organizationBonus || 0);
+        }
+        return 100 + this.getAllSquads().reduce((total, squad) => total + squad.organizationBonus, 0);
     }
 
     /**
@@ -310,55 +336,41 @@ class Unit {
      * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
-    takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
+    takeDamage(totalAttackPower, firepowerDamage) {
+        // 대대급 미만(중대 등)은 피해를 받지 않습니다.
+        if (!(this instanceof CommandUnit)) return;
+
         // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
         const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
         const damageAbsorptionRate = this.minOrgDamageAbsorption + (orgRatio * absorptionRange);
 
         // 2. 총 공격력을 조직력 피해와 내구력 피해로 분배합니다.
-        const orgDamageFromAttack = totalAttackPower * damageAbsorptionRate;
-        const strengthDamage = totalAttackPower * (1 - damageAbsorptionRate);
+        const orgDamage = totalAttackPower * damageAbsorptionRate;
+        const strDamage = totalAttackPower * (1 - damageAbsorptionRate);
 
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
-        const finalOrgDamage = orgDamageFromAttack + firepowerDamage;
+        const finalOrgDamage = orgDamage + firepowerDamage;
         this.organization = Math.max(0, this.organization - finalOrgDamage);
 
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
-        if (strengthDamage > 0) {
-            this.damageTaken += strengthDamage;
+        if (strDamage > 0) {
+            this.damageTaken += strDamage;
             // 내구력 피해량 텍스트를 생성합니다.
-            this.getTopLevelParent().floatingTexts.push({
-                text: `-${Math.floor(strengthDamage)}`,
-                life: 1.5, // 1.5초 동안 표시
+            this.floatingTexts.push({
+                text: `-${Math.floor(strDamage)}`,
+                life: 1.5,
                 alpha: 1.0,
                 x: this.x,
-                y: this.y - this.size - 5,
+                y: this.y - this.size - 15, // 바 위로 표시
             });
         }
 
-        // 5. 유닛이 파괴되었는지 확인하고, 그렇다면 상위 부대 목록에서 제거합니다.
+        // 5. 유닛 파괴 확인
         if (this.currentStrength <= 0) {
             this.isDestroyed = true;
             this.organization = 0;
             this.destination = null;
-            // combatSubUnits 목록에서만 제거하여 전투 로직에서 제외시킵니다.
-            this.getTopLevelParent().combatSubUnits = this.getTopLevelParent().combatSubUnits.filter(s => s !== this);
-
-            // 만약 파괴된 유닛이 지휘 부대(CommandUnit)였다면, 휘하의 남은 중대들을 예비대로 전환합니다.
-            if (this instanceof CommandUnit) {
-                const survivingCompanies = this.subUnits.filter(u => u instanceof Company && !u.isDestroyed);
-                const topLevelParent = this.getTopLevelParent();
-
-                survivingCompanies.forEach(company => {
-                    console.log(`${company.name}이(가) 지휘관을 잃고 예비대로 전환됩니다.`);
-                    company.isReserve = true; // 예비대 상태로 변경
-                    // 상위 부대의 목록에서 제거
-                    this.subUnits = this.subUnits.filter(u => u !== company);
-                    // 최상위 부대의 예비대 목록으로 이동
-                    if (topLevelParent) topLevelParent.reserveUnits.push(company);
-                });
-            }
         }
     }
 
@@ -381,6 +393,9 @@ class Unit {
             t.life -= deltaTime;
             t.alpha = Math.max(0, t.life / 0.5);
         });
+
+        // 모든 하위 유닛의 시각 효과도 재귀적으로 업데이트합니다.
+        this.subUnits.forEach(subUnit => subUnit.updateVisuals(deltaTime));
 
     }
 
@@ -470,7 +485,9 @@ class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
-        const barWidth = 40;
+        // 대대급 이상(CommandUnit) 유닛만 내구력/조직력 바를 표시합니다.
+        if (this instanceof CommandUnit) {
+            const barWidth = 40;
             const barHeight = 5;
             const barX = this.x - barWidth / 2;
             const barY = this.y - 25;
@@ -480,23 +497,17 @@ class Unit {
             ctx.fillRect(barX, barY, barWidth, barHeight);
 
             // 2. 현재 내구력(Strength) 바
-            const currentBaseStrength = this.baseStrength; // 편제상의 최대 병력
-            const strengthRatio = currentBaseStrength > 0 ? this.currentStrength / currentBaseStrength : 0;
-            
+            const strengthRatio = this.baseStrength > 0 ? this.currentStrength / this.baseStrength : 0;
+
             const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
             ctx.fillStyle = '#ff8c00'; // DarkOrange
             ctx.fillRect(barX, barY, baseBarWidth, barHeight);
-
-            if (strengthRatio > 1) {
-                const reinforcedBarWidth = barWidth * (strengthRatio - 1);
-                ctx.fillStyle = '#f0e68c'; // Khaki
-                ctx.fillRect(barX + baseBarWidth, barY, Math.min(reinforcedBarWidth, barWidth - baseBarWidth), barHeight);
-            }
 
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
 
+            // 3. 조직력 바
             const orgBarY = barY + barHeight + 2;
             ctx.fillStyle = '#555';
             ctx.fillRect(barX, orgBarY, barWidth, barHeight);
@@ -504,6 +515,7 @@ class Unit {
             ctx.fillStyle = '#00ff00'; // Lime Green
             ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
             ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+        }
 
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
         // ctx.font = 'bold 14px sans-serif';
@@ -513,7 +525,7 @@ class Unit {
         // ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
         // ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
 
-        // 대대/여단은 반투명한 아이콘을, 그 외에는 일반 아이콘을 그립니다.
+        // 지휘 부대는 반투명 아이콘을, 중대는 불투명 아이콘을 그립니다.
         if (this instanceof CommandUnit) {
             this.drawOwnIcon(ctx, 0.3); // 30% 투명도로 아이콘 렌더링
         } else {
@@ -563,7 +575,7 @@ class Unit {
 
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
-        ctx.font = '10px sans-serif';
+        ctx.font = '11px sans-serif';
         ctx.fillText(`${this.name}`, this.x, this.y + 25);
 
         // 피해량 텍스트 그리기

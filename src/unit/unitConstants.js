@@ -81,3 +81,39 @@ const ECHELON_SYMBOLS = {
     'BATTALION': '||',
     // 중대 이하는 각 클래스에서 직접 그림
 };
+
+/**
+ * 부대의 능력치를 하위 부대로부터 어떻게 합산할지 정의하는 함수 모음입니다.
+ * 이를 통해 능력치 계산 방식을 중앙에서 관리하고 쉽게 수정할 수 있습니다.
+ */
+const UNIT_STAT_AGGREGATORS = {
+    // 화력, 공격력, 정찰력은 단순 합산합니다.
+    firepower: (units) => units.reduce((total, unit) => total + unit.firepower, 0),
+    softAttack: (units) => units.reduce((total, unit) => total + unit.softAttack, 0),
+    hardAttack: (units) => units.reduce((total, unit) => total + unit.hardAttack, 0),
+    reconnaissance: (units) => units.reduce((total, unit) => total + unit.reconnaissance, 0),
+
+    // 장갑(Armor)은 모든 전투 분대의 평균값으로 계산합니다.
+    armor: (units) => {
+        if (units.length === 0) return 0;
+        const totalArmor = units.reduce((total, unit) => total + unit.armor, 0);
+        return totalArmor / units.length;
+    },
+
+    // 최대 조직력(maxOrganization)은 기본 100에 각 분대의 보너스 값을 더합니다.
+    maxOrganization: (units) => {
+        const bonus = units.reduce((total, unit) => total + unit.organizationBonus, 0);
+        return 100 + bonus;
+    },
+
+    // 기본 내구력(baseStrength)은 모든 분대의 내구력을 합산합니다.
+    baseStrength: (units) => units.reduce((total, unit) => total + unit._baseStrength, 0),
+
+    // 기갑화율(hardness)은 기갑화된 분대의 비율로 계산합니다.
+    hardness: (units) => {
+        if (units.length === 0) return 0;
+        // 장갑이 1 이상인 분대를 기갑화된 것으로 간주합니다.
+        const armoredCount = units.filter(unit => unit.armor > 0).length;
+        return armoredCount / units.length;
+    },
+};
