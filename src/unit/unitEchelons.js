@@ -309,6 +309,9 @@ class Company extends Unit {
         this.role = COMPANY_ROLES.REARGUARD; // 기본 역할은 '후위'
         this.formationRadius = 20;
         this.combatParticipation = 0; // 전투 참여도 (0 to 1, 거리에 따라)
+        this.lineIndex = -1; // 진형 내 자신의 순번 (왼쪽부터 0, 1, 2...)
+        this.leftNeighbor = null; // 왼쪽 이웃 중대
+        this.rightNeighbor = null; // 오른쪽 이웃 중대
         this.combatEffectiveness = 1.0; // 전투 효율성 계수
         this.companyTarget = null; // 중대가 조준하는 적 중대
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.

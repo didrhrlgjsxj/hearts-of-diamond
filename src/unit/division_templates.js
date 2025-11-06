@@ -160,6 +160,22 @@ const DIVISION_TEMPLATES = {
                 battalion.addUnit(company);
             }
 
+            // 역할별로 중대를 그룹화하고, 각 그룹 내에서 순번(lineIndex)과 이웃을 설정합니다.
+            const companiesByRole = {};
+            battalion.subUnits.forEach(c => {
+                if (!companiesByRole[c.role]) companiesByRole[c.role] = [];
+                companiesByRole[c.role].push(c);
+            });
+
+            Object.values(companiesByRole).forEach(roleGroup => {
+                roleGroup.forEach((company, index) => {
+                    company.lineIndex = index;
+                    company.leftNeighbor = roleGroup[index - 1] || null;
+                    company.rightNeighbor = roleGroup[index + 1] || null;
+                });
+            });
+
+
             battalion.calculateStats();
             battalion.organization = battalion.maxOrganization;
 

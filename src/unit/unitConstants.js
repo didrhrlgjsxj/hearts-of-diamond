@@ -1,7 +1,7 @@
 const UNIT_STRENGTHS = {
     SQUAD: 12,
     PLATOON: 12 * 3,       // 36
-    COMPANY: 12 * 3 * 3,     // 108
+    COMPANY: 12 * 3 * 3,     // 108 //이거는 그냥 예시 최초값
     BATTALION: 12 * 3 * 3 * 3, // 324
     BRIGADE: 12 * 3 * 3 * 3 * 3, // 972
 };
@@ -61,7 +61,7 @@ const COMPANY_ROLES = {
 const FORMATION_OFFSETS = {
     [COMPANY_ROLES.VANGUARD]: { distance: 80, spread: 60 },  // 선봉대는 가장 앞에
     [COMPANY_ROLES.FRONTLINE]: { distance: 40, spread: 80 }, // 전위는 중간에 넓게
-    [COMPANY_ROLES.REARGUARD]: { distance: 0, spread: 50 },   // 후위는 본부와 함께 중앙에
+    [COMPANY_ROLES.REARGUARD]: { distance: -20, spread: 70 },   // 후위는 본부 약간 뒤쪽 양옆으로 배치
 };
 
 // 역할과 병과에 따른 전투 효율성 계수
@@ -90,6 +90,9 @@ const BATTALION_FORMATION_OFFSETS = {
 
 // 유닛 간 최소 이격 거리
 const MIN_UNIT_SPACING = 15;
+
+// 전투 중 중대가 기본 진형 위치에서 벗어날 수 있는 최대 거리
+const MAX_FORMATION_DEVIATION = 50;
 
 // 부대 규모(Echelon)별 심볼 정의
 const ECHELON_SYMBOLS = {

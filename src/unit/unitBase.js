@@ -273,8 +273,87 @@ class Unit {
         // 파괴되었거나 이동 목표가 없으면 아무것도 하지 않습니다.
         if (this.isDestroyed || !this.destination) return;
 
-        const dx = this.destination.x - this.x;
-        const dy = this.destination.y - this.y;
+        let finalDestination = { ...this.destination };
+
+        // --- 전투 중 자율 이동 AI (중대 전용) ---
+        if (this instanceof Company && this.parent && this.parent.isInCombat && this.companyTarget) {
+            const enemyCompany = this.companyTarget;
+            const formationPosition = this.destination; // 대대가 지정한 기본 진형 위치
+
+            // 1. 전투 효율성을 극대화하는 이상적인 위치 계산
+            const rangeInfo = UNIT_TYPE_EFFECTIVENESS_RANGE[this.type] || { optimal: 100, max: 200 };
+            const optimalDistance = rangeInfo.optimal;
+
+            const vecX = this.x - enemyCompany.x;
+            const vecY = this.y - enemyCompany.y;
+            const currentDist = Math.hypot(vecX, vecY);
+
+            // 목표와의 거리가 0이 되는 것을 방지
+            if (currentDist < 1) {
+                finalDestination = formationPosition; // 문제가 생기면 기본 진형 위치로 복귀
+            } else {
+                const idealX = enemyCompany.x + (vecX / currentDist) * optimalDistance;
+                const idealY = enemyCompany.y + (vecY / currentDist) * optimalDistance;
+                let combatDestination = { x: idealX, y: idealY };
+
+                // 2. 전투 참여도 vs 효율성 판단 (Rule 3)
+                // 현재 거리가 최적 거리보다 이미 가까우면, 더 다가가지 않고 현재 위치를 유지하려 함
+                if (currentDist < optimalDistance) {
+                    // 참여도는 높지만 효율성이 떨어지는 구간이므로, 더 다가가지 않음
+                    combatDestination = { x: this.x, y: this.y };
+                }
+
+                // 3. 진형 유지 (Rule 4)
+                // 계산된 전투 목표 위치가 기본 진형 위치에서 너무 멀리 벗어나지 않도록 제한
+                const deviationDist = Math.hypot(combatDestination.x - formationPosition.x, combatDestination.y - formationPosition.y);
+                if (deviationDist > MAX_FORMATION_DEVIATION) {
+                    const devVecX = combatDestination.x - formationPosition.x;
+                    const devVecY = combatDestination.y - formationPosition.y;
+                    combatDestination.x = formationPosition.x + (devVecX / deviationDist) * MAX_FORMATION_DEVIATION;
+                    combatDestination.y = formationPosition.y + (devVecY / deviationDist) * MAX_FORMATION_DEVIATION;
+                }
+                finalDestination = combatDestination;
+            }
+        }
+
+        // --- 진형 유지 로직 (중대 전용) ---
+        if (this instanceof Company && this.parent) {
+            const parentDir = this.parent.direction;
+            const perpendicularDir = parentDir + Math.PI / 2; // 부모 방향에 수직인 방향
+
+            // 수직선에 대한 자신의 목표 위치 투영
+            const project = (unit) => (unit.x * Math.cos(perpendicularDir) + unit.y * Math.sin(perpendicularDir));
+
+            let targetX = finalDestination.x;
+            let targetY = finalDestination.y;
+            
+            const myProjectedTarget = project({ x: targetX, y: targetY });
+            const spacing = this.size * 2 + 5; // 중대 간 최소 간격
+
+            // 왼쪽 이웃과의 충돌 확인
+            if (this.leftNeighbor) {
+                const leftNeighborProjected = project(this.leftNeighbor);
+                if (myProjectedTarget < leftNeighborProjected + spacing) {
+                    const correction = (leftNeighborProjected + spacing) - myProjectedTarget;
+                    targetX += correction * Math.cos(perpendicularDir);
+                    targetY += correction * Math.sin(perpendicularDir);
+                }
+            }
+
+            // 오른쪽 이웃과의 충돌 확인
+            if (this.rightNeighbor) {
+                const rightNeighborProjected = project(this.rightNeighbor);
+                if (myProjectedTarget > rightNeighborProjected - spacing) {
+                    const correction = (rightNeighborProjected - spacing) - myProjectedTarget;
+                    targetX += correction * Math.cos(perpendicularDir);
+                    targetY += correction * Math.sin(perpendicularDir);
+                }
+            }
+            finalDestination = { x: targetX, y: targetY };
+        }
+
+        const dx = finalDestination.x - this.x;
+        const dy = finalDestination.y - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
         // 목표 지점까지의 거리가 1픽셀 이상일 때만 이동 방향을 업데이트합니다.
@@ -290,9 +369,9 @@ class Unit {
 
         if (distance < moveDistance) {
             // 목표에 도달함
-            this.x = this.destination.x;
-            this.y = this.destination.y;
-            this.destination = null;
+            this.x = finalDestination.x;
+            this.y = finalDestination.y;
+            // 전투 중에는 목표가 계속 바뀌므로 destination을 null로 만들지 않음
             // 후퇴 중이었다면, 목표 도달 시 상태를 해제합니다.
             if (this.isRetreating) {
                 this.isRetreating = false;
