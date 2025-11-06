@@ -11,6 +11,7 @@ class MapGrid {
         this.height = MAP_HEIGHT;
         this.tileSize = TILE_SIZE;
         this.nations = new Map(); // id를 키로 사용하여 Nation 객체를 저장
+        this.provinceManager = new ProvinceManager(this.width, this.height);
 
         // 2D 배열로 맵 그리드를 생성하고, 각 셀은 소유한 Nation 객체를 참조합니다.
         // 초기에는 모든 셀의 소유권이 없습니다 (null).

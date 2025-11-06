@@ -237,6 +237,26 @@ function draw() {
 
             // 타일 테두리 그리기
             ctx.strokeRect(x * mapGrid.tileSize, y * mapGrid.tileSize, mapGrid.tileSize, mapGrid.tileSize);
+
+            // --- 프로빈스 경계선 그리기 ---
+            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+
+            // 위쪽 타일과 프로빈스가 다른 경우, 위쪽 경계선을 굵게 그립니다.
+            if (y === 0 || mapGrid.provinceManager.provinceGrid[x][y-1] !== provinceId) {
+                ctx.beginPath();
+                ctx.moveTo(tileX, tileY);
+                ctx.lineTo(tileX + mapGrid.tileSize, tileY);
+                ctx.stroke();
+            }
+            // 왼쪽 타일과 프로빈스가 다른 경우, 왼쪽 경계선을 굵게 그립니다.
+            if (x === 0 || mapGrid.provinceManager.provinceGrid[x-1][y] !== provinceId) {
+                ctx.beginPath();
+                ctx.moveTo(tileX, tileY);
+                ctx.lineTo(tileX, tileY + mapGrid.tileSize);
+                ctx.stroke();
+            }
         }
     }
 

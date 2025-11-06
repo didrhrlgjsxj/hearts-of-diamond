@@ -95,7 +95,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         if (attacker.attackProgress >= attacker.attackCooldown) {
             attacker.attackProgress = 0; // 턴 초기화
 
-            // --- 중대별 전투 참여도 및 효율성 계산 ---
+            // --- 중대별 및 효율성 계산 ---
             let totalEffectivePower = 0;
             const attackerCompanies = attacker.getAllCompanies();
             const targetCompanies = target.getAllCompanies();
