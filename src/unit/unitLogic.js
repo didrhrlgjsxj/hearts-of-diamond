@@ -150,7 +150,8 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
 
         // 중대 간의 얇은 예광탄 (쇼 연출)
         attacker.getAllCompanies().forEach(myCompany => {
-            if (myCompany.companyTarget && myCompany.combatParticipation > 0.1) {
+            // 전투 효율성이 10% 이상일 때만 예광탄을 그립니다.
+            if (myCompany.companyTarget && myCompany.combatEffectiveness > 0.1) {
                 attackerTopLevel.tracers.push({ from: myCompany, to: myCompany.companyTarget, life: 0.3, type: 'company' });
             }
         });
