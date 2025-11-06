@@ -111,19 +111,20 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
 
                 if (!myCompany.companyTarget) return;
 
-                // 2. 전투 참여도 계산 (거리에 따라 0~1)
                 const distToTarget = Math.hypot(myCompany.x - myCompany.companyTarget.x, myCompany.y - myCompany.companyTarget.y);
-                myCompany.combatParticipation = Math.max(0, 1 - (distToTarget / attacker.engagementRange)); // 교전 범위에 가까울수록 참여도 하락
 
                 // 3. 전투 효율성 계산 (최적 교전 거리에 따라 0~1)
-                const range = UNIT_TYPE_EFFECTIVENESS_RANGE[myCompany.type] || { optimal: 100, max: 200 };
-                const effectivenessFalloff = (distToTarget - range.optimal) / (range.max - range.optimal);
-                myCompany.combatEffectiveness = Math.max(0, 1 - Math.abs(effectivenessFalloff));
+                // 최적 거리에서 100%, 최적 거리의 2배 또는 0 거리에서 0%가 되도록 계산합니다.
+                const range = UNIT_TYPE_EFFECTIVENESS_RANGE[myCompany.type] || { optimal: 100 };
+                const optimalDistance = range.optimal;
+                const distanceDifference = Math.abs(distToTarget - optimalDistance);
+                // 최적 거리에서 벗어난 비율을 계산합니다.
+                myCompany.combatEffectiveness = Math.max(0, 1 - (distanceDifference / optimalDistance));
 
                 // 4. 중대의 유효 공격력 계산 (공격력 * 참여도 * 효율성)
                 const defenderHardness = myCompany.companyTarget.hardness;
                 const companyBaseAttack = myCompany.softAttack * (1 - defenderHardness) + myCompany.hardAttack * defenderHardness;
-                totalEffectivePower += companyBaseAttack * myCompany.combatParticipation * myCompany.combatEffectiveness;
+                totalEffectivePower += companyBaseAttack * myCompany.combatEffectiveness;
             });
 
             // 5. 대대의 최종 공격력 계산

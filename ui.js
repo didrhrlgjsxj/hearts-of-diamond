@@ -398,6 +398,18 @@ class GameUI {
         const orgPercent = (unit.organization / unit.maxOrganization * 100).toFixed(1);
         const strPercent = (unit.currentStrength / unit.baseStrength * 100).toFixed(1);
 
+        // 중대들의 평균 전투 참여도 및 효율성 계산
+        const companies = unit.getAllCompanies();
+        let avgParticipation = 0;
+        let avgEffectiveness = 0;
+        if (companies.length > 0) {
+            const totalEffectiveness = companies.reduce((sum, c) => sum + c.combatEffectiveness, 0);
+            avgEffectiveness = (totalEffectiveness / companies.length * 100).toFixed(0);
+        }
+
+        const combatStatsHTML = `<p><small>전투 효율성: ${avgEffectiveness}%</small></p>`;
+
+
         // 전술에 따른 공격력 변화를 계산하고 표시 형식 생성
         let softAttackDisplay = unit.softAttack.toFixed(1);
         let hardAttackDisplay = unit.hardAttack.toFixed(1);
@@ -443,6 +455,7 @@ class GameUI {
             </div>
             <p><strong>공격력(소프트/하드):</strong> ${softAttackDisplay} / ${hardAttackDisplay}</p>
             <p><strong>현재 전술:</strong> ${tacticInfo}</p>
+            ${combatStatsHTML}
         `;
     }
 }

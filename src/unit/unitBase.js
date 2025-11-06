@@ -292,16 +292,10 @@ class Unit {
             if (currentDist < 1) {
                 finalDestination = formationPosition; // 문제가 생기면 기본 진형 위치로 복귀
             } else {
+                // 항상 최적 거리를 유지하려는 위치를 목표로 설정합니다.
                 const idealX = enemyCompany.x + (vecX / currentDist) * optimalDistance;
                 const idealY = enemyCompany.y + (vecY / currentDist) * optimalDistance;
                 let combatDestination = { x: idealX, y: idealY };
-
-                // 2. 전투 참여도 vs 효율성 판단 (Rule 3)
-                // 현재 거리가 최적 거리보다 이미 가까우면, 더 다가가지 않고 현재 위치를 유지하려 함
-                if (currentDist < optimalDistance) {
-                    // 참여도는 높지만 효율성이 떨어지는 구간이므로, 더 다가가지 않음
-                    combatDestination = { x: this.x, y: this.y };
-                }
 
                 // 3. 진형 유지 (Rule 4)
                 // 계산된 전투 목표 위치가 기본 진형 위치에서 너무 멀리 벗어나지 않도록 제한

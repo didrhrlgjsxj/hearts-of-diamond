@@ -43,11 +43,11 @@ const UNIT_TYPE_STATS = {
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
 const UNIT_TYPE_EFFECTIVENESS_RANGE = {
-    [UNIT_TYPES.INFANTRY]: { optimal: 100, max: 200 }, // 보병: 100 거리에서 효율 100%, 200 이상부터 효율 감소
-    [UNIT_TYPES.RECON]:    { optimal: 150, max: 250 }, // 정찰: 150 거리에서 효율 100%
-    [UNIT_TYPES.ARMOR]:    { optimal: 120, max: 220 }, // 기갑: 120 거리에서 효율 100%
-    [UNIT_TYPES.ARTILLERY]:{ optimal: 250, max: 350 }, // 포병: 250 거리에서 효율 100%, 가까울수록 효율 급감
-    [UNIT_TYPES.ENGINEER]: { optimal: 80,  max: 150 }, // 공병: 80 거리에서 효율 100%
+    [UNIT_TYPES.INFANTRY]: { optimal: 100 }, // 보병: 100 거리에서 효율 100%
+    [UNIT_TYPES.RECON]:    { optimal: 150 }, // 정찰: 150 거리에서 효율 100%
+    [UNIT_TYPES.ARMOR]:    { optimal: 120 }, // 기갑: 120 거리에서 효율 100%
+    [UNIT_TYPES.ARTILLERY]:{ optimal: 250 }, // 포병: 250 거리에서 효율 100%
+    [UNIT_TYPES.ENGINEER]: { optimal: 80  }, // 공병: 80 거리에서 효율 100%
 };
 
 // 중대 역할 정의
