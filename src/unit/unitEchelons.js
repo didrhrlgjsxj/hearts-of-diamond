@@ -132,9 +132,6 @@ class CommandUnit extends Unit {
      * 2. 대대는 휘하의 중대들을 배치합니다.
      */
     updateCombatSubUnitPositions() {
-        // 전투 중에는 하위 부대들이 자율적으로 움직이도록 진형 업데이트를 중단합니다.
-        if (this.isInCombat) return;
-
         if (this.subUnits.length === 0) return;
 
         // 커스텀 진형 모드일 때의 로직
@@ -195,6 +192,9 @@ class CommandUnit extends Unit {
                     let minDistance = Infinity;
                     for (let i = 0; i < formationPoints.length; i++) {
                         if (assignedPoints[i]) continue;
+                        // 전투 중인 대대에게는 새로운 진형 목표를 할당하지 않습니다.
+                        if (unit.isInCombat) continue;
+
                         const point = formationPoints[i];
                         const distance = Math.hypot(unit.x - point.x, unit.y - point.y);
                         if (distance < minDistance) {
@@ -240,6 +240,9 @@ class CommandUnit extends Unit {
      * @param {number} [baseDirection=0] - 기준 방향 (라디안). 기본값은 0 (오른쪽).
      */
     setSubUnitFormation(companies, offsetInfo) {
+        // 대대가 전투 중이면 휘하 중대들의 진형을 업데이트하지 않습니다.
+        if (this.isInCombat) return;
+
         const count = companies.length;
         const baseX = this.x;
         const baseY = this.y;
