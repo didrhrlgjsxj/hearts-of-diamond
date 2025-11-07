@@ -3,7 +3,7 @@
  */
 
 const MIN_PROVINCE_SIZE = 5;
-const MAX_PROVINCE_SIZE = 10;
+const MAX_PROVINCE_SIZE = 11;
 
 /**
  * 개별 프로빈스를 나타내는 클래스입니다.

@@ -235,9 +235,6 @@ function draw() {
                 }
             }
 
-            // 타일 테두리 그리기
-            ctx.strokeRect(x * mapGrid.tileSize, y * mapGrid.tileSize, mapGrid.tileSize, mapGrid.tileSize);
-
             // --- 프로빈스 경계선 그리기 ---
             const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
             ctx.strokeStyle = 'black';
