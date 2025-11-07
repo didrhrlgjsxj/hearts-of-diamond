@@ -15,7 +15,9 @@ class Province {
     constructor(id) {
         this.id = id;
         this.tiles = []; // {x, y} 객체의 배열
+        this.owner = null; // 이 프로빈스를 소유한 Nation 객체
         this.color = `hsl(${Math.random() * 360}, 50%, 70%)`; // 디버깅용 랜덤 색상
+        this.center = { x: 0, y: 0 }; // 프로빈스의 중앙 좌표
     }
 
     /**
@@ -25,6 +27,17 @@ class Province {
      */
     addTile(x, y) {
         this.tiles.push({ x, y });
+        this.calculateCenter();
+    }
+
+    /**
+     * 프로빈스를 구성하는 모든 타일의 평균 위치를 계산하여 중앙 좌표를 설정합니다.
+     */
+    calculateCenter() {
+        if (this.tiles.length === 0) return;
+        const total = this.tiles.reduce((acc, tile) => ({ x: acc.x + tile.x, y: acc.y + tile.y }), { x: 0, y: 0 });
+        this.center.x = total.x / this.tiles.length;
+        this.center.y = total.y / this.tiles.length;
     }
 }
 
@@ -91,6 +104,7 @@ class ProvinceManager {
                     }
                 }
             }
+            newProvince.calculateCenter(); // 최종 중앙 좌표 계산
             this.provinces.set(newProvince.id, newProvince);
         }
     }

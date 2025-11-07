@@ -58,10 +58,15 @@ function setGameSpeed(speed) {
 
 // --- 초기 국가 설정 ---
 function initializeNations() {
-    const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', { x: 2, y: 2 });
+    // 맵 좌상단 (0,0) 타일이 속한 프로빈스를 블루팀의 수도로 설정합니다.
+    const blueCapitalProvinceId = mapGrid.provinceManager.provinceGrid[0][0];
+    const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', blueCapitalProvinceId);
+    mapGrid.setProvinceOwner(blueCapitalProvinceId, blueNation);
     nations.set('blue', blueNation);
 
-    const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', { x: 10, y: 10 });
+    const redCapitalProvinceId = mapGrid.provinceManager.provinceGrid[15][15];
+    const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', redCapitalProvinceId);
+    mapGrid.setProvinceOwner(redCapitalProvinceId, redNation);
     nations.set('red', redNation);
 }
 
@@ -223,20 +228,22 @@ function draw() {
             // 기본 타일 그리기
             ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
 
+            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
+            const province = mapGrid.provinceManager.provinces.get(provinceId);
+
             // 국가 영토 색상 칠하기
-            const owner = mapGrid.grid[x][y];
-            if (owner) {
-                ctx.fillStyle = owner.color;
+            if (province && province.owner) {
+                ctx.fillStyle = province.owner.color;
                 ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
 
                 // 수도 타일인지 확인하고 별 아이콘 그리기
-                if (owner.capital.x === x && owner.capital.y === y) {
-                    drawStar(ctx, tileX + mapGrid.tileSize / 2, tileY + mapGrid.tileSize / 2, 5, 15, 7);
+                if (province.owner.capitalProvinceId === provinceId) {
+                    const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
+                    const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
+                    drawStar(ctx, centerX, centerY, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
                 }
             }
 
-            // --- 프로빈스 경계선 그리기 ---
-            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
 
@@ -288,7 +295,7 @@ Camera.prototype.getViewport = function() {
  * @param {number} outerRadius 바깥쪽 반지름
  * @param {number} innerRadius 안쪽 반지름
  */
-function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
+function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius, color = 'yellow') {
     let rot = Math.PI / 2 * 3;
     let x = cx;
     let y = cy;
@@ -312,7 +319,7 @@ function drawStar(ctx, cx, cy, spikes, outerRadius, innerRadius) {
     ctx.lineWidth = 2;
     ctx.strokeStyle = 'gold';
     ctx.stroke();
-    ctx.fillStyle = 'yellow';
+    ctx.fillStyle = color;
     ctx.fill();
 }
 
@@ -323,7 +330,7 @@ function loop(currentTime) {
 }
 
 // 맵 초기화
-mapGrid = new MapGrid(); // MapGrid는 현재 자체적으로 디버그 국가를 생성하므로 nations와는 별개로 동작합니다.
+mapGrid = new MapGrid();
 // 국가 초기화
 initializeNations();
 // UI 초기화

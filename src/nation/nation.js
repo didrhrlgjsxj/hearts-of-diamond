@@ -4,18 +4,17 @@
  */
 class Nation {
     /**
-     * @param {number} id 국가의 고유 ID
+     * @param {string} id 국가의 고유 ID ('blue', 'red' 등)
      * @param {string} name 국가의 이름
      * @param {string} color 국가를 나타내는 색상 (e.g., 'rgba(255, 0, 0, 0.2)')
-     * @param {{x: number, y: number}} capital 수도의 그리드 좌표
+     * @param {number | null} capitalProvinceId 수도 프로빈스의 ID
      */
-    constructor(id, name, color, capital) {
+    constructor(id, name, color, capitalProvinceId = null) {
         this.id = id;
         this.name = name;
         this.color = color;
-        this.capital = capital; // {x, y} 그리드 좌표
-        // 영토는 Set으로 관리하여 중복을 방지하고 빠른 조회를 지원합니다.
-        // 좌표는 "x,y" 형태의 문자열로 저장됩니다.
+        this.capitalProvinceId = capitalProvinceId; // 수도 프로빈스 ID
+        // 영토는 프로빈스 ID의 Set으로 관리합니다.
         this.territory = new Set();
 
         // 국가의 경제를 담당하는 Economy 인스턴스를 생성합니다.
@@ -23,20 +22,18 @@ class Nation {
     }
 
     /**
-     * 국가의 영토에 그리드 셀을 추가합니다.
-     * @param {number} x 
-     * @param {number} y 
+     * 국가의 영토에 프로빈스를 추가합니다.
+     * @param {number} provinceId 
      */
-    addTerritory(x, y) {
-        this.territory.add(`${x},${y}`);
+    addProvince(provinceId) {
+        this.territory.add(provinceId);
     }
 
     /**
-     * 국가의 영토에서 그리드 셀을 제거합니다.
-     * @param {number} x 
-     * @param {number} y 
+     * 국가의 영토에서 프로빈스를 제거합니다.
+     * @param {number} provinceId 
      */
-    removeTerritory(x, y) {
-        this.territory.delete(`${x},${y}`);
+    removeProvince(provinceId) {
+        this.territory.delete(provinceId);
     }
 }
