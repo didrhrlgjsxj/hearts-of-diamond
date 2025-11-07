@@ -94,6 +94,14 @@ const MIN_UNIT_SPACING = 15;
 // 전투 중 중대가 기본 진형 위치에서 벗어날 수 있는 최대 거리
 const MAX_FORMATION_DEVIATION = 50;
 
+// 유닛 이동 목표 우선순위 (낮을수록 높음)
+const MOVEMENT_PRIORITIES = {
+    PLAYER_COMMAND: 1,        // 플레이어의 직접 이동/후퇴 명령
+    FORMATION_COHESION: 4,    // 진형 이탈 시 복귀
+    COMBAT_EFFECTIVENESS: 7,  // 전투 효율성 극대화 위치로 이동
+    DEFAULT_FORMATION: 10,    // 기본 진형 위치로 이동
+};
+
 // 부대 규모(Echelon)별 심볼 정의
 const ECHELON_SYMBOLS = {
     'DIVISION': 'XX',

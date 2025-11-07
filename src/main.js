@@ -273,7 +273,7 @@ function draw() {
         if (centerX > view.left && centerX < view.right && centerY > view.top && centerY < view.bottom) {
             ctx.fillStyle = 'black';
             ctx.font = '14px sans-serif';
-            ctx.fillText(province.tiles.length, centerX, centerY);
+            ctx.fillText(province.id, centerX, centerY);
         }
     });
 

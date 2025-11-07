@@ -1,7 +1,7 @@
 /**
  * 맵의 프로빈스(Province)를 정의하고 생성하는 로직을 담당합니다.
  */
-const AVG_PROVINCE_SIZE = 6; // 프로빈스의 평균 타일 개수. 이 값이 작을수록 프로빈스가 많아지고, 클수록 적어집니다.
+const AVG_PROVINCE_SIZE = 7; // 프로빈스의 평균 타일 개수. 이 값이 작을수록 프로빈스가 많아지고, 클수록 적어집니다.
 
 /**
  * 개별 프로빈스를 나타내는 클래스입니다.
@@ -69,7 +69,7 @@ class ProvinceManager {
         // 2. 프로빈스의 중심점(씨앗)을 무작위로 생성합니다.
         const queues = [];
         for (let i = 0; i < numProvinces; i++) {
-            const provinceId = i + 1;
+            const provinceId = this.nextProvinceId++;
             let startX, startY;
             // 다른 씨앗과 겹치지 않는 위치를 찾습니다.
             do {
@@ -99,7 +99,7 @@ class ProvinceManager {
                     const neighbors = this.getShuffledNeighbors(tile.x, tile.y);
                     for (const neighbor of neighbors) {
                         if (this.provinceGrid[neighbor.x][neighbor.y] === null) {
-                            const provinceId = i + 1;
+                            const provinceId = queues.length > i ? i + 1 : this.nextProvinceId - 1; // Use the correct province ID
                             this.provinceGrid[neighbor.x][neighbor.y] = provinceId;
                             this.provinces.get(provinceId).addTile(neighbor.x, neighbor.y);
                             nextQueue.push(neighbor);
@@ -112,6 +112,77 @@ class ProvinceManager {
 
         // 모든 프로빈스의 최종 중앙 좌표를 계산합니다.
         this.provinces.forEach(p => p.calculateCenter());
+
+        // 4. 너무 큰 프로빈스를 분할하는 후처리 단계를 실행합니다.
+        this.splitLargeProvinces();
+    }
+
+    /**
+     * 설정된 평균 크기보다 과도하게 큰 프로빈스를 찾아 분할합니다.
+     */
+    splitLargeProvinces() {
+        const provincesToSplit = [];
+        this.provinces.forEach(p => {
+            if (p.tiles.length > AVG_PROVINCE_SIZE * 2) {
+                provincesToSplit.push(p);
+            }
+        });
+
+        for (const province of provincesToSplit) {
+            this.splitProvince(province);
+        }
+    }
+
+    /**
+     * 주어진 프로빈스를 두 개로 분할합니다.
+     * @param {Province} province 분할할 프로빈스
+     */
+    splitProvince(province) {
+        if (province.tiles.length < 2) return;
+
+        // 1. 프로빈스 내에서 서로 가장 멀리 떨어진 두 타일을 찾아 새 '씨앗'으로 사용합니다.
+        let maxDistSq = -1;
+        let seed1 = null, seed2 = null;
+
+        // O(n^2) 연산을 피하기 위한 근사치 계산:
+        // 1. 첫 타일에서 가장 먼 타일(A)을 찾습니다.
+        // 2. 타일 A에서 가장 먼 타일(B)을 찾습니다. A와 B를 두 씨앗으로 사용합니다.
+        let tempSeed = province.tiles[0];
+        province.tiles.forEach(tile => {
+            const distSq = (tile.x - tempSeed.x) ** 2 + (tile.y - tempSeed.y) ** 2;
+            if (distSq > maxDistSq) {
+                maxDistSq = distSq;
+                seed1 = tile;
+            }
+        });
+        maxDistSq = -1;
+        province.tiles.forEach(tile => {
+            const distSq = (tile.x - seed1.x) ** 2 + (tile.y - seed1.y) ** 2;
+            if (distSq > maxDistSq) {
+                maxDistSq = distSq;
+                seed2 = tile;
+            }
+        });
+
+        // 2. 새 프로빈스를 생성하고 타일을 재할당합니다.
+        const newProvince = new Province(this.nextProvinceId++);
+        const tilesToMove = province.tiles.filter(tile => {
+            const distToSeed1 = (tile.x - seed1.x) ** 2 + (tile.y - seed1.y) ** 2;
+            const distToSeed2 = (tile.x - seed2.x) ** 2 + (tile.y - seed2.y) ** 2;
+            return distToSeed2 < distToSeed1;
+        });
+
+        // 3. 타일 소유권을 이전합니다.
+        province.tiles = province.tiles.filter(tile => !tilesToMove.includes(tile));
+        tilesToMove.forEach(tile => {
+            this.provinceGrid[tile.x][tile.y] = newProvince.id;
+            newProvince.addTile(tile.x, tile.y);
+        });
+
+        // 4. 변경된 프로빈스 정보를 시스템에 등록하고 중앙점을 다시 계산합니다.
+        this.provinces.set(newProvince.id, newProvince);
+        province.calculateCenter();
+        newProvince.calculateCenter();
     }
 
     /**

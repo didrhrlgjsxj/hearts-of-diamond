@@ -132,6 +132,9 @@ class CommandUnit extends Unit {
      * 2. 대대는 휘하의 중대들을 배치합니다.
      */
     updateCombatSubUnitPositions() {
+        // 전투 중에는 하위 부대들이 자율적으로 움직이도록 진형 업데이트를 중단합니다.
+        if (this.isInCombat) return;
+
         if (this.subUnits.length === 0) return;
 
         // 커스텀 진형 모드일 때의 로직
