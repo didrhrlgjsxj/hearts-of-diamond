@@ -264,6 +264,19 @@ function draw() {
         }
     }
 
+    // --- 프로빈스 ID 번호 그리기 (디버깅용) ---
+    // 모든 프로빈스를 순회하며, 중심점이 화면에 보이는 프로빈스의 ID만 그립니다.
+    mapGrid.provinceManager.provinces.forEach(province => {
+        const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
+        const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
+        // 월드 좌표인 프로빈스 중심이 화면에 보이는지 확인합니다.
+        if (centerX > view.left && centerX < view.right && centerY > view.top && centerY < view.bottom) {
+            ctx.fillStyle = 'black';
+            ctx.font = '14px sans-serif';
+            ctx.fillText(province.tiles.length, centerX, centerY);
+        }
+    });
+
     // 모든 최상위 부대를 그립니다.
     for (const unit of topLevelUnits) {
         unit.draw(ctx);

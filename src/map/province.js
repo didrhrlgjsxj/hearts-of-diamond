@@ -64,49 +64,49 @@ class ProvinceManager {
      * 모든 타일이 하나의 프로빈스에 속하도록 맵을 분할합니다.
      */
     generateProvinces() {
-        const unassignedTiles = [];
+        // 1. 생성할 프로빈스의 개수를 결정합니다.
+        const mapArea = this.mapWidth * this.mapHeight;
+        const avgProvinceSize = (MIN_PROVINCE_SIZE + MAX_PROVINCE_SIZE) / 2;
+        const numProvinces = Math.floor(mapArea / avgProvinceSize);
+
+        // 2. 프로빈스의 중심점(씨앗)을 무작위로 생성합니다.
+        const seeds = [];
+        for (let i = 0; i < numProvinces; i++) {
+            seeds.push({
+                x: Math.floor(Math.random() * this.mapWidth),
+                y: Math.floor(Math.random() * this.mapHeight),
+                provinceId: i + 1 // ID를 1부터 순차적으로 부여
+            });
+        }
+
+        // 3. 각 타일이 어떤 씨앗에 가장 가까운지 계산하여 프로빈스를 할당합니다. (보로노이 다이어그램)
         for (let y = 0; y < this.mapHeight; y++) {
             for (let x = 0; x < this.mapWidth; x++) {
-                unassignedTiles.push({ x, y });
-            }
-        }
+                let closestSeedIndex = -1;
+                let minDistanceSq = Infinity;
 
-        // 타일 목록을 무작위로 섞어 시작점 편향을 방지합니다.
-        for (let i = unassignedTiles.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [unassignedTiles[i], unassignedTiles[j]] = [unassignedTiles[j], unassignedTiles[i]];
-        }
-
-        while (unassignedTiles.length > 0) {
-            const startTile = unassignedTiles.pop();
-            if (this.provinceGrid[startTile.x][startTile.y] !== null) {
-                continue; // 이미 다른 프로빈스에 할당된 타일이면 건너뜁니다.
-            }
-
-            const newProvince = new Province(this.nextProvinceId++);
-            const provinceSize = Math.floor(Math.random() * (MAX_PROVINCE_SIZE - MIN_PROVINCE_SIZE + 1)) + MIN_PROVINCE_SIZE;
-            
-            const queue = [startTile];
-            this.provinceGrid[startTile.x][startTile.y] = newProvince.id;
-            newProvince.addTile(startTile.x, startTile.y);
-
-            while (queue.length > 0 && newProvince.tiles.length < provinceSize) {
-                const current = queue.shift();
-                
-                const neighbors = this.getShuffledNeighbors(current.x, current.y);
-
-                for (const neighbor of neighbors) {
-                    if (this.provinceGrid[neighbor.x][neighbor.y] === null) {
-                        this.provinceGrid[neighbor.x][neighbor.y] = newProvince.id;
-                        newProvince.addTile(neighbor.x, neighbor.y);
-                        queue.push(neighbor);
-                        if (newProvince.tiles.length >= provinceSize) break;
+                for (let i = 0; i < seeds.length; i++) {
+                    const seed = seeds[i];
+                    const distanceSq = (x - seed.x) ** 2 + (y - seed.y) ** 2;
+                    if (distanceSq < minDistanceSq) {
+                        minDistanceSq = distanceSq;
+                        closestSeedIndex = i;
                     }
                 }
+
+                const assignedProvinceId = seeds[closestSeedIndex].provinceId;                
+                // 해당 ID의 프로빈스가 아직 없으면 새로 생성합니다.
+                if (!this.provinces.has(assignedProvinceId)) {
+                    this.provinces.set(assignedProvinceId, new Province(assignedProvinceId));
+                }
+
+                this.provinceGrid[x][y] = assignedProvinceId;
+                this.provinces.get(assignedProvinceId).addTile(x, y);
             }
-            newProvince.calculateCenter(); // 최종 중앙 좌표 계산
-            this.provinces.set(newProvince.id, newProvince);
         }
+
+        // 모든 프로빈스의 최종 중앙 좌표를 계산합니다.
+        this.provinces.forEach(p => p.calculateCenter());
     }
 
     /**
