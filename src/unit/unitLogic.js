@@ -64,6 +64,10 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
             attacker.tacticChangeProgress = 0;
             attacker.currentTarget = null;
             attacker.attackProgress = 0; // 공격 대상이 없으면 초기화
+            // 대대의 목표가 없으면 휘하 중대의 목표도 모두 초기화합니다.
+            attacker.getAllCompanies().forEach(c => {
+                c.companyTarget = null;
+            });
             return;
         }
 
@@ -71,9 +75,12 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         target.isBeingTargeted = true;
         const attackerTopLevel = attacker.getTopLevelParent();
         const targetTopLevel = target.getTopLevelParent();
-
+        
+        // 실제 전투 단위인 대대와 그 상위 부대 모두 전투 상태로 설정합니다.
         attackerTopLevel.isInCombat = true;
+        attacker.isInCombat = true;
         targetTopLevel.isInCombat = true;
+        target.isInCombat = true;
 
         // 전술 변경 로직 (3초마다)
         attacker.tacticChangeProgress += scaledDeltaTime;
