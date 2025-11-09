@@ -10,10 +10,11 @@ const DIVISION_TEMPLATES = {
         build: (x, y, team, name) => {
             const company = new Company(name, x, y, team);
             company.role = FORMATION_ROLES.REARGUARD; // 본부는 항상 후위에 위치
-            // 본부 중대도 전투를 수행하므로, 일반 중대처럼 분대를 가집니다.
-            for (let i = 0; i < 9; i++) {
-                company.addUnit(new Squad(name, x, y, team));
+            // 본부 중대도 다른 보병 중대와 동일하게 3개 소대로 구성됩니다.
+            for (let i = 0; i < 3; i++) {
+                company.addUnit(DIVISION_TEMPLATES["Infantry Platoon"].build(x, y, team, name));
             }
+
             company.calculateStats();
             return company;
         }
@@ -204,15 +205,16 @@ const DIVISION_TEMPLATES = {
     "Infantry Company": {
         name: "보병 중대",
         unitClass: Company,
-        build: (x, y, team, parentUnitName) => {
+        build: (x, y, team, parentUnitName = '') => {
             const unitNumber = unitCounters['Company']++;
             const unitName = `제${unitNumber}중대`;
 
             const company = new Company(unitName, x, y, team);
+            parentUnitName = parentUnitName ? `${parentUnitName} ` : '';
             
-            // 보병 분대 9개로 구성
-            for (let i = 0; i < 9; i++) {
-                company.addUnit(new Squad(parentUnitName, x, y, team));
+            // 3개의 보병 소대로 구성
+            for (let i = 0; i < 3; i++) {
+                company.addUnit(DIVISION_TEMPLATES["Infantry Platoon"].build(x, y, team, parentUnitName));
             }
 
             company.calculateStats();
@@ -224,10 +226,16 @@ const DIVISION_TEMPLATES = {
     "Infantry Platoon": {
         name: "보병 소대",
         unitClass: Platoon,
-        build: (x, y, team) => {
-            // 소대와 분대는 이제 실제 게임 객체로 생성되지 않습니다.
-            // 중대 이상의 단위만 생성됩니다.
-            return null;
+        build: (x, y, team, parentUnitName = '') => {
+            const platoon = new Platoon(`${parentUnitName}소대`, x, y, team);
+
+            // 3개의 보병 분대로 구성
+            for (let i = 0; i < 3; i++) {
+                platoon.addUnit(new Squad(`${parentUnitName}분대`, x, y, team));
+            }
+
+            platoon.calculateStats();
+            return platoon;
         }
     },
     "Infantry Squad": {

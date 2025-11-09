@@ -728,7 +728,7 @@ class Unit {
             ctx.fillText(t.text, t.x, t.y);
         });
 
-        // 예광탄 그리기
+        // 예광탄 그리기부
         this.tracers.forEach(t => {
             ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
