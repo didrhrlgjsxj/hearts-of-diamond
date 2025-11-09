@@ -82,18 +82,6 @@ class SymbolUnit extends Unit {
     set x(value) { this._x = value; }
     get y() { return this._y; }
     set y(value) { this._y = value; }
-
-    // SymbolUnit의 방향은 이동 목표에 따라 결정됩니다.
-    get direction() {
-        // 이동 목표가 있으면 그 방향을, 없으면 현재 방향을 유지합니다.
-        if (this.destination) {
-            return Math.atan2(this.destination.y - this.y, this.destination.x - this.x);
-        }
-        return this._direction;
-    }
-    set direction(value) {
-        this._direction = value;
-    }
     /**
      * 휘하 부대들의 진형을 업데이트합니다.
      * 이 메서드는 2단계로 작동합니다.

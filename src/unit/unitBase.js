@@ -25,6 +25,8 @@ class Unit {
         this.isRetreating = false; // 후퇴 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this._direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
+        this._lastX = x; // 마지막 프레임의 X 위치 (방향 계산용)
+        this._lastY = y; // 마지막 프레임의 Y 위치 (방향 계산용)
         this._moveSpeed = 6; // 모든 부대의 기본 이동 속도
         this.mobility = 0; // 기동력
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
@@ -599,6 +601,7 @@ class Unit {
      * @param {CanvasRenderingContext2D} ctx 캔버스 렌더링 컨텍스트
      */
     draw(ctx) {
+        const SYMBOL_UI_OFFSET_Y = -40; // SymbolUnit의 UI 요소들을 위로 올리는 값
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
@@ -606,9 +609,9 @@ class Unit {
         if (this instanceof SymbolUnit && this.subUnits.length > 0) {
             const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
             if (visibleSubUnits.length > 0) {
-                // 1. '부대 마크'의 위치는 본부 부대(this.x, this.y)보다 약간 위에 표시됩니다.
+                // 1. '부대 마크'의 위치는 본부 부대 위치(this.x, this.y)에서 오프셋을 적용합니다.
                 const markCenterX = this.x;
-                const markCenterY = this.y - 40;
+                const markCenterY = this.y + SYMBOL_UI_OFFSET_Y;
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
                 const totalCurrentStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
@@ -649,18 +652,9 @@ class Unit {
                 ctx.strokeStyle = 'black';
                 ctx.strokeRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
 
-                // 5. 부대 마크 위에 심볼 그리기
-                const originalX = this.x, originalY = this.y;
-                this._x = markCenterX; this._y = markCenterY;
-                this.drawEchelonSymbol(ctx);
-                this._x = originalX; this._y = originalY;
             }
         }
         
-        // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
-        // SymbolUnit의 경우, 이 아이콘은 본부 중대의 위치에 그려집니다.
-        this.drawOwnIcon(ctx);
-
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
         // ctx.font = 'bold 14px sans-serif';
         // ctx.fillStyle = 'red';
@@ -668,6 +662,12 @@ class Unit {
         // ctx.textBaseline = 'bottom';
         // ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
         // ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
+
+        // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
+        // SymbolUnit 자체는 '부대 마크'로만 표현되므로 자신의 아이콘을 그리지 않습니다.
+        if (!(this instanceof SymbolUnit)) {
+            this.drawOwnIcon(ctx);
+        }
 
         // 전투 중일 때 아이콘을 깜빡이게 표시
         if (this.isInCombat) {
@@ -686,11 +686,10 @@ class Unit {
             ctx.lineWidth = 3;
             ctx.stroke();
         }
-        this.drawEchelonSymbol(ctx);
 
         // 부대 방향을 나타내는 선을 그립니다.
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.x, this instanceof SymbolUnit ? this.y + SYMBOL_UI_OFFSET_Y : this.y);
         ctx.rotate(this.direction);
         ctx.beginPath();
         ctx.moveTo(0, 0); // 부대 중심에서
@@ -709,10 +708,13 @@ class Unit {
             ctx.stroke();
         }
 
-        ctx.fillStyle = 'black';
-        ctx.textAlign = 'center';
-        ctx.font = '11px sans-serif';
-        ctx.fillText(`${this.name}`, this.x, this.y + 25);
+        // SymbolUnit 자체는 이름을 그리지 않고, 하위 부대들이 각자 이름을 그립니다.
+        if (!(this instanceof SymbolUnit)) {
+            ctx.fillStyle = 'black';
+            ctx.textAlign = 'center';
+            ctx.font = '11px sans-serif';
+            ctx.fillText(`${this.name}`, this.x, this.y + 25);
+        }
 
         // 피해량 텍스트 그리기
         ctx.font = 'bold 12px sans-serif';
@@ -749,12 +751,9 @@ class Unit {
         if (this instanceof SymbolUnit) {
             this.subUnits.forEach(subUnit => {
                 if (subUnit.isDestroyed) return;
-                // 본부 중대는 SymbolUnit의 drawOwnIcon()에서 이미 그려졌으므로 건너뜁니다.
-                if (subUnit === this.hqCompany) return;
-
                 // 본부 위치에서 다른 하위 부대로 연결선을 그립니다.
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
+                ctx.moveTo(this.x, this.y); // 선의 시작점을 오프셋이 없는 SymbolUnit의 기준 위치(본부 중대 위치)로 변경
                 ctx.lineTo(subUnit.x, subUnit.y);
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.stroke();
@@ -769,12 +768,6 @@ class Unit {
      * @param {number} [opacity=0.7] 아이콘의 불투명도
      */
     drawOwnIcon(ctx, opacity = 0.7) {
-        // SymbolUnit 자체는 '부대 마크'로 그려지므로, 자신의 실제 아이콘은 그리지 않습니다.
-        // 대신 본부 중대가 이 위치에 그려지게 됩니다.
-        if (this instanceof SymbolUnit) {
-            if (this.hqCompany) this.hqCompany.drawOwnIcon(ctx, opacity);
-            return;
-        }
         const color = this.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`; // CornflowerBlue / Tomato
         ctx.fillStyle = color;
         ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
@@ -786,6 +779,9 @@ class Unit {
             ctx.textBaseline = 'middle'; // 텍스트를 수직 중앙에 정렬
             ctx.fillText(UNIT_TYPE_ICONS[this.type], this.x, this.y);
         }
+
+        // 아이콘 위에 부대 규모 심볼을 그립니다.
+        this.drawEchelonSymbol(ctx);
 
         ctx.lineWidth = this.isSelected ? 2 : 1;
         ctx.strokeStyle = this.isSelected ? 'white' : 'black';
