@@ -20,19 +20,8 @@ class CommandUnit extends Unit {
         this.destination = { x, y }; // 상위 부대의 최종 목표만 설정
         this.isMoving = true; // 이동 시작
 
-        // 본부 대대가 있다면, 본부 대대에 이동 명령을 위임합니다.
-        if (this.hqCompany) {
-            this.hqCompany.moveTo(x, y, allUnits);
-            this.direction = this.hqCompany.direction; // 본부 유닛의 방향을 따라갑니다.
-        } else {
-            // 본부 대대가 없는 경우 (예: 대대 자체)는 Unit의 기본 moveTo 로직을 따릅니다.
-            super.moveTo(x, y, allUnits);
-            // 최상위 부대가 아닌, 하위 지휘부대를 직접 움직일 때만 독립 이동으로 간주합니다.
-            if (this.parent && this.parent instanceof CommandUnit) {
-                this.isIndependentMoving = true; // 독립 이동 시작
-            }
-
-            // 하위 부대를 직접 이동시키면 커스텀 진형 모드가 됩니다.
+        // 하위 부대를 직접 이동시키면 커스텀 진형 모드가 됩니다.
+        if (this.parent && this.parent instanceof CommandUnit) {
             if (this.parent && this.parent instanceof CommandUnit) {
                 // 부모의 본부대대(hqBattalion)가 아닌, 일반 하위 대대를 직접 움직일 때만 커스텀 진형으로 전환합니다.
                 const isNotHqUnit = this.parent.hqCompany !== this;
@@ -67,69 +56,42 @@ class CommandUnit extends Unit {
         });
     }
     
-    // 이동 업데이트 시, 본부 중대에게 목표를 위임합니다.
-    // 실제 이동 처리는 unitLogic.js에서 일괄적으로 수행됩니다.
-    // CommandUnit의 x, y는 hqBattalion의 x, y를 따르므로, CommandUnit 자체의 updateMovement는 hqBattalion에 위임합니다.
     updateMovement(deltaTime) {
-        if (this.hqCompany) {
-            // 본부 유닛의 이동을 업데이트합니다.
-            this.hqCompany.updateMovement(deltaTime);
-            // 본부 유닛이 목표에 도달하면 CommandUnit의 destination도 null로 설정합니다.
-            if (this.hqCompany.destination === null) {
-                this.destination = null;
-                if (this.isMoving) {
-                    this.isMoving = false; // 이동 종료
-                }
-            } else {
-                // 본부 유닛이 아직 이동 중이면, 실시간으로 진형을 업데이트합니다.
-                this.updateCombatSubUnitPositions();
-            }
-            // 본부 유닛의 방향을 따라갑니다.
-            this.direction = this.hqCompany.direction;
-        } else {
-            // 본부 대대가 없는 경우 (예: 대대 자체)는 Unit의 기본 이동 로직을 따릅니다.
-            super.updateMovement(deltaTime);
+        // 1. 지휘 부대 자체의 이동을 먼저 처리합니다. (Unit의 기본 로직 사용)
+        super.updateMovement(deltaTime);
+
+        // 2. 이동이 끝났는지 확인하고 상태를 업데이트합니다.
+        if (this.destination === null && this.isMoving) {
+            this.isMoving = false;
         }
 
-        // 목표 지점에 도달하면 독립 이동 상태를 해제합니다.
-        // 이 로직은 CommandUnit 자체의 destination이 null이 되었을 때 (즉, hqBattalion이 목표에 도달했을 때) 실행됩니다.
-        // 또는 CommandUnit 자체가 이동하는 경우 (hqBattalion이 없을 때) 실행됩니다.
-        if (this.isIndependentMoving && this.destination === null) {
-            this.isIndependentMoving = false;
-            // 커스텀 진형 유지를 위해, 멈춘 위치를 기준으로 새로운 상대 위치를 기록합니다.
-            if (this.parent && this.parent.formationMode === 'custom') {
-                this.relativePosition = {
-                    x: this.x - this.parent.x,
-                    y: this.y - this.parent.y,
-                };
+        // 3. 지휘 부대가 이동하는 동안 실시간으로 휘하 부대들의 진형 목표 위치를 업데이트합니다.
+        this.updateCombatSubUnitPositions();
+
+        // 4. 모든 하위 부대(중대, 대대 등)가 각자의 목표(진형 위치)를 향해 이동하도록 업데이트를 호출합니다.
+        this.subUnits.forEach(subUnit => {
+            if (!subUnit.isDestroyed) {
+                subUnit.updateMovement(deltaTime);
             }
-        }
+        });
     }
 
     // CommandUnit의 위치는 본부 대대의 위치를 따릅니다.
-    get x() {
-        // 본부 유닛이 있으면 그 위치를, 없으면 자신의 위치를 반환합니다.
-        return this.hqCompany ? this.hqCompany.x : this._x;
-    }
-    set x(value) {
-        if (this.hqCompany) this.hqCompany.x = value;
-        else this._x = value;
-    }
-    get y() {
-        return this.hqCompany ? this.hqCompany.y : this._y;
-    }
-    set y(value) {
-        if (this.hqCompany) this.hqCompany.y = value;
-        else this._y = value;
-    }
+    get x() { return this._x; }
+    set x(value) { this._x = value; }
+    get y() { return this._y; }
+    set y(value) { this._y = value; }
 
     // CommandUnit의 방향은 본부 대대의 방향을 따릅니다.
     get direction() {
-        return this.hqCompany ? this.hqCompany.direction : this._direction;
+        // 이동 목표가 있으면 그 방향을, 없으면 현재 방향을 유지합니다.
+        if (this.destination) {
+            return Math.atan2(this.destination.y - this.y, this.destination.x - this.x);
+        }
+        return this._direction;
     }
     set direction(value) {
-        if (this.hqCompany) this.hqCompany.direction = value;
-        else this._direction = value;
+        this._direction = value;
     }
     /**
      * 휘하 부대들의 진형을 업데이트합니다.
