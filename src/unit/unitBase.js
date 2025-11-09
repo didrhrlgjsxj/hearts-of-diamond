@@ -25,7 +25,8 @@ class Unit {
         this.isRetreating = false; // 후퇴 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this._direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
-        this.moveSpeed = 30; // 초당 이동 속도
+        this._moveSpeed = 6; // 모든 부대의 기본 이동 속도
+        this.mobility = 0; // 기동력
         this.floatingTexts = []; // 피해량 표시 텍스트 배열
         this.displayStrength = -1; // 화면에 표시되는 체력 (애니메이션용)
         this.attackCooldown = 2.0; // 공격 주기 (초)
@@ -87,6 +88,33 @@ class Unit {
         this._direction = value;
     }
 
+    /**
+     * 부대의 최종 이동 속도를 계산합니다.
+     */
+    get moveSpeed() {
+        // 중대는 휘하 분대 중 가장 낮은 기동력을 기반으로 속도를 계산합니다.
+        if (this instanceof Company) {
+            const squads = this.getAllSquads();
+            if (squads.length === 0) {
+                return this._moveSpeed;
+            }
+            const minMobility = Math.min(...squads.map(s => s.mobility));
+            return this._moveSpeed + (minMobility / 5);
+        }
+
+        // 대대 이상의 지휘 부대는 휘하 부대 중 가장 느린 부대의 속도를 따릅니다.
+        if (this instanceof CommandUnit && this.subUnits.length > 0) {
+            const slowestSubUnitSpeed = Math.min(...this.subUnits.map(u => u.moveSpeed));
+            return slowestSubUnitSpeed;
+        }
+
+        // 분대 또는 하위 유닛이 없는 경우 기본 속도를 반환합니다.
+        return this._moveSpeed;
+    }
+
+    set moveSpeed(value) {
+        this._moveSpeed = value;
+    }
 
     /**
      * 현재 병력을 계산합니다.
