@@ -37,16 +37,21 @@ const unitCounters = {
     'Company': 1,
 };
 
-
-// UI 인스턴스를 저장할 변수
-let gameUI;
-
 // --- 시간 표시 UI 요소 ---
 const timeDisplay = document.createElement('div');
 timeDisplay.id = 'time-display';
 const timeText = document.createElement('span'); // 시간 텍스트만 담을 요소
 timeText.id = 'time-text';
 timeDisplay.appendChild(timeText);
+
+// --- 초기화 ---
+// 맵 초기화
+mapGrid = new MapGrid();
+// 국가 초기화
+initializeNations();
+// UI 인스턴스를 저장할 변수 및 초기화
+const gameUI = new GameUI(camera, nations);
+
 
 /**
  * 게임 속도를 설정합니다.
@@ -342,12 +347,6 @@ function loop(currentTime) {
     requestAnimationFrame(loop);
 }
 
-// 맵 초기화
-mapGrid = new MapGrid();
-// 국가 초기화
-initializeNations();
-// UI 초기화
-gameUI = new GameUI(camera, nations);
 gameUI.createTimeControls(); // timeDisplay가 DOM에 추가된 후, 시간 제어 UI를 생성합니다.
 
 requestAnimationFrame(loop);

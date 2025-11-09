@@ -578,42 +578,10 @@ class Unit {
     draw(ctx) {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
-
-        // 지휘 부대(CommandUnit)만 내구력/조직력 바를 표시합니다.
-        if (this instanceof CommandUnit) {
-            // 바를 표시할 대상 유닛을 결정합니다.
-            // 본부 대대가 있으면 본부 대대의 상태를, 없으면(대대 자신) 자신의 상태를 표시합니다.
-            const displayUnit = this.hqBattalion || this;
-
-            const barWidth = 40;
-            const barHeight = 5;
-            const barX = displayUnit.x - barWidth / 2;
-            const barY = displayUnit.y - 25;
-
-            // 1. 병력 바 배경 (어두운 회색)
-            ctx.fillStyle = '#555';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-
-            // 2. 현재 내구력(Strength) 바
-            const strengthRatio = displayUnit.baseStrength > 0 ? displayUnit.currentStrength / displayUnit.baseStrength : 0;
-
-            const baseBarWidth = barWidth * Math.min(strengthRatio, 1);
-            ctx.fillStyle = '#ff8c00'; // DarkOrange
-            ctx.fillRect(barX, barY, baseBarWidth, barHeight);
-
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
-
-            // 3. 조직력 바
-            const orgBarY = barY + barHeight + 2;
-            ctx.fillStyle = '#555';
-            ctx.fillRect(barX, orgBarY, barWidth, barHeight);
-            const orgRatio = displayUnit.organization / displayUnit.maxOrganization;
-            ctx.fillStyle = '#00ff00'; // Lime Green
-            ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
-            ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
-        }
+        
+        // 모든 유닛은 자신의 아이콘을 그립니다.
+        // CommandUnit의 경우, 이 아이콘은 hqBattalion 위치에 그려지는 '실제' 아이콘이 됩니다.
+        this.drawOwnIcon(ctx);
 
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
         // ctx.font = 'bold 14px sans-serif';
@@ -622,14 +590,6 @@ class Unit {
         // ctx.textBaseline = 'bottom';
         // ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
         // ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
-
-        // 지휘 부대는 반투명 아이콘을, 중대는 불투명 아이콘을 그립니다.
-        if (this instanceof CommandUnit) {
-            this.drawOwnIcon(ctx, 0.3); // 30% 투명도로 아이콘 렌더링
-        } else {
-            // 중대 부대는 자신의 아이콘을 그립니다.
-            this.drawOwnIcon(ctx);
-        }
 
         // 전투 중일 때 아이콘을 깜빡이게 표시
         if (this.isInCombat) {
@@ -709,20 +669,19 @@ class Unit {
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.
         if (this instanceof CommandUnit) {
-            this.subUnits.forEach(subUnit => {
-                if (!subUnit.isDestroyed) {
-                    // 하위 부대와의 연결선을 그립니다.
-                    ctx.beginPath();
-                    ctx.moveTo(this.x, this.y);
-                    ctx.lineTo(subUnit.x, subUnit.y);
-                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-                    ctx.stroke();
+            // 본부 대대를 제외한 나머지 하위 부대들만 그립니다.
+            // 본부 대대의 시각적 표시는 상위 부대의 반투명 아이콘이 대신합니다.
+            const subUnitsToDraw = this.subUnits.filter(sub => sub !== this.hqBattalion && !sub.isDestroyed);
 
-                    // 본부 대대는 상위 부대 아이콘이 그 역할을 대신하므로, 그리지 않습니다.
-                    if (this.hqBattalion !== subUnit) {
-                        subUnit.draw(ctx);
-                    }
-                } 
+            subUnitsToDraw.forEach(subUnit => {
+                // 하위 부대와의 연결선을 그립니다.
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(subUnit.x, subUnit.y);
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.stroke();
+                
+                subUnit.draw(ctx);
             });
         }
     }

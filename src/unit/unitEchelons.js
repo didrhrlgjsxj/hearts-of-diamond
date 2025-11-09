@@ -108,19 +108,26 @@ class CommandUnit extends Unit {
     }
 
     // CommandUnit의 위치는 본부 대대의 위치를 따릅니다.
-    get x() { return this.hqBattalion ? this.hqBattalion.x : this._x; }
+    get x() {
+        // 본부 대대가 있으면 그 위치를, 없으면(대대 자신) 자신의 위치를 반환합니다.
+        return this.hqBattalion ? this.hqBattalion.x : this._x;
+    }
     set x(value) {
         if (this.hqBattalion) this.hqBattalion.x = value;
         else this._x = value;
     }
-    get y() { return this.hqBattalion ? this.hqBattalion.y : this._y; }
+    get y() {
+        return this.hqBattalion ? this.hqBattalion.y : this._y;
+    }
     set y(value) {
         if (this.hqBattalion) this.hqBattalion.y = value;
         else this._y = value;
     }
 
     // CommandUnit의 방향은 본부 대대의 방향을 따릅니다.
-    get direction() { return this.hqBattalion ? this.hqBattalion.direction : this._direction; }
+    get direction() {
+        return this.hqBattalion ? this.hqBattalion.direction : this._direction;
+    }
     set direction(value) {
         if (this.hqBattalion) this.hqBattalion.direction = value;
         else this._direction = value;
@@ -145,7 +152,7 @@ class CommandUnit extends Unit {
         // 기본 진형('base') 모드일 때의 로직
         // 모든 하위 부대의 상대 위치를 초기화하여 기본 진형을 따르도록 합니다.
         this.subUnits.forEach(subUnit => delete subUnit.relativePosition);
-        const hqPosition = this.hqBattalion || this; // 본부 대대가 있으면 그 위치를, 없으면 자신의 위치를 기준점으로 사용
+        const hqPosition = this; // 이제 항상 CommandUnit의 위치(hqBattalion의 위치)를 기준점으로 사용
 
         // 1단계: 하위 부대가 대대(CommandUnit)인지 확인합니다.
         if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof CommandUnit)) {
@@ -153,7 +160,7 @@ class CommandUnit extends Unit {
             const hqX = this.x; // 자신의 위치를 기준으로 합니다.
             const hqY = this.y; 
             // 본부 대대를 제외한 나머지 대대들만 진형 배치 대상으로 삼습니다.
-            const battalions = this.subUnits.filter(u => u instanceof CommandUnit && u !== this.hqBattalion && !u.isDestroyed);
+            const battalions = this.subUnits.filter(u => u instanceof CommandUnit && !u.isDestroyed);
             
             // 본부 대대가 있다면, 본부 대대의 방향을 따릅니다.
             // 본부 대대가 없다면 (대대 자체), 자신의 방향을 따릅니다.
@@ -172,6 +179,21 @@ class CommandUnit extends Unit {
                 const battalionsInRole = roles[role];
                 const offsetInfo = BATTALION_FORMATION_OFFSETS[role];
                 if (!offsetInfo) return;
+
+                // '후위' 역할에 본부 대대가 포함되어 있다면, 중앙에 배치하고 나머지를 그 주변에 배치합니다.
+                if (role === BATTALION_ROLES.RESERVE && this.hqBattalion) {
+                    const hqIndex = Math.floor((battalionsInRole.length - 1) / 2);
+                    const otherBattalions = battalionsInRole.filter(b => b !== this.hqBattalion);
+
+                    // 본부 대대를 중앙 목표 지점에 할당
+                    this.setSubUnitFormation([this.hqBattalion], offsetInfo, 1, hqIndex);
+
+                    // 나머지 후위 대대들을 배치
+                    this.setSubUnitFormation(otherBattalions, offsetInfo);
+                    return; // forEach에서는 continue 대신 return을 사용해야 합니다.
+                }
+
+
 
                 // 대대 진형 설정 (목표 지점 할당)
                 const count = battalionsInRole.length;
@@ -240,13 +262,16 @@ class CommandUnit extends Unit {
      * @param {number} [baseDirection=0] - 기준 방향 (라디안). 기본값은 0 (오른쪽).
      */
     setSubUnitFormation(companies, offsetInfo) {
-        // 대대가 전투 중이면 휘하 중대들의 진형을 업데이트하지 않습니다.
-        if (this.isInCombat) return;
+        // 전투 중이 아닐 때만 진형을 강제로 설정합니다.
+        // 전투 중에는 중대들이 자율적으로 위치를 잡습니다.
+        if (this.isInCombat && !this.isMoving) return;
 
         const count = companies.length;
         const baseX = this.x;
         const baseY = this.y;
 
+        // 각 중대에 진형 목표 위치(destination)를 할당합니다.
+        // 실제 이동은 updateMovement에서 처리됩니다.
         companies.forEach((unit, i) => {
             const sideOffsetAngle = this.direction + Math.PI / 2;
             const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
@@ -268,6 +293,79 @@ class CommandUnit extends Unit {
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'black';
         ctx.fillText(this.echelonSymbol, this.x, this.y + size * 0.1);
+    }
+
+    /**
+     * CommandUnit의 draw 메서드를 오버라이드하여 '부대 마크'를 추가로 그립니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    draw(ctx) {
+        // 1. '부대 마크' (가상 중심점) 그리기
+        this.drawUnitMark(ctx);
+
+        // 2. 기존 Unit의 draw 로직을 호출하여 실제 부대들(본부 포함)을 그립니다.
+        super.draw(ctx);
+    }
+
+    /**
+     * 휘하 부대들의 중앙에 부대 전체의 상태를 나타내는 '부대 마크'를 그립니다.
+     * 이 마크는 순수 시각적 요소이며, 게임 로직(이동, 선택)과는 무관합니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    drawUnitMark(ctx) {
+        // 하위 부대가 없으면 그리지 않습니다.
+        if (this.subUnits.length === 0) return;
+
+        // 1. '부대 마크'의 위치 계산 (모든 하위 부대의 평균 위치)
+        let totalX = 0;
+        let totalY = 0;
+        const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
+        if (visibleSubUnits.length === 0) return;
+
+        visibleSubUnits.forEach(unit => {
+            totalX += unit.x;
+            totalY += unit.y;
+        });
+        const centerX = totalX / visibleSubUnits.length;
+        const centerY = totalY / visibleSubUnits.length;
+
+        // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
+        const totalCurrentStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
+        const totalBaseStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+        const totalOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.organization, 0);
+        const totalMaxOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
+
+        // 3. 능력치 바 그리기
+        const barWidth = 40;
+        const barHeight = 5;
+        const barX = centerX - barWidth / 2;
+        const barY = centerY - 25;
+
+        // 내구력 바
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+        const strengthRatio = totalBaseStrength > 0 ? totalCurrentStrength / totalBaseStrength : 0;
+        ctx.fillStyle = '#ff8c00';
+        ctx.fillRect(barX, barY, barWidth * strengthRatio, barHeight);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+        // 조직력 바
+        const orgBarY = barY + barHeight + 2;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, orgBarY, barWidth, barHeight);
+        const orgRatio = totalMaxOrganization > 0 ? totalOrganization / totalMaxOrganization : 0;
+        ctx.fillStyle = '#00ff00';
+        ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
+        ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+
+        // 4. 반투명한 부대 아이콘 그리기 (기존 drawOwnIcon 활용)
+        // drawOwnIcon은 this.x, this.y를 사용하므로 임시로 값을 변경했다가 복원합니다.
+        const originalX = this._x, originalY = this._y;
+        this._x = centerX; this._y = centerY;
+        this.drawOwnIcon(ctx, 0.3); // 30% 투명도로 아이콘 렌더링
+        this._x = originalX; this._y = originalY;
     }
 }
 /** 대대 (Battalion) */
