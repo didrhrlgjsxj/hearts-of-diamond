@@ -8,16 +8,17 @@ const DIVISION_TEMPLATES = {
         name: "본부 대대",
         unitClass: Battalion,
         build: (parentName, x, y, team) => {
-            const unitName = `${parentName}`;
-            const battalion = new Battalion(unitName, x, y, team, 8);
+            // 이름이 중복되지 않도록 parentName을 그대로 사용합니다.
+            const battalion = new Battalion(parentName, x, y, team, 8);
 
             // 본부 대대는 중대를 갖지 않고, 본부 기능을 수행하는 분대 9개로 직접 구성됩니다.
             // 이렇게 하면 능력치는 계산되지만, 화면에는 하위 중대가 그려지지 않습니다.
             for (let i = 0; i < 9; i++) {
-                battalion.addUnit(new Squad(unitName, x, y, team));
+                battalion.addUnit(new Squad(parentName, x, y, team));
             }
 
             battalion.calculateStats();
+            // 본부 대대는 스스로가 전투 단위입니다.
             battalion.organization = battalion.maxOrganization;
             battalion.combatSubUnits.push(battalion);
             battalion.initializeOrganization();
@@ -35,7 +36,8 @@ const DIVISION_TEMPLATES = {
             const division = new CommandUnit(unitName, x, y, team, 12, 'DIVISION');
 
             // 2. 본부 대대를 생성하여 사단의 hqBattalion으로 지정합니다.
-            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team);
+            // 본부 대대의 이름을 간결하게 생성합니다.
+            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team); 
             hqBattalion.role = BATTALION_ROLES.RESERVE; // 본부 대대는 항상 '후위' 역할
             division.hqBattalion = hqBattalion;
             division.addUnit(hqBattalion); // 본부 대대도 하위 유닛으로 추가
@@ -81,7 +83,7 @@ const DIVISION_TEMPLATES = {
             const brigade = new CommandUnit(unitName, x, y, team, 10, 'BRIGADE');
 
             // 2. 본부 대대를 생성하여 여단의 hqBattalion으로 지정합니다.
-            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team);
+            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team); 
             hqBattalion.role = BATTALION_ROLES.RESERVE; // 본부 대대는 항상 '후위' 역할
             brigade.hqBattalion = hqBattalion;
             brigade.addUnit(hqBattalion);
@@ -119,7 +121,7 @@ const DIVISION_TEMPLATES = {
             const regiment = new CommandUnit(unitName, x, y, team, 9, 'REGIMENT');
 
             // 2. 본부 대대를 생성하여 연대의 hqBattalion으로 지정합니다.
-            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team);
+            const hqBattalion = DIVISION_TEMPLATES["HQ Battalion"].build(`${unitName} 본부`, x, y, team); 
             hqBattalion.role = BATTALION_ROLES.RESERVE; // 본부 대대는 항상 '후위' 역할
             regiment.hqBattalion = hqBattalion;
             regiment.addUnit(hqBattalion);

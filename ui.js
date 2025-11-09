@@ -230,6 +230,7 @@ class GameUI {
         if (template && template.build) {
             const worldCoords = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
             const newUnit = template.build(template.name, worldCoords.x, worldCoords.y, team);
+            const newUnit = template.build(worldCoords.x, worldCoords.y, team);
             if (newUnit) topLevelUnits.push(newUnit);
         }
     }

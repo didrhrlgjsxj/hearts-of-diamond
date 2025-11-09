@@ -578,6 +578,61 @@ class Unit {
     draw(ctx) {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
+
+        // '부대 마크' 그리기: CommandUnit일 경우에만 실행됩니다.
+        if (this instanceof CommandUnit && this.subUnits.length > 0) {
+            const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
+            if (visibleSubUnits.length > 0) {
+                // 1. '부대 마크'의 위치는 항상 본부 부대의 위치(this.x, this.y)를 기준으로 합니다.
+                const markCenterX = this.x;
+                const markCenterY = this.y - 40; // 본부 부대보다 약간 위에 표시되도록 오프셋을 줍니다.
+
+                // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
+                const totalCurrentStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
+                const totalBaseStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+                const totalOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.organization, 0);
+                const totalMaxOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
+
+                // 3. 능력치 바 그리기
+                const barWidth = 40;
+                const barHeight = 5;
+                const barX = markCenterX - barWidth / 2;
+                const barY = markCenterY - 25;
+
+                // 내구력 바
+                ctx.fillStyle = '#555';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+                const strengthRatio = totalBaseStrength > 0 ? totalCurrentStrength / totalBaseStrength : 0;
+                ctx.fillStyle = '#ff8c00';
+                ctx.fillRect(barX, barY, barWidth * strengthRatio, barHeight);
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+                // 조직력 바
+                const orgBarY = barY + barHeight + 2;
+                ctx.fillStyle = '#555';
+                ctx.fillRect(barX, orgBarY, barWidth, barHeight);
+                const orgRatio = totalMaxOrganization > 0 ? totalOrganization / totalMaxOrganization : 0;
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
+                ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+
+                // 4. 반투명한 부대 아이콘 그리기
+                const markOpacity = 0.3;
+                const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
+                ctx.fillStyle = color;
+                ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
+
+                // 5. 부대 마크 위에 심볼 그리기
+                const originalX = this.x, originalY = this.y;
+                this._x = markCenterX; this._y = markCenterY;
+                this.drawEchelonSymbol(ctx);
+                this._x = originalX; this._y = originalY;
+            }
+        }
         
         // 모든 유닛은 자신의 아이콘을 그립니다.
         // CommandUnit의 경우, 이 아이콘은 hqBattalion 위치에 그려지는 '실제' 아이콘이 됩니다.
@@ -669,18 +724,14 @@ class Unit {
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.
         if (this instanceof CommandUnit) {
-            // 본부 대대를 제외한 나머지 하위 부대들만 그립니다.
-            // 본부 대대의 시각적 표시는 상위 부대의 반투명 아이콘이 대신합니다.
-            const subUnitsToDraw = this.subUnits.filter(sub => sub !== this.hqBattalion && !sub.isDestroyed);
-
-            subUnitsToDraw.forEach(subUnit => {
+            this.subUnits.forEach(subUnit => {
+                if (subUnit.isDestroyed) return;
                 // 하위 부대와의 연결선을 그립니다.
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
                 ctx.lineTo(subUnit.x, subUnit.y);
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.stroke();
-                
                 subUnit.draw(ctx);
             });
         }
