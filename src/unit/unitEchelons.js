@@ -1,8 +1,9 @@
 /**
- * 지휘 부대 (사단, 여단, 연대, 대대)의 공통 로직을 담는 기본 클래스입니다.
+ * 부대 마크(Symbol)를 나타내는 클래스입니다.
+ * 사단, 여단 등 지휘 부대의 정보를 담고, 화면에 부대 마크로 그려집니다.
  * Unit을 상속받습니다.
  */
-class CommandUnit extends Unit {
+class SymbolUnit extends Unit {
     constructor(name, x, y, team, size, echelon = null) {
         super(name, x, y, 0, size, team);
         this.isMoving = false; // 현재 이동 중인지 여부를 나타내는 플래그
@@ -15,14 +16,14 @@ class CommandUnit extends Unit {
 
     // 이동 명령을 받으면, 목표 지점과 방향만 설정합니다.
     moveTo(x, y, allUnits = []) {
-        // CommandUnit의 moveTo는 하위 유닛의 진형 목표를 설정하므로, 충돌 방지 로직을 여기에 직접 적용하지 않고
+        // SymbolUnit의 moveTo는 하위 유닛의 진형 목표를 설정하므로, 충돌 방지 로직을 여기에 직접 적용하지 않고
         // 각 하위 유닛이 자신의 moveTo에서 처리하도록 위임합니다.
         this.destination = { x, y }; // 상위 부대의 최종 목표만 설정
         this.isMoving = true; // 이동 시작
 
         // 하위 부대를 직접 이동시키면 커스텀 진형 모드가 됩니다.
-        if (this.parent && this.parent instanceof CommandUnit) {
-            if (this.parent && this.parent instanceof CommandUnit) {
+        if (this.parent && this.parent instanceof SymbolUnit) {
+            if (this.parent && this.parent instanceof SymbolUnit) {
                 // 부모의 본부대대(hqBattalion)가 아닌, 일반 하위 대대를 직접 움직일 때만 커스텀 진형으로 전환합니다.
                 const isNotHqUnit = this.parent.hqCompany !== this;
 
@@ -33,7 +34,7 @@ class CommandUnit extends Unit {
                     // 모든 형제 유닛(자신 포함)의 현재 상대 위치를 기록합니다.
                     this.parent.subUnits.forEach(subUnit => {
                         // 지휘 부대(대대 등) 또는 역할이 있는 부대만 상대 위치를 기록합니다.
-                        if (subUnit instanceof CommandUnit || subUnit.role) {
+                        if (subUnit instanceof SymbolUnit || subUnit.role) {
                             subUnit.relativePosition = {
                                 x: subUnit.x - this.parent.x,
                                 y: subUnit.y - this.parent.y,
@@ -76,13 +77,13 @@ class CommandUnit extends Unit {
         });
     }
 
-    // CommandUnit의 위치는 본부 대대의 위치를 따릅니다.
+    // SymbolUnit의 위치는 부대 마크의 위치입니다.
     get x() { return this._x; }
     set x(value) { this._x = value; }
     get y() { return this._y; }
     set y(value) { this._y = value; }
 
-    // CommandUnit의 방향은 본부 대대의 방향을 따릅니다.
+    // SymbolUnit의 방향은 이동 목표에 따라 결정됩니다.
     get direction() {
         // 이동 목표가 있으면 그 방향을, 없으면 현재 방향을 유지합니다.
         if (this.destination) {
@@ -112,8 +113,8 @@ class CommandUnit extends Unit {
 
         // 기본 진형('base') 모드일 때의 로직
         // 모든 하위 부대의 상대 위치를 초기화하여 기본 진형을 따르도록 합니다.
-        this.subUnits.forEach(subUnit => delete subUnit.relativePosition);
-        const hqPosition = this; // 이제 항상 CommandUnit의 위치(hqBattalion의 위치)를 기준점으로 사용
+        this.subUnits.forEach(subUnit => delete subUnit.relativePosition); // 커스텀 위치 초기화
+        const hqPosition = this; // 이제 항상 SymbolUnit의 위치를 기준점으로 사용
 
         // 모든 하위 부대(본부 중대 포함)를 역할별로 그룹화합니다.
         const roles = {};
@@ -199,14 +200,13 @@ class CommandUnit extends Unit {
     }
 }
 /** 대대 (Battalion) */
-class Battalion extends CommandUnit {
+class Battalion extends SymbolUnit {
     constructor(name, x, y, team, size) {
-        super(name, x, y, team, size, 'BATTALION'); // Battalion은 이제 CommandUnit을 상속받습니다.
+        super(name, x, y, team, size, 'BATTALION');
         this.role = FORMATION_ROLES.FRONTLINE; // 기본 역할은 '전위'
         // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
-        // Battalion은 CommandUnit이므로, x, y, direction getter/setter는 CommandUnit의 것을 사용합니다.
-        // CommandUnit의 x, y, direction은 hqBattalion이 없으면 _x, _y, _direction을 사용합니다.
+        // Battalion은 SymbolUnit이므로, x, y, direction getter/setter는 SymbolUnit의 것을 사용합니다.
     }
 
     /**

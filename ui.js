@@ -264,7 +264,7 @@ class GameUI {
         }
 
         // 진형 리셋 버튼 표시 여부 결정
-        if (unit instanceof CommandUnit) {
+        if (unit instanceof SymbolUnit) {
             this.resetFormationButton.style.display = 'block';
             this.resetFormationButton.onclick = () => {
                 if (unit.resetFormation) {

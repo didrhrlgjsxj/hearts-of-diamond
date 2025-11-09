@@ -21,13 +21,13 @@ const DIVISION_TEMPLATES = {
     },
     "Infantry Division": {
         name: "보병 사단",
-        unitClass: CommandUnit,
+        unitClass: SymbolUnit,
         build: (x, y, team) => {
             const unitNumber = unitCounters['Division']++;
             const unitName = `제${unitNumber}사단`;
 
             // 1. 사단 유닛을 직접 생성합니다.
-            const division = new CommandUnit(unitName, x, y, team, 12, 'DIVISION');
+            const division = new SymbolUnit(unitName, x, y, team, 12, 'DIVISION');
 
             // 2. 본부 대대를 생성하여 사단의 hqBattalion으로 지정합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
@@ -64,7 +64,7 @@ const DIVISION_TEMPLATES = {
     },
     "Infantry Brigade": {
         name: "보병 여단",
-        unitClass: CommandUnit,
+        unitClass: SymbolUnit,
         // 'build' 함수는 이 템플릿으로부터 실제 유닛 인스턴스를 생성하는 로직을 담습니다.
         // 이렇게 하면 복잡한 편제 규칙을 템플릿 내에 캡슐화할 수 있습니다.
         build: (x, y, team) => {
@@ -72,7 +72,7 @@ const DIVISION_TEMPLATES = {
             const unitName = `제${unitNumber}여단`;
 
             // 1. 여단 유닛을 직접 생성합니다.
-            const brigade = new CommandUnit(unitName, x, y, team, 10, 'BRIGADE');
+            const brigade = new SymbolUnit(unitName, x, y, team, 10, 'BRIGADE');
 
             // 2. 본부 대대를 생성하여 여단의 hqBattalion으로 지정합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
@@ -109,13 +109,13 @@ const DIVISION_TEMPLATES = {
     },
     "Infantry Regiment": {
         name: "보병 연대",
-        unitClass: CommandUnit,
+        unitClass: SymbolUnit,
         build: (x, y, team) => {
             const unitNumber = unitCounters['Regiment']++;
             const unitName = `제${unitNumber}연대`;
 
             // 1. 연대 유닛을 직접 생성합니다.
-            const regiment = new CommandUnit(unitName, x, y, team, 9, 'REGIMENT');
+            const regiment = new SymbolUnit(unitName, x, y, team, 9, 'REGIMENT');
 
             // 2. 본부 대대를 생성하여 연대의 hqBattalion으로 지정합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);

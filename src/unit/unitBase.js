@@ -103,7 +103,7 @@ class Unit {
         }
 
         // 대대 이상의 지휘 부대는 휘하 부대 중 가장 느린 부대의 속도를 따릅니다.
-        if (this instanceof CommandUnit && this.subUnits.length > 0) {
+        if (this instanceof SymbolUnit && this.subUnits.length > 0) {
             const slowestSubUnitSpeed = Math.min(...this.subUnits.map(u => u.moveSpeed));
             return slowestSubUnitSpeed;
         }
@@ -452,7 +452,7 @@ class Unit {
      */
     takeDamage(totalAttackPower, firepowerDamage) {
         // 대대급 미만(중대 등)은 피해를 받지 않습니다.
-        if (!(this instanceof CommandUnit)) return;
+        if (!(this instanceof SymbolUnit)) return;
 
         // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
@@ -556,8 +556,8 @@ class Unit {
      * @returns {Unit|null}
      */
     getUnitAt(x, y) {
-        // 1. CommandUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
-        if (this instanceof CommandUnit) {
+        // 1. SymbolUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
+        if (this instanceof SymbolUnit) {
             const markCenterX = this.x;
             const markCenterY = this.y - 40; // 부대 마크의 Y 오프셋
             const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
@@ -602,8 +602,8 @@ class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
-        // '부대 마크' 그리기: CommandUnit이고 하위 유닛이 있을 때만 실행됩니다.
-        if (this instanceof CommandUnit && this.subUnits.length > 0) {
+        // '부대 마크' 그리기: SymbolUnit이고 하위 유닛이 있을 때만 실행됩니다.
+        if (this instanceof SymbolUnit && this.subUnits.length > 0) {
             const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
             if (visibleSubUnits.length > 0) {
                 // 1. '부대 마크'의 위치는 본부 부대(this.x, this.y)보다 약간 위에 표시됩니다.
@@ -658,7 +658,7 @@ class Unit {
         }
         
         // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
-        // CommandUnit의 경우, 이 아이콘은 본부 중대의 위치에 그려집니다.
+        // SymbolUnit의 경우, 이 아이콘은 본부 중대의 위치에 그려집니다.
         this.drawOwnIcon(ctx);
 
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
@@ -746,10 +746,10 @@ class Unit {
 
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.
-        if (this instanceof CommandUnit) {
+        if (this instanceof SymbolUnit) {
             this.subUnits.forEach(subUnit => {
                 if (subUnit.isDestroyed) return;
-                // 본부 중대는 CommandUnit의 drawOwnIcon()에서 이미 그려졌으므로 건너뜁니다.
+                // 본부 중대는 SymbolUnit의 drawOwnIcon()에서 이미 그려졌으므로 건너뜁니다.
                 if (subUnit === this.hqCompany) return;
 
                 // 본부 위치에서 다른 하위 부대로 연결선을 그립니다.
@@ -769,9 +769,9 @@ class Unit {
      * @param {number} [opacity=0.7] 아이콘의 불투명도
      */
     drawOwnIcon(ctx, opacity = 0.7) {
-        // CommandUnit 자체는 '부대 마크'로 그려지므로, 자신의 실제 아이콘은 그리지 않습니다.
+        // SymbolUnit 자체는 '부대 마크'로 그려지므로, 자신의 실제 아이콘은 그리지 않습니다.
         // 대신 본부 중대가 이 위치에 그려지게 됩니다.
-        if (this instanceof CommandUnit) {
+        if (this instanceof SymbolUnit) {
             if (this.hqCompany) this.hqCompany.drawOwnIcon(ctx, opacity);
             return;
         }

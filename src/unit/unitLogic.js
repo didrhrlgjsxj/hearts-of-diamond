@@ -209,7 +209,7 @@ function processUnitMovement(unit, scaledDeltaTime) {
  */
 function processFormationUpdate(unit) {
     if (unit.isDestroyed) return;
-    if (unit instanceof CommandUnit) {
+    if (unit instanceof SymbolUnit) {
         unit.updateCombatSubUnitPositions();
     }
     unit.subUnits.forEach(subUnit => processFormationUpdate(subUnit)); // 파괴된 하위 유닛은 내부적으로 무시됨
@@ -250,7 +250,7 @@ function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
 
     // 1. 각 최상위 부대 내에서 파괴된 하위 대대를 제거합니다.
     topLevelUnits.forEach(unit => {
-        if (unit instanceof CommandUnit) {
+        if (unit instanceof SymbolUnit) {
             unit.subUnits = unit.subUnits.filter(sub => !sub.isDestroyed);
             unit.combatSubUnits = unit.combatSubUnits.filter(sub => !sub.isDestroyed);
         }
