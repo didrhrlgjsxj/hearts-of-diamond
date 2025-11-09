@@ -225,14 +225,6 @@ class Battalion extends CommandUnit {
         // 3. 모든 중대들이 각자의 목표(진형 위치)를 향해 이동하도록 업데이트를 호출합니다.
         this.subUnits.forEach(c => c.updateMovement(deltaTime));
     }
-    drawEchelonSymbol(ctx) {
-        const size = this.size * 2; // 아이콘 크기에 비례
-        ctx.font = `bold ${size}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = 'black';
-        ctx.fillText('||', this.x, this.y + size * 0.1); // 폰트에 따라 미세 조정
-    }
 }
 /** 중대 (Company) */
 class Company extends Unit {

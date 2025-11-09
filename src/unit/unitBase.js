@@ -556,30 +556,25 @@ class Unit {
      * @returns {Unit|null}
      */
     getUnitAt(x, y) {
-        // 화면에 그려지는 순서의 역순(위에 그려진 유닛부터)으로 클릭을 확인합니다.
-        // 지휘 부대는 하위 부대(대대, 중대)를 먼저 확인합니다.
+        // 1. CommandUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
         if (this instanceof CommandUnit) {
-             // CommandUnit은 subUnits(대대) 또는 combatSubUnits(중대)를 그립니다.
-             // 여기서는 클릭 가능한 대상인 subUnits(주로 대대)를 확인합니다.
-             for (let i = this.subUnits.length - 1; i >= 0; i--) {
-                 const subUnit = this.subUnits[i];
-                 // 중대는 지휘부대 아이콘 아래에 그려지므로 여기서는 확인하지 않습니다.
-                 if (subUnit instanceof CommandUnit) {
-                     const found = subUnit.getUnitAt(x, y);
-                     if (found) return found;
-                 }
-             }
+            const markCenterX = this.x;
+            const markCenterY = this.y - 40; // 부대 마크의 Y 오프셋
+            const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
+            if (distanceToMark < this.size) {
+                return this; // 부대 마크가 클릭되면 CommandUnit 자신을 반환
+            }
         }
 
-        // 하위 유닛에서 클릭된 것이 없거나, 자신이 최하위 유닛이면 자기 자신을 확인합니다.
-        const distance = Math.hypot(x - this.x, y - this.y);
-        if (distance < this.size) {
-            // 중대는 직접 선택할 수 없고, 상위 대대를 대신 선택하도록 합니다.
-            if (this instanceof Company) {
-                return this.parent || this;
-            }
-            return this;
+        // 2. 하위 유닛들을 확인합니다. (위에 그려진 유닛부터)
+        for (let i = this.subUnits.length - 1; i >= 0; i--) {
+            const found = this.subUnits[i].getUnitAt(x, y);
+            if (found) return found;
         }
+
+        // 3. 마지막으로 자기 자신의 아이콘을 확인합니다.
+        const distance = Math.hypot(x - this.x, y - this.y);
+        if (distance < this.size) return this;
 
         return null;
     }
@@ -607,13 +602,13 @@ class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
-        // '부대 마크' 그리기: CommandUnit일 경우에만 실행됩니다.
+        // '부대 마크' 그리기: CommandUnit이고 하위 유닛이 있을 때만 실행됩니다.
         if (this instanceof CommandUnit && this.subUnits.length > 0) {
             const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
             if (visibleSubUnits.length > 0) {
-                // 1. '부대 마크'의 위치는 항상 본부 부대의 위치(this.x, this.y)를 기준으로 합니다.
+                // 1. '부대 마크'의 위치는 본부 부대(this.x, this.y)보다 약간 위에 표시됩니다.
                 const markCenterX = this.x;
-                const markCenterY = this.y - 40; // 본부 부대보다 약간 위에 표시되도록 오프셋을 줍니다.
+                const markCenterY = this.y - 40;
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
                 const totalCurrentStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
@@ -647,10 +642,10 @@ class Unit {
                 ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
                 // 4. 반투명한 부대 아이콘 그리기
-                const markOpacity = 0.3;
+                const markOpacity = this.isSelected ? 0.6 : 0.3; // 선택 시 더 진하게
                 const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
                 ctx.fillStyle = color;
-                ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
+                ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
                 ctx.strokeStyle = 'black';
                 ctx.strokeRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
 
@@ -662,8 +657,8 @@ class Unit {
             }
         }
         
-        // 모든 유닛은 자신의 아이콘을 그립니다.
-        // CommandUnit의 경우, 이 아이콘은 hqBattalion 위치에 그려지는 '실제' 아이콘이 됩니다.
+        // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
+        // CommandUnit의 경우, 이 아이콘은 본부 중대의 위치에 그려집니다.
         this.drawOwnIcon(ctx);
 
         // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
@@ -752,12 +747,12 @@ class Unit {
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.
         if (this instanceof CommandUnit) {
-            const hqUnit = this.hqCompany;
             this.subUnits.forEach(subUnit => {
                 if (subUnit.isDestroyed) return;
-                // 본부 역할을 하는 유닛은 그리지 않습니다. (상위 부대의 '실제' 아이콘이 그 역할을 대신함)
-                if (subUnit === hqUnit) return;
-                // 하위 부대와의 연결선을 그립니다.
+                // 본부 중대는 CommandUnit의 drawOwnIcon()에서 이미 그려졌으므로 건너뜁니다.
+                if (subUnit === this.hqCompany) return;
+
+                // 본부 위치에서 다른 하위 부대로 연결선을 그립니다.
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
                 ctx.lineTo(subUnit.x, subUnit.y);
@@ -774,7 +769,12 @@ class Unit {
      * @param {number} [opacity=0.7] 아이콘의 불투명도
      */
     drawOwnIcon(ctx, opacity = 0.7) {
-        // 팀 색상에 따라 아이콘 배경을 그립니다.
+        // CommandUnit 자체는 '부대 마크'로 그려지므로, 자신의 실제 아이콘은 그리지 않습니다.
+        // 대신 본부 중대가 이 위치에 그려지게 됩니다.
+        if (this instanceof CommandUnit) {
+            if (this.hqCompany) this.hqCompany.drawOwnIcon(ctx, opacity);
+            return;
+        }
         const color = this.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`; // CornflowerBlue / Tomato
         ctx.fillStyle = color;
         ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
