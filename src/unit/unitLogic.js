@@ -55,12 +55,12 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         const enemyCompany = myCompany.companyTarget;
         if (!enemyCompany) {
             myCompany.isInCombat = false;
-            return;
+            continue;
         }
 
         // 공격자와 방어자의 최상위 부모(대대)를 찾습니다.
-        const myBattalion = myCompany.parent?.parent; // 중대 -> 소대 -> 대대
-        const enemyBattalion = enemyCompany.parent?.parent;
+        const myBattalion = myCompany.parent; // 중대의 부모는 대대입니다.
+        const enemyBattalion = enemyCompany.parent;
 
         if (!myBattalion || !enemyBattalion) continue;
         
@@ -99,33 +99,36 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
             if (myBattalion.attackProgress >= myBattalion.attackCooldown) {
                 myBattalion.attackProgress = 0; // 턴 초기화
 
-                // 이 대대에 속한 모든 중대가 각자의 목표를 공격합니다.
-                myBattalion.getAllCompanies().forEach(c => {
-                    if (c.isDestroyed || !c.companyTarget) return;
+                // 이 대대에 속한 모든 중대가 각자의 목표를 공격합니다. (본부 중대 제외)
+                const combatCompanies = myBattalion.getAllCompanies().filter(comp => comp !== myBattalion.hqCompany);
+                combatCompanies.forEach(c => {
+                    if (c.isDestroyed || !c.companyTarget) return; // 파괴되었거나 목표가 없으면 공격 안함
 
                     const target = c.companyTarget;
                     const distToTarget = Math.hypot(c.x - target.x, c.y - target.y);
 
-                    // 전투 효율성 계산
+                    // 1. 전투 효율성 계산 (거리에 따라 0~1)
+                    // 최적 거리에서 100%, 최적 거리의 2배 또는 0 거리에서 0%가 됩니다.
                     const range = UNIT_TYPE_EFFECTIVENESS_RANGE[c.type] || { optimal: 100 };
                     const optimalDistance = range.optimal;
                     const distanceDifference = Math.abs(distToTarget - optimalDistance);
                     c.combatEffectiveness = Math.max(0, 1 - (distanceDifference / optimalDistance));
 
-                    // 유효 공격력 계산
+                    // 2. 유효 공격력 계산 (방어자의 기갑화율에 따라 대인/대물 공격력 조합)
                     const defenderHardness = target.hardness;
                     const companyBaseAttack = c.softAttack * (1 - defenderHardness) + c.hardAttack * defenderHardness;
                     const effectiveAttack = companyBaseAttack * c.combatEffectiveness;
 
-                    // 전술 보너스 적용
+                    // 3. 대대의 현재 전술에 따른 공격력 보너스/페널티 적용
                     const tacticAttackModifier = myBattalion.tactic ? myBattalion.tactic.attackModifier : 1.0;
                     const finalAttack = effectiveAttack * tacticAttackModifier;
 
-                    // 최종 공격력 및 화력 피해 계산
+                    // 4. 최종 공격력 및 화력 피해 계산
+                    // 최종 공격력은 방어자의 장갑 수치에 의해 감소됩니다.
                     const totalAttackPower = Math.max(0, finalAttack - target.armor);
                     const firepowerDamage = c.firepower * 1.5; // 화력 피해는 중대 개별로
 
-                    // 피해는 적 '중대'에 직접 적용
+                    // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
                     target.takeDamage(totalAttackPower, firepowerDamage, { x: c.x, y: c.y });
                 });
             }
@@ -141,7 +144,10 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         }
 
         // 대대 간의 굵은 전투선
-        const isFrontal = enemyBattalion.getAllCompanies().some(c => c.companyTarget?.parent?.parent === myBattalion);
+        // 적 대대(enemyBattalion)의 중대들 중 하나라도 우리 대대(myBattalion)의 중대를 목표로 하고 있는지 확인합니다.
+        const isFrontal = enemyBattalion.getAllCompanies().some(enemyComp => {
+            return enemyComp.companyTarget && enemyComp.companyTarget.parent === myBattalion;
+        });
         myBattalionTopLevel.tracers.push({
             from: myBattalion,
             to: enemyBattalion,
@@ -161,7 +167,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     }
 
     // 전투가 끝난 부대의 상태를 초기화합니다.
-    const allBattalions = new Set(allCompanies.map(c => c.parent?.parent).filter(b => b));
+    const allBattalions = new Set(allCompanies.map(c => c.parent).filter(b => b));
     allBattalions.forEach(battalion => {
         // 휘하 중대 중 하나라도 전투 중이면 대대는 전투 중 상태를 유지
         const isAnyCompanyInCombat = battalion.getAllCompanies().some(c => c.isInCombat);
