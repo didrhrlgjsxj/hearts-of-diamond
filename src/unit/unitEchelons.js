@@ -10,8 +10,7 @@ class CommandUnit extends Unit {
         this.formationMode = 'base'; // 'base' 또는 'custom'
         this.echelon = echelon; // 부대 규모 (e.g., 'DIVISION', 'BRIGADE')
         this.echelonSymbol = ECHELON_SYMBOLS[echelon] || '';
-        this.hqBattalion = null; // 사단/여단급의 본부 '대대'
-        this.hqCompany = null;   // 대대급의 본부 '중대'
+        this.hqCompany = null;   // 모든 지휘부대의 본부 역할을 하는 '중대'
     }
 
     // 이동 명령을 받으면, 목표 지점과 방향만 설정합니다.
@@ -22,10 +21,9 @@ class CommandUnit extends Unit {
         this.isMoving = true; // 이동 시작
 
         // 본부 대대가 있다면, 본부 대대에 이동 명령을 위임합니다.
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        if (hqUnit) {
-            hqUnit.moveTo(x, y, allUnits);
-            this.direction = hqUnit.direction; // 본부 유닛의 방향을 따라갑니다.
+        if (this.hqCompany) {
+            this.hqCompany.moveTo(x, y, allUnits);
+            this.direction = this.hqCompany.direction; // 본부 유닛의 방향을 따라갑니다.
         } else {
             // 본부 대대가 없는 경우 (예: 대대 자체)는 Unit의 기본 moveTo 로직을 따릅니다.
             super.moveTo(x, y, allUnits);
@@ -37,7 +35,7 @@ class CommandUnit extends Unit {
             // 하위 부대를 직접 이동시키면 커스텀 진형 모드가 됩니다.
             if (this.parent && this.parent instanceof CommandUnit) {
                 // 부모의 본부대대(hqBattalion)가 아닌, 일반 하위 대대를 직접 움직일 때만 커스텀 진형으로 전환합니다.
-                const isNotHqUnit = (this.parent.hqBattalion !== this) && (this.parent.hqCompany !== this);
+                const isNotHqUnit = this.parent.hqCompany !== this;
 
                 if (isNotHqUnit && this.parent.formationMode === 'base') {
                     this.parent.formationMode = 'custom';
@@ -73,12 +71,11 @@ class CommandUnit extends Unit {
     // 실제 이동 처리는 unitLogic.js에서 일괄적으로 수행됩니다.
     // CommandUnit의 x, y는 hqBattalion의 x, y를 따르므로, CommandUnit 자체의 updateMovement는 hqBattalion에 위임합니다.
     updateMovement(deltaTime) {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        if (hqUnit) {
+        if (this.hqCompany) {
             // 본부 유닛의 이동을 업데이트합니다.
-            hqUnit.updateMovement(deltaTime);
+            this.hqCompany.updateMovement(deltaTime);
             // 본부 유닛이 목표에 도달하면 CommandUnit의 destination도 null로 설정합니다.
-            if (hqUnit.destination === null) {
+            if (this.hqCompany.destination === null) {
                 this.destination = null;
                 if (this.isMoving) {
                     this.isMoving = false; // 이동 종료
@@ -88,7 +85,7 @@ class CommandUnit extends Unit {
                 this.updateCombatSubUnitPositions();
             }
             // 본부 유닛의 방향을 따라갑니다.
-            this.direction = hqUnit.direction;
+            this.direction = this.hqCompany.direction;
         } else {
             // 본부 대대가 없는 경우 (예: 대대 자체)는 Unit의 기본 이동 로직을 따릅니다.
             super.updateMovement(deltaTime);
@@ -112,32 +109,26 @@ class CommandUnit extends Unit {
     // CommandUnit의 위치는 본부 대대의 위치를 따릅니다.
     get x() {
         // 본부 유닛이 있으면 그 위치를, 없으면 자신의 위치를 반환합니다.
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        return hqUnit ? hqUnit.x : this._x;
+        return this.hqCompany ? this.hqCompany.x : this._x;
     }
     set x(value) {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        if (hqUnit) hqUnit.x = value;
+        if (this.hqCompany) this.hqCompany.x = value;
         else this._x = value;
     }
     get y() {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        return hqUnit ? hqUnit.y : this._y;
+        return this.hqCompany ? this.hqCompany.y : this._y;
     }
     set y(value) {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        if (hqUnit) hqUnit.y = value;
+        if (this.hqCompany) this.hqCompany.y = value;
         else this._y = value;
     }
 
     // CommandUnit의 방향은 본부 대대의 방향을 따릅니다.
     get direction() {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        return hqUnit ? hqUnit.direction : this._direction;
+        return this.hqCompany ? this.hqCompany.direction : this._direction;
     }
     set direction(value) {
-        const hqUnit = this.hqBattalion || this.hqCompany;
-        if (hqUnit) hqUnit.direction = value;
+        if (this.hqCompany) this.hqCompany.direction = value;
         else this._direction = value;
     }
     /**
@@ -168,7 +159,7 @@ class CommandUnit extends Unit {
             const hqX = this.x; // 자신의 위치를 기준으로 합니다.
             const hqY = this.y; 
             // 본부 대대를 제외한 나머지 대대들만 진형 배치 대상으로 삼습니다.
-            const battalions = this.subUnits.filter(u => u instanceof Battalion && !u.isDestroyed);
+            const battalions = this.subUnits.filter(u => u instanceof Battalion && u !== this.hqCompany && !u.isDestroyed);
             
             // 본부 대대가 있다면, 본부 대대의 방향을 따릅니다.
             // 본부 대대가 없다면 (대대 자체), 자신의 방향을 따릅니다.
@@ -187,19 +178,6 @@ class CommandUnit extends Unit {
                 const battalionsInRole = roles[role];
                 const offsetInfo = BATTALION_FORMATION_OFFSETS[role];
                 if (!offsetInfo) return;
-
-                // '후위' 역할에 본부 대대가 포함되어 있다면, 중앙에 배치하고 나머지를 그 주변에 배치합니다.
-                if (role === BATTALION_ROLES.RESERVE && this.hqBattalion) {
-                    const hqIndex = Math.floor((battalionsInRole.length - 1) / 2);
-                    const otherBattalions = battalionsInRole.filter(b => b !== this.hqBattalion);
-
-                    // 본부 대대를 중앙 목표 지점에 할당
-                    this.setSubUnitFormation([this.hqBattalion], offsetInfo, 1, hqIndex);
-
-                    // 나머지 후위 대대들을 배치
-                    this.setSubUnitFormation(otherBattalions, offsetInfo);
-                    return; // forEach에서는 continue 대신 return을 사용해야 합니다.
-                }
 
 
 
@@ -242,7 +220,7 @@ class CommandUnit extends Unit {
             // 2단계: 대대의 경우: 휘하 중대들을 역할에 따라 배치합니다.
             const hqX = this.x; // 자신의 위치를 기준으로 합니다.
             const hqY = this.y;
-            const companies = this.subUnits.filter(u => u instanceof Company && !u.isDestroyed); // 중대만 필터링
+            const companies = this.subUnits.filter(u => u instanceof Company && u !== this.hqCompany && !u.isDestroyed); // 본부 중대 제외
 
             // 역할별로 중대를 그룹화합니다.
             const roles = {};
@@ -308,7 +286,7 @@ class Battalion extends CommandUnit {
     constructor(name, x, y, team, size) {
         super(name, x, y, team, size, 'BATTALION'); // Battalion은 이제 CommandUnit을 상속받습니다.
         this.role = BATTALION_ROLES.MAIN_FORCE; // 기본 역할은 '주력'
-        // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.        this.hqBattalion = null; 
+        // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 CommandUnit이므로, x, y, direction getter/setter는 CommandUnit의 것을 사용합니다.
         // CommandUnit의 x, y, direction은 hqBattalion이 없으면 _x, _y, _direction을 사용합니다.

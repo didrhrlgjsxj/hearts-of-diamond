@@ -724,7 +724,7 @@ class Unit {
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.
         if (this instanceof CommandUnit) {
-            const hqUnit = this.hqBattalion || this.hqCompany;
+            const hqUnit = this.hqCompany;
             this.subUnits.forEach(subUnit => {
                 if (subUnit.isDestroyed) return;
                 // 본부 역할을 하는 유닛은 그리지 않습니다. (상위 부대의 '실제' 아이콘이 그 역할을 대신함)
