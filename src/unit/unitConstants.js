@@ -50,42 +50,30 @@ const UNIT_TYPE_EFFECTIVENESS_RANGE = {
     [UNIT_TYPES.ENGINEER]: { optimal: 80  }, // 공병: 80 거리에서 효율 100%
 };
 
-// 중대 역할 정의
-const COMPANY_ROLES = {
-    VANGUARD: '선봉대',   // Vanguard: 가장 앞에서 적과 처음으로 교전하며 시야 확보
-    FRONTLINE: '전위',   // Frontline: 주력 전투를 담당하는 부대
-    REARGUARD: '후위',   // Rearguard: 후방에서 화력 지원 및 예비대 역할
+// 진형 역할 통일 (대대, 중대 공통 사용)
+const FORMATION_ROLES = {
+    VANGUARD: '선봉',   // Vanguard: 가장 앞에서 적과 처음으로 교전
+    FRONTLINE: '전위',  // Frontline: 주력 전투 담당
+    MIDGUARD: '중위',   // Midguard: 전위와 후위 사이에서 지원
+    REARGUARD: '후위',  // Rearguard: 후방 지원 및 예비대 역할 (본부 위치)
 };
 
 // 역할별 진형 오프셋 (상대적 거리)
 const FORMATION_OFFSETS = {
-    [COMPANY_ROLES.VANGUARD]: { distance: 80, spread: 60 },  // 선봉대는 가장 앞에
-    [COMPANY_ROLES.FRONTLINE]: { distance: 40, spread: 80 }, // 전위는 중간에 넓게
-    [COMPANY_ROLES.REARGUARD]: { distance: -20, spread: 70 },   // 후위는 본부 약간 뒤쪽 양옆으로 배치
+    [FORMATION_ROLES.VANGUARD]: { distance: 120, spread: 60 }, // 선봉: 가장 앞
+    [FORMATION_ROLES.FRONTLINE]: { distance: 80, spread: 80 },  // 전위: 중간 앞
+    [FORMATION_ROLES.MIDGUARD]: { distance: 40, spread: 100 }, // 중위: 중간 뒤, 넓게
+    [FORMATION_ROLES.REARGUARD]: { distance: 0, spread: 70 },   // 후위: 본부와 같은 라인
 };
 
 // 역할과 병과에 따른 전투 효율성 계수
 const EFFECTIVENESS_MODIFIERS = {
     // 선봉대: 정찰, 기갑 유닛이 효율적
-    [COMPANY_ROLES.VANGUARD]:  { [UNIT_TYPES.INFANTRY]: 0.9, [UNIT_TYPES.RECON]: 1.2, [UNIT_TYPES.ARMOR]: 1.1, [UNIT_TYPES.ARTILLERY]: 0.3, [UNIT_TYPES.ENGINEER]: 0.7 },
+    [FORMATION_ROLES.VANGUARD]:  { [UNIT_TYPES.INFANTRY]: 0.9, [UNIT_TYPES.RECON]: 1.2, [UNIT_TYPES.ARMOR]: 1.1, [UNIT_TYPES.ARTILLERY]: 0.3, [UNIT_TYPES.ENGINEER]: 0.7 },
     // 전위: 보병, 기갑, 공병 유닛이 효율적
-    [COMPANY_ROLES.FRONTLINE]: { [UNIT_TYPES.INFANTRY]: 1.2, [UNIT_TYPES.RECON]: 0.7, [UNIT_TYPES.ARMOR]: 1.2, [UNIT_TYPES.ARTILLERY]: 0.6, [UNIT_TYPES.ENGINEER]: 1.1 },
+    [FORMATION_ROLES.FRONTLINE]: { [UNIT_TYPES.INFANTRY]: 1.2, [UNIT_TYPES.RECON]: 0.7, [UNIT_TYPES.ARMOR]: 1.2, [UNIT_TYPES.ARTILLERY]: 0.6, [UNIT_TYPES.ENGINEER]: 1.1 },
     // 후위: 포병 유닛이 매우 효율적
-    [COMPANY_ROLES.REARGUARD]: { [UNIT_TYPES.INFANTRY]: 1.0, [UNIT_TYPES.RECON]: 0.8, [UNIT_TYPES.ARMOR]: 0.8, [UNIT_TYPES.ARTILLERY]: 1.5, [UNIT_TYPES.ENGINEER]: 0.9 },
-};
-
-// 대대 역할 정의
-const BATTALION_ROLES = {
-    VANGUARD: '선봉',     // Vanguard: 선두에서 주력 공격 담당
-    MAIN_FORCE: '주력', // Main Force: 중앙에서 화력 지원
-    RESERVE: '예비',    // Reserve: 후방에서 대기 및 지원
-};
-
-// 대대 역할별 진형 오프셋 (중대보다 훨씬 넓은 간격)
-const BATTALION_FORMATION_OFFSETS = {
-    [BATTALION_ROLES.VANGUARD]: { distance: 250, spread: 150 }, // 선봉대는 가장 앞에 넓게
-    [BATTALION_ROLES.MAIN_FORCE]: { distance: 100, spread: 200 }, // 주력대는 중앙에 더 넓게
-    [BATTALION_ROLES.RESERVE]: { distance: -50, spread: 100 },  // 예비대는 본부 약간 뒤에
+    [FORMATION_ROLES.REARGUARD]: { [UNIT_TYPES.INFANTRY]: 1.0, [UNIT_TYPES.RECON]: 0.8, [UNIT_TYPES.ARMOR]: 0.8, [UNIT_TYPES.ARTILLERY]: 1.5, [UNIT_TYPES.ENGINEER]: 0.9 },
 };
 
 // 유닛 간 최소 이격 거리

@@ -8,13 +8,12 @@ const DIVISION_TEMPLATES = {
         name: "본부 중대",
         unitClass: Company,
         build: (x, y, team, name) => {
-            // 본부 중대는 능력치 계산에 기여하지 않는 순수 지휘 유닛입니다.
-            // 따라서 내부에 분대를 두지 않습니다.
             const company = new Company(name, x, y, team);
-            company.role = COMPANY_ROLES.REARGUARD; // 본부는 항상 후위에 위치
-            // 본부 중대는 전투를 직접 수행하지 않으므로, 능력치를 0으로 설정합니다.
-            company._baseStrength = 0;
-            company.organizationBonus = 0;
+            company.role = FORMATION_ROLES.REARGUARD; // 본부는 항상 후위에 위치
+            // 본부 중대도 전투를 수행하므로, 일반 중대처럼 분대를 가집니다.
+            for (let i = 0; i < 9; i++) {
+                company.addUnit(new Squad(name, x, y, team));
+            }
             company.calculateStats();
             return company;
         }
@@ -36,9 +35,9 @@ const DIVISION_TEMPLATES = {
 
             // 3. 나머지 9개의 보병 대대를 생성하여 추가합니다.
             const rolesToAssign = [
-                ...Array(4).fill(BATTALION_ROLES.VANGUARD),   // 4개 대대 선봉
-                ...Array(4).fill(BATTALION_ROLES.MAIN_FORCE), // 4개 대대 주력
-                ...Array(2).fill(BATTALION_ROLES.RESERVE)     // 2개 대대 예비
+                ...Array(2).fill(FORMATION_ROLES.VANGUARD), // 2개 대대 선봉
+                ...Array(3).fill(FORMATION_ROLES.FRONTLINE),// 3개 대대 전위
+                ...Array(4).fill(FORMATION_ROLES.MIDGUARD), // 4개 대대 중위
             ];
 
             for (let i = 0; i < 9; i++) { // 본부 대대 외 9개 대대를 생성하도록 수정
@@ -80,8 +79,14 @@ const DIVISION_TEMPLATES = {
             brigade.addUnit(hqCompany);
 
             // 3. 나머지 2개의 보병 대대를 생성하여 추가합니다.
+            const rolesToAssign = [
+                FORMATION_ROLES.VANGUARD,
+                FORMATION_ROLES.FRONTLINE,
+                FORMATION_ROLES.FRONTLINE,
+            ];
             for (let i = 0; i < 3; i++) {
                 const battalion = DIVISION_TEMPLATES["보병 대대"].build(x, y, team);
+                battalion.role = rolesToAssign[i];
                 brigade.addUnit(battalion);
             }
 
@@ -117,8 +122,13 @@ const DIVISION_TEMPLATES = {
             regiment.addUnit(hqCompany);
 
             // 3. 나머지 1개의 보병 대대를 생성하여 추가합니다.
+            const rolesToAssign = [
+                FORMATION_ROLES.VANGUARD,
+                FORMATION_ROLES.FRONTLINE,
+            ];
             for (let i = 0; i < 2; i++) {
                 const battalion = DIVISION_TEMPLATES["보병 대대"].build(x, y, team);
+                battalion.role = rolesToAssign[i];
                 regiment.addUnit(battalion);
             }
 
@@ -148,12 +158,16 @@ const DIVISION_TEMPLATES = {
             battalion.hqCompany = hqCompany;
             battalion.addUnit(hqCompany);
 
+            const rolesToAssign = [
+                FORMATION_ROLES.VANGUARD,
+                FORMATION_ROLES.FRONTLINE,
+                FORMATION_ROLES.FRONTLINE,
+                FORMATION_ROLES.MIDGUARD,
+            ];
+
             for (let i = 0; i < 4; i++) {
                 const company = DIVISION_TEMPLATES["Infantry Company"].build(x, y, team, unitName);
-                // 4개 중대를 선봉 1, 전위 2, 후위 1로 나눕니다.
-                if (i === 0) company.role = COMPANY_ROLES.VANGUARD;
-                else if (i < 3) company.role = COMPANY_ROLES.FRONTLINE;
-                else company.role = COMPANY_ROLES.REARGUARD;
+                company.role = rolesToAssign[i];
                 battalion.addUnit(company);
             }
 

@@ -153,92 +153,47 @@ class CommandUnit extends Unit {
         this.subUnits.forEach(subUnit => delete subUnit.relativePosition);
         const hqPosition = this; // 이제 항상 CommandUnit의 위치(hqBattalion의 위치)를 기준점으로 사용
 
-        // 1단계: 하위 부대가 대대(CommandUnit)인지 확인합니다.
-        if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof CommandUnit)) {
-            // 사단/여단/연대의 경우: 휘하 대대들을 배치합니다.
-            const hqX = this.x; // 자신의 위치를 기준으로 합니다.
-            const hqY = this.y; 
-            // 본부 대대를 제외한 나머지 대대들만 진형 배치 대상으로 삼습니다.
-            const battalions = this.subUnits.filter(u => u instanceof Battalion && u !== this.hqCompany && !u.isDestroyed);
-            
-            // 본부 대대가 있다면, 본부 대대의 방향을 따릅니다.
-            // 본부 대대가 없다면 (대대 자체), 자신의 방향을 따릅니다.
-            battalions.forEach(battalion => {
-                battalion.direction = hqPosition.direction;
-            });
+        // 모든 하위 부대(본부 중대 포함)를 역할별로 그룹화합니다.
+        const roles = {};
+        this.subUnits.forEach(unit => {
+            if (unit.isDestroyed || !unit.role) return;
+            if (!roles[unit.role]) roles[unit.role] = [];
+            roles[unit.role].push(unit);
+        });
 
-            const roles = {};
-            battalions.forEach(b => {
-                if (!b.role) b.role = BATTALION_ROLES.MAIN_FORCE; // 역할이 없으면 '주력'으로 간주
-                if (!roles[b.role]) roles[b.role] = [];
-                roles[b.role].push(b);
-            });
+        // 각 역할 그룹에 대해 진형 위치를 설정합니다.
+        Object.keys(roles).forEach(role => {
+            const unitsInRole = roles[role];
+            const offsetInfo = FORMATION_OFFSETS[role];
+            if (!offsetInfo) return;
 
-            Object.keys(roles).forEach(role => {
-                const battalionsInRole = roles[role];
-                const offsetInfo = BATTALION_FORMATION_OFFSETS[role];
-                if (!offsetInfo) return;
+            // 후위(Rearguard) 역할의 경우, 본부 중대를 중앙에 고정합니다.
+            if (role === FORMATION_ROLES.REARGUARD && this.hqCompany) {
+                // 본부 중대를 제외한 나머지 후위 부대들
+                const otherRearguardUnits = unitsInRole.filter(u => u !== this.hqCompany);
+                
+                // 1. 본부 중대의 목표 위치는 항상 기준점(부모의 위치)입니다.
+                this.hqCompany.destination = { x: this.x, y: this.y };
 
-
-
-                // 대대 진형 설정 (목표 지점 할당)
-                const count = battalionsInRole.length;
-                const formationPoints = [];
-
-                for (let i = 0; i < count; i++) {
+                // 2. 나머지 후위 부대들을 본부 중대 주변에 배치합니다.
+                // 본부 중대가 중앙(0)을 차지하므로, 인덱스를 조정하여 배치합니다.
+                otherRearguardUnits.forEach((unit, i) => {
+                    // i=0 -> -1, i=1 -> 1, i=2 -> -2, i=3 -> 2 ...
+                    const positionIndex = (i % 2 === 0) ? - (Math.floor(i / 2) + 1) : (Math.floor(i / 2) + 1);
+                    
                     const sideOffsetAngle = this.direction + Math.PI / 2;
-                    const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
-                    const destX = hqX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
-                    const destY = hqY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
-                    formationPoints.push({ x: destX, y: destY });
-                }
+                    const sideOffset = positionIndex * offsetInfo.spread;
 
-                // 각 대대가 자신에게 가장 가까운, 아직 할당되지 않은 목표 지점을 찾아가도록 합니다.
-                const assignedPoints = new Array(count).fill(false);
-                battalionsInRole.forEach(unit => {
-                    let closestPointIndex = -1;
-                    let minDistance = Infinity;
-                    for (let i = 0; i < formationPoints.length; i++) {
-                        if (assignedPoints[i]) continue;
-                        // 전투 중인 대대에게는 새로운 진형 목표를 할당하지 않습니다.
-                        if (unit.isInCombat) continue;
-
-                        const point = formationPoints[i];
-                        const distance = Math.hypot(unit.x - point.x, unit.y - point.y);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestPointIndex = i;
-                        }
-                    }
-                    if (closestPointIndex !== -1) {
-                        unit.destination = formationPoints[closestPointIndex];
-                        assignedPoints[closestPointIndex] = true;
-                    }
+                    const destX = this.x + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
+                    const destY = this.y + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
+                    unit.destination = { x: destX, y: destY };
                 });
-            });
-        } else if (this.subUnits.length > 0 && this.subUnits.find(u => u instanceof Company)) {
-            // 2단계: 대대의 경우: 휘하 중대들을 역할에 따라 배치합니다.
-            const hqX = this.x; // 자신의 위치를 기준으로 합니다.
-            const hqY = this.y;
-            const companies = this.subUnits.filter(u => u instanceof Company && u !== this.hqCompany && !u.isDestroyed); // 본부 중대 제외
 
-            // 역할별로 중대를 그룹화합니다.
-            const roles = {};
-            companies.forEach(c => {
-                if (!roles[c.role]) roles[c.role] = [];
-                roles[c.role].push(c);
-            });
-
-            // 각 역할 그룹에 대해 진형 위치를 설정합니다.
-            Object.keys(roles).forEach(role => {
-                const companiesInRole = roles[role];
-                const offsetInfo = FORMATION_OFFSETS[role];
-                if (!offsetInfo) return;
-
-                // 역할에 속한 중대들을 배치합니다.
-                this.setSubUnitFormation(companiesInRole, offsetInfo);
-            });
-        }
+            } else {
+                // 후위가 아닌 다른 역할의 부대들을 배치합니다.
+                this.setSubUnitFormation(unitsInRole, offsetInfo);
+            }
+        });
     }
 
     /**
@@ -285,7 +240,7 @@ class CommandUnit extends Unit {
 class Battalion extends CommandUnit {
     constructor(name, x, y, team, size) {
         super(name, x, y, team, size, 'BATTALION'); // Battalion은 이제 CommandUnit을 상속받습니다.
-        this.role = BATTALION_ROLES.MAIN_FORCE; // 기본 역할은 '주력'
+        this.role = FORMATION_ROLES.FRONTLINE; // 기본 역할은 '전위'
         // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 CommandUnit이므로, x, y, direction getter/setter는 CommandUnit의 것을 사용합니다.
@@ -321,7 +276,7 @@ class Battalion extends CommandUnit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
-        this.role = COMPANY_ROLES.REARGUARD; // 기본 역할은 '후위'
+        this.role = FORMATION_ROLES.REARGUARD; // 기본 역할은 '후위'
         this.formationRadius = 20;
         this.combatParticipation = 0; // 전투 참여도 (0 to 1, 거리에 따라)
         this.lineIndex = -1; // 진형 내 자신의 순번 (왼쪽부터 0, 1, 2...)
