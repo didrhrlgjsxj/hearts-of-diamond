@@ -29,10 +29,10 @@ const DIVISION_TEMPLATES = {
             // 1. 사단 유닛을 직접 생성합니다.
             const division = new SymbolUnit(unitName, x, y, team, 12, 'DIVISION');
 
-            // 2. 본부 대대를 생성하여 사단의 hqBattalion으로 지정합니다.
+            // 2. 본부 중대를 생성하여 능력치 계산에만 사용하고, 사단의 hqCompany로 참조만 유지합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
             division.hqCompany = hqCompany;
-            division.addUnit(hqCompany);
+            // division.addUnit(hqCompany); // 더 이상 실제 하위 유닛으로 추가하지 않습니다.
 
             // 3. 나머지 9개의 보병 대대를 생성하여 추가합니다.
             const rolesToAssign = [
@@ -47,8 +47,11 @@ const DIVISION_TEMPLATES = {
                 division.addUnit(battalion);
             }
 
+            // 모든 편제가 끝난 후 능력치를 계산합니다. 본부 중대의 능력치도 포함되어야 합니다.
+            const allSquadsForStats = [...division.getAllSquads(), ...hqCompany.getAllSquads()];
+            division.calculateStats(allSquadsForStats);
             division.calculateStats(); // 모든 편제가 끝난 후 능력치 계산
-            division.organization = division.maxOrganization; // 계산된 능력치 기반으로 조직력 초기화
+            division.initializeOrganization(); // 계산된 능력치 기반으로 조직력 초기화
 
             // 4. 사단의 전투 단위는 휘하의 모든 대대들입니다.
             division.combatSubUnits = division.getAllBattalions();
@@ -58,7 +61,6 @@ const DIVISION_TEMPLATES = {
             division.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
 
             division.updateCombatSubUnitPositions();
-            division.initializeOrganization(); // 모든 편제가 끝난 후 조직력 초기화
             return division;
         }
     },
@@ -74,10 +76,10 @@ const DIVISION_TEMPLATES = {
             // 1. 여단 유닛을 직접 생성합니다.
             const brigade = new SymbolUnit(unitName, x, y, team, 10, 'BRIGADE');
 
-            // 2. 본부 대대를 생성하여 여단의 hqBattalion으로 지정합니다.
+            // 2. 본부 중대를 생성하여 능력치 계산에만 사용하고, 여단의 hqCompany로 참조만 유지합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
             brigade.hqCompany = hqCompany;
-            brigade.addUnit(hqCompany);
+            // brigade.addUnit(hqCompany); // 더 이상 실제 하위 유닛으로 추가하지 않습니다.
 
             // 3. 나머지 2개의 보병 대대를 생성하여 추가합니다.
             const rolesToAssign = [
@@ -91,8 +93,10 @@ const DIVISION_TEMPLATES = {
                 brigade.addUnit(battalion);
             }
 
-            brigade.calculateStats();
-            brigade.organization = brigade.maxOrganization;
+            // 본부 중대를 포함하여 능력치를 계산합니다.
+            const allSquadsForStats = [...brigade.getAllSquads(), ...hqCompany.getAllSquads()];
+            brigade.calculateStats(allSquadsForStats);
+            brigade.initializeOrganization();
 
             // 4. 전투를 수행할 부대 목록(combatSubUnits)을 설정합니다. (HQ 제외)
             // 여단의 전투 단위는 휘하의 모든 대대들입니다.
@@ -103,7 +107,6 @@ const DIVISION_TEMPLATES = {
             brigade.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
 
             brigade.updateCombatSubUnitPositions();
-            brigade.initializeOrganization();
             return brigade;
         }
     },
@@ -117,10 +120,10 @@ const DIVISION_TEMPLATES = {
             // 1. 연대 유닛을 직접 생성합니다.
             const regiment = new SymbolUnit(unitName, x, y, team, 9, 'REGIMENT');
 
-            // 2. 본부 대대를 생성하여 연대의 hqBattalion으로 지정합니다.
+            // 2. 본부 중대를 생성하여 능력치 계산에만 사용하고, 연대의 hqCompany로 참조만 유지합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
             regiment.hqCompany = hqCompany;
-            regiment.addUnit(hqCompany);
+            // regiment.addUnit(hqCompany); // 더 이상 실제 하위 유닛으로 추가하지 않습니다.
 
             // 3. 나머지 1개의 보병 대대를 생성하여 추가합니다.
             const rolesToAssign = [
@@ -133,15 +136,15 @@ const DIVISION_TEMPLATES = {
                 regiment.addUnit(battalion);
             }
 
-            regiment.calculateStats();
-            regiment.organization = regiment.maxOrganization;
+            const allSquadsForStats = [...regiment.getAllSquads(), ...hqCompany.getAllSquads()];
+            regiment.calculateStats(allSquadsForStats);
+            regiment.initializeOrganization();
 
             // 연대의 전투 단위는 휘하의 모든 대대들입니다.
             regiment.combatSubUnits = regiment.getAllBattalions();
             const companyCount = regiment.getAllCompanies().length;
             regiment.size = 6 + companyCount * 0.5;
             regiment.updateCombatSubUnitPositions();
-            regiment.initializeOrganization();
             return regiment;
         }
     },
@@ -155,9 +158,9 @@ const DIVISION_TEMPLATES = {
             const battalion = new Battalion(unitName, x, y, team, 8);
 
             // 대대의 본부 중대를 생성하고 할당합니다.
-            const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `${unitName} 본부`);
+            const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `본부`);
             battalion.hqCompany = hqCompany;
-            battalion.addUnit(hqCompany);
+            // battalion.addUnit(hqCompany); // 더 이상 실제 하위 유닛으로 추가하지 않습니다.
 
             const rolesToAssign = [
                 FORMATION_ROLES.VANGUARD,
@@ -187,18 +190,17 @@ const DIVISION_TEMPLATES = {
                 });
             });
 
-
-            battalion.calculateStats();
-            battalion.organization = battalion.maxOrganization;
+            const allSquadsForStats = [...battalion.getAllSquads(), ...hqCompany.getAllSquads()];
+            battalion.calculateStats(allSquadsForStats);
+            battalion.initializeOrganization();
 
             // 대대는 이제 스스로가 전투 단위입니다.
             battalion.combatSubUnits.push(battalion);
 
             // 대대 크기를 휘하 중대 수에 비례하여 조정합니다.
-            const companyCount = battalion.getAllCompanies().length;
+            const companyCount = battalion.getAllCompanies().length + 1; // 본부 중대 포함
             battalion.size = 6 + companyCount * 0.5; // 기본 크기 6 + 중대당 0.5
             battalion.updateCombatSubUnitPositions();
-            battalion.initializeOrganization();
             return battalion;
         }
     },

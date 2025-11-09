@@ -119,19 +119,11 @@ class SymbolUnit extends Unit {
             if (!offsetInfo) return;
 
             // 후위(Rearguard) 역할의 경우, 본부 중대를 중앙에 고정합니다.
-            if (role === FORMATION_ROLES.REARGUARD && this.hqCompany) {
-                // 본부 중대를 제외한 나머지 후위 부대들
-                const otherRearguardUnits = unitsInRole.filter(u => u !== this.hqCompany);
-                
-                // 1. 본부 중대의 목표 위치는 항상 기준점(부모의 위치)입니다.
-                this.hqCompany.destination = { x: this.x, y: this.y };
-
-                // 2. 나머지 후위 부대들을 본부 중대 주변에 배치합니다.
-                // 본부 중대가 중앙(0)을 차지하므로, 인덱스를 조정하여 배치합니다.
-                otherRearguardUnits.forEach((unit, i) => {
-                    // i=0 -> -1, i=1 -> 1, i=2 -> -2, i=3 -> 2 ...
-                    const positionIndex = (i % 2 === 0) ? - (Math.floor(i / 2) + 1) : (Math.floor(i / 2) + 1);
-                    
+            if (role === FORMATION_ROLES.REARGUARD) {
+                // 후위 부대들은 심볼 부대(this.x, this.y)를 중심으로 좌우로 배치됩니다.
+                // 본부 중대는 더 이상 물리적 유닛이 아니므로, 모든 후위 부대를 대상으로 배치 로직을 실행합니다.
+                unitsInRole.forEach((unit, i) => {
+                    const positionIndex = i - (unitsInRole.length - 1) / 2;
                     const sideOffsetAngle = this.direction + Math.PI / 2;
                     const sideOffset = positionIndex * offsetInfo.spread;
 
@@ -139,10 +131,9 @@ class SymbolUnit extends Unit {
                     const destY = this.y + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
                     unit.destination = { x: destX, y: destY };
                 });
-
             } else {
                 // 후위가 아닌 다른 역할의 부대들을 배치합니다.
-                this.setSubUnitFormation(unitsInRole, offsetInfo);
+                this.setSubUnitFormation(unitsInRole, offsetInfo); // 기존 로직 재사용
             }
         });
     }

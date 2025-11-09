@@ -154,11 +154,12 @@ class Unit {
      * 모든 하위 분대(Squad)를 기반으로 이 유닛의 모든 전투 능력치를 계산하고 업데이트합니다.
      * 이 메서드는 편제가 변경될 때마다 호출되어야 합니다.
      */
-    calculateStats() {
+    calculateStats(squadsToCalculate) {
         // 최하위 전투 단위인 분대(Squad)는 이 메서드를 실행할 필요가 없습니다.
         if (this instanceof Squad) return;
 
-        const allSquads = this.getAllSquads();
+        // 인자로 분대 목록이 주어지지 않으면, 자신의 하위 분대를 사용합니다.
+        const allSquads = squadsToCalculate || this.getAllSquads();
 
         // UNIT_STAT_AGGREGATORS에 정의된 각 계산 함수를 실행하여 능력치를 할당합니다.
         this.firepower = UNIT_STAT_AGGREGATORS.firepower(allSquads);
@@ -601,7 +602,6 @@ class Unit {
      * @param {CanvasRenderingContext2D} ctx 캔버스 렌더링 컨텍스트
      */
     draw(ctx) {
-        const SYMBOL_UI_OFFSET_Y = -40; // SymbolUnit의 UI 요소들을 위로 올리는 값
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
@@ -609,12 +609,12 @@ class Unit {
         if (this instanceof SymbolUnit && this.subUnits.length > 0) {
             const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
             if (visibleSubUnits.length > 0) {
-                // 1. '부대 마크'의 위치는 본부 부대 위치(this.x, this.y)에서 오프셋을 적용합니다.
+                // 1. '부대 마크'의 위치는 SymbolUnit의 실제 위치(this.x, this.y)입니다.
                 const markCenterX = this.x;
-                const markCenterY = this.y + SYMBOL_UI_OFFSET_Y;
+                const markCenterY = this.y;
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
-                const totalCurrentStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
+                const totalCurrentStrength = this.currentStrength; // 이제 getter가 올바르게 계산합니다.
                 const totalBaseStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
                 const totalOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.organization, 0);
                 const totalMaxOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
@@ -651,6 +651,9 @@ class Unit {
                 ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
                 ctx.strokeStyle = 'black';
                 ctx.strokeRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
+
+                // 부대 규모 기호(단대호)를 그립니다.
+                this.drawEchelonSymbol(ctx);
 
             }
         }
@@ -689,7 +692,7 @@ class Unit {
 
         // 부대 방향을 나타내는 선을 그립니다.
         ctx.save();
-        ctx.translate(this.x, this instanceof SymbolUnit ? this.y + SYMBOL_UI_OFFSET_Y : this.y);
+        ctx.translate(this.x, this.y);
         ctx.rotate(this.direction);
         ctx.beginPath();
         ctx.moveTo(0, 0); // 부대 중심에서
