@@ -123,14 +123,22 @@ class Unit {
      * 하위 유닛이 있으면 그 유닛들의 병력 총합을, 없으면 자신의 기본 병력을 기준으로 계산합니다.
      */
     get currentStrength() {
+        // SymbolUnit은 휘하 모든 부대의 내구력을 합산하여 반환합니다.
+        if (this instanceof SymbolUnit) {
+            return this.subUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
+        }
         if (this.isDestroyed) return 0;
         return Math.max(0, this.damageTaken > 0 ? this._baseStrength - this.damageTaken : this._baseStrength);
     }
 
     /**
-     * 기본 편성 병력을 반환합니다. 이 값은 생성 시점에 고정됩니다.
+     * 기본 편성 병력을 반환합니다.
      */
     get baseStrength() {
+        // SymbolUnit은 휘하 모든 부대의 기본 내구력을 합산하여 반환합니다.
+        if (this instanceof SymbolUnit) {
+            return this.subUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+        }
         return this._baseStrength;
     }
 
@@ -180,10 +188,26 @@ class Unit {
     }
 
     get maxOrganization() {
+        // SymbolUnit은 휘하 모든 부대의 최대 조직력을 합산합니다.
+        if (this instanceof SymbolUnit) {
+            return this.subUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
+        }
         if (this instanceof Squad) {
             return 100 + (this.organizationBonus || 0);
         }
         return 100 + this.getAllSquads().reduce((total, squad) => total + squad.organizationBonus, 0);
+    }
+
+    set organization(value) {
+        if (!(this instanceof SymbolUnit)) {
+            this._organization = value;
+        }
+    }
+    get organization() {
+        if (this instanceof SymbolUnit) {
+            return this.subUnits.reduce((sum, unit) => sum + unit.organization, 0);
+        }
+        return this._organization;
     }
 
     /**
@@ -453,27 +477,26 @@ class Unit {
      * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
-    takeDamage(totalAttackPower, firepowerDamage) {
-        // 대대급 미만(중대 등)은 피해를 받지 않습니다.
-        if (!(this instanceof SymbolUnit)) return;
-
+    takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
         // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
         const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
         const damageAbsorptionRate = this.minOrgDamageAbsorption + (orgRatio * absorptionRange);
-
+    
         // 2. 총 공격력을 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamage = totalAttackPower * damageAbsorptionRate;
         const strDamage = totalAttackPower * (1 - damageAbsorptionRate);
-
+    
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
         const finalOrgDamage = orgDamage + firepowerDamage;
-
+    
         // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
-        const tacticModifier = this.tactic ? this.tactic.orgDamageModifier : 1.0;
+        // 전술은 대대급에만 있으므로, 중대는 부모의 전술을 참조합니다.
+        const parentBattalion = this.parent?.parent; // 중대 -> 소대 -> 대대
+        const tacticModifier = parentBattalion?.tactic ? parentBattalion.tactic.orgDamageModifier : 1.0;
         const modifiedOrgDamage = finalOrgDamage * tacticModifier;
-        this.organization = Math.max(0, this.organization - modifiedOrgDamage);
-
+        this._organization = Math.max(0, this._organization - modifiedOrgDamage);
+    
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
         if (strDamage > 0) {
             this.damageTaken += strDamage;
@@ -482,19 +505,18 @@ class Unit {
                 text: `-${Math.floor(strDamage)}`,
                 life: 1.5,
                 alpha: 1.0,
-                x: this.x,
-                y: this.y - this.size - 15, // 바 위로 표시
+                x: this.x, // 피해는 중대 자신이 받으므로 this.x 사용
+                y: this.y - this.size - 15,
             });
         }
-
+    
         // 5. 유닛 파괴 확인
         if (this.currentStrength <= 0) {
             this.isDestroyed = true;
-            this.organization = 0;
+            this._organization = 0;
             this.destination = null;
         }
     }
-
     /**
      * 유닛의 시각 효과(피해량 텍스트 등)를 업데이트합니다.
      * @param {number} deltaTime
@@ -611,13 +633,13 @@ class Unit {
             if (visibleSubUnits.length > 0) {
                 // 1. '부대 마크'의 위치는 SymbolUnit의 실제 위치(this.x, this.y)입니다.
                 const markCenterX = this.x;
-                const markCenterY = this.y;
+                const markCenterY = this.y; // 오프셋 제거
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
-                const totalCurrentStrength = this.currentStrength; // 이제 getter가 올바르게 계산합니다.
-                const totalBaseStrength = visibleSubUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
-                const totalOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.organization, 0);
-                const totalMaxOrganization = visibleSubUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
+                const totalCurrentStrength = this.currentStrength;
+                const totalBaseStrength = this.baseStrength;
+                const totalOrganization = this.organization;
+                const totalMaxOrganization = this.maxOrganization;
 
                 // 3. 능력치 바 그리기
                 const barWidth = 40;
@@ -645,7 +667,7 @@ class Unit {
                 ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
                 // 4. 반투명한 부대 아이콘 그리기
-                const markOpacity = this.isSelected ? 0.6 : 0.3; // 선택 시 더 진하게
+                const markOpacity = this.isSelected ? 0.5 : 0.2; // 더 투명하게 변경
                 const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
                 ctx.fillStyle = color;
                 ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
@@ -658,18 +680,11 @@ class Unit {
             }
         }
         
-        // --- 디버깅용: 모든 유닛 위에 현재 내구력 표시 ---
-        // ctx.font = 'bold 14px sans-serif';
-        // ctx.fillStyle = 'red';
-        // ctx.textAlign = 'center';
-        // ctx.textBaseline = 'bottom';
-        // ctx.fillText(`내구력: ${Math.floor(this.currentStrength)}`, this.x, this.y - this.size - 15);
-        // ctx.textBaseline = 'alphabetic'; // 텍스트 기준선 원래대로
-
         // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
         // SymbolUnit 자체는 '부대 마크'로만 표현되므로 자신의 아이콘을 그리지 않습니다.
         if (!(this instanceof SymbolUnit)) {
             this.drawOwnIcon(ctx);
+            this.drawStatBars(ctx); // 중대 개별 능력치 바 그리기
         }
 
         // 전투 중일 때 아이콘을 깜빡이게 표시
@@ -763,6 +778,49 @@ class Unit {
                 subUnit.draw(ctx);
             });
         }
+    }
+
+    /**
+     * 유닛 아이콘 위에 내구력과 조직력 바를 그립니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    drawStatBars(ctx) {
+        const barWidth = 40;
+        const barHeight = 5;
+        const barX = this.x - barWidth / 2;
+        const barY = this.y - this.size - 15; // 아이콘 위로
+
+        // 1. 내구력 바 배경
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // 2. 현재 내구력 바 (애니메이션 효과 포함)
+        if (this.displayStrength === -1) {
+            this.displayStrength = this.currentStrength;
+        } else {
+            // 부드럽게 감소하는 효과
+            if (this.displayStrength > this.currentStrength) {
+                const decreaseAmount = this.baseStrength * 0.5 * (ctx.canvas.deltaTime || 0.016);
+                this.displayStrength = Math.max(this.currentStrength, this.displayStrength - decreaseAmount);
+            } else {
+                this.displayStrength = this.currentStrength;
+            }
+        }
+        const strengthRatio = this.baseStrength > 0 ? this.displayStrength / this.baseStrength : 0;
+        ctx.fillStyle = '#ff8c00'; // DarkOrange
+        ctx.fillRect(barX, barY, barWidth * strengthRatio, barHeight);
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+        // 3. 조직력 바
+        const orgBarY = barY + barHeight + 2;
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, orgBarY, barWidth, barHeight);
+        const orgRatio = this.maxOrganization > 0 ? this._organization / this.maxOrganization : 0;
+        ctx.fillStyle = '#00ff00'; // Lime Green
+        ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
+        ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
     }
 
     /**

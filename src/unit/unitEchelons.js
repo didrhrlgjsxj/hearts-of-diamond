@@ -216,6 +216,7 @@ class Company extends Unit {
         this.leftNeighbor = null; // 왼쪽 이웃 중대
         this.rightNeighbor = null; // 오른쪽 이웃 중대
         this.combatEffectiveness = 1.0; // 전투 효율성 계수
+        this._organization = this.maxOrganization; // 중대별 개별 조직력
         this.companyTarget = null; // 중대가 조준하는 적 중대
         // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }

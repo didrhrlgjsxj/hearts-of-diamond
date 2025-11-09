@@ -155,7 +155,8 @@ const DIVISION_TEMPLATES = {
             const unitNumber = unitCounters['Battalion']++;
             const unitName = `제${unitNumber}대대`;
 
-            const battalion = new Battalion(unitName, x, y, team, 8);
+            // Battalion이 SymbolUnit을 상속하므로, SymbolUnit으로 생성해야 합니다.
+            const battalion = new SymbolUnit(unitName, x, y, team, 8, 'BATTALION');
 
             // 대대의 본부 중대를 생성하고 할당합니다.
             const hqCompany = DIVISION_TEMPLATES["HQ Company"].build(x, y, team, `본부`);
