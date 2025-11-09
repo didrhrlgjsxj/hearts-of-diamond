@@ -1,7 +1,6 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let worker; // 웹 워커 인스턴스
 // --- 게임 월드 설정 ---
 let mapGrid; // 맵 데이터 관리 인스턴스
 const nations = new Map(); // 국가 인스턴스 관리
@@ -53,27 +52,6 @@ initializeNations();
 // UI 인스턴스를 저장할 변수 및 초기화
 const gameUI = new GameUI(camera, nations);
 
-// --- 웹 워커 초기화 ---
-function initializeWorker() {
-    worker = new Worker('src/gameWorker.js');
-
-    // 워커로부터 업데이트된 게임 상태를 받습니다.
-    worker.onmessage = function(e) {
-        const { type, data } = e.data;
-        if (type === 'updateComplete') {
-            // 받은 데이터로 메인 스레드의 상태를 덮어씁니다.
-            topLevelUnits.length = 0;
-            Array.prototype.push.apply(topLevelUnits, data.topLevelUnits);
-            
-            // nations, broadcastedBattle 등도 동일하게 업데이트
-            broadcastedBattle = data.broadcastedBattle;
-            // 선택된 유닛 참조 유지
-            if (selectedUnit) {
-                selectedUnit = topLevelUnits.find(u => u.id === selectedUnit.id) || null;
-            }
-        }
-    };
-}
 
 /**
  * 게임 속도를 설정합니다.
@@ -99,15 +77,7 @@ function initializeNations() {
 
 // --- UI 초기화 ---
 document.body.appendChild(timeDisplay);
-initializeWorker();
-// 워커에 초기 게임 상태 전송
-worker.postMessage({
-    type: 'init',
-    data: {
-        topLevelUnits: topLevelUnits, // 초기 유닛 데이터
-        nations: Array.from(nations.values()) // 초기 국가 데이터
-    }
-});
+
 
 
 function resize() {
@@ -179,14 +149,31 @@ function update(currentTime) {
     gameTime.timeAccumulator += scaledDeltaTime;
     gameTime.totalHours = Math.floor(gameTime.timeAccumulator);
 
+    // 매 게임 시간(hour)이 바뀔 때마다 생산 및 경제 업데이트를 처리합니다.
+    if (gameTime.totalHours > lastHour) {
+        const hoursPassed = gameTime.totalHours - lastHour;
+
+        // --- 일간 업데이트 (자정마다) ---
+        if (Math.floor(lastHour / 24) < Math.floor(gameTime.totalHours / 24)) {
+            nations.forEach((nation) => {
+                nation.economy.updateDailyEconomy();
+            });
+        }
+
+        // --- 시간당 생산 업데이트 ---
+        nations.forEach((nation) => {
+            const currentTick = gameTime.totalHours % PRODUCTION_TICKS;
+            nation.economy.updateHourlyProduction(currentTick, hoursPassed);
+        });
+        lastHour = gameTime.totalHours;
+    }
+
     camera.update(deltaTime);
     
     // --- 유닛 로직 업데이트 ---
-    // 이제 워커에게 업데이트를 요청합니다.
-    worker.postMessage({
-        type: 'update',
-        data: { scaledDeltaTime, gameTime }
-    });
+    // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
+    broadcastedBattle = null; // 매 프레임 중계 전투 초기화
+    updateUnits(topLevelUnits, scaledDeltaTime);
 
     // 전투 중계 UI 업데이트
     if (broadcastedBattle && (broadcastedBattle.unitA.isDestroyed || broadcastedBattle.unitB.isDestroyed)) {
@@ -195,6 +182,23 @@ function update(currentTime) {
     gameUI.updateBattlePanel(broadcastedBattle);
     
     gameUI.updateProductionPanel();
+
+    // --- 파괴된 유닛 제거 ---
+    const cleanupResult = cleanupDestroyedUnits(topLevelUnits, selectedUnit);
+    // topLevelUnits 배열을 직접 수정하는 대신, 필터링된 새 배열을 할당합니다.
+    // 이렇게 하면 참조 문제를 피하고 더 안전하게 상태를 관리할 수 있습니다.
+    // topLevelUnits = cleanupResult.remainingUnits; // 이 방식은 전역 변수 참조 문제 발생 가능
+    
+    // 원래 배열의 내용을 변경하여 전역 참조를 유지합니다.
+    topLevelUnits.length = 0;
+    Array.prototype.push.apply(topLevelUnits, cleanupResult.remainingUnits);
+    
+    selectedUnit = cleanupResult.newSelectedUnit;
+
+    // 선택된 유닛이 파괴되었다면 UI를 업데이트합니다.
+    if (selectedUnit !== cleanupResult.newSelectedUnit) {
+        gameUI.updateCompositionPanel(selectedUnit);
+    }
 }
 
 function draw() {
