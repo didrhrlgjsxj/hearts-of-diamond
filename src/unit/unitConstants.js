@@ -77,7 +77,7 @@ const EFFECTIVENESS_MODIFIERS = {
 };
 
 // 유닛 간 최소 이격 거리
-const MIN_UNIT_SPACING = 15;
+const MIN_UNIT_SPACING = 30;
 
 // 전투 중 중대가 기본 진형 위치에서 벗어날 수 있는 최대 거리
 const MAX_FORMATION_DEVIATION = 50;

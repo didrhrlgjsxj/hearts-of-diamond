@@ -26,12 +26,24 @@ class Camera {
      * 카메라 제어를 위한 이벤트 리스너를 등록합니다.
      */
     _addEventListeners() {
-        this.canvas.addEventListener('wheel', (e) => {
+        this.canvas.addEventListener('wheel', (e) => { // 'e' 이벤트 객체를 사용합니다.
             e.preventDefault();
+
+            // 1. 줌 하기 전, 마우스 포인터의 월드 좌표를 기록합니다.
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const worldPosBeforeZoom = this.screenToWorld(mouseX, mouseY);
+
+            // 2. 줌 레벨을 변경합니다.
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
             this.zoom *= zoomFactor;
-            // 줌 레벨을 최소 0.5, 최대 5로 제한합니다.
             this.zoom = Math.max(0.5, Math.min(this.zoom, 5));
+
+            // 3. 줌 한 후, 마우스 포인터가 여전히 같은 월드 좌표를 가리키도록 카메라 위치를 보정합니다.
+            const worldPosAfterZoom = this.screenToWorld(mouseX, mouseY);
+            this.x += worldPosBeforeZoom.x - worldPosAfterZoom.x;
+            this.y += worldPosBeforeZoom.y - worldPosAfterZoom.y;
         });
 
         window.addEventListener('keydown', (e) => {
