@@ -207,85 +207,29 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     topLevelUnits.forEach(unit => processUnitMovement(unit, scaledDeltaTime));
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
-}
 
-/**
- * 유닛과 그 하위 유닛들의 이동 로직(updateMovement)을 재귀적으로 처리합니다.
- * @param {Unit} unit 
- * @param {number} scaledDeltaTime 
- */
-function processUnitMovement(unit, scaledDeltaTime) {
-    if (unit.isDestroyed) return;
-    unit.updateMovement(scaledDeltaTime);
-    unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, scaledDeltaTime));
-}
-/**
- * 유닛과 그 하위 유닛들의 진형 로직(updateCombatSubUnitPositions)을 재귀적으로 처리합니다.
- * @param {Unit} unit 
- */
-function processFormationUpdate(unit) {
-    if (unit.isDestroyed) return;
-    if (unit instanceof SymbolUnit) {
-        unit.updateCombatSubUnitPositions();
-    }
-    unit.subUnits.forEach(subUnit => processFormationUpdate(subUnit)); // 파괴된 하위 유닛은 내부적으로 무시됨
-}
-
-/**
- * 특정 아군 전투 중대(sub-unit)에 가장 가까운 적 전투 중대를 찾습니다.
- * @param {Unit} friendlySubUnit - 대상 아군 전투 중대
- * @param {Unit[]} allTopLevelUnits - 게임 월드의 모든 최상위 유닛 목록
- * @returns {{unit: Unit|null, distance: number}} - 가장 가까운 적 유닛과 그 거리
- */
-function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
-    let closestEnemy = null;
-    let minDistance = friendlySubUnit.engagementRange;
-
-    for (const enemyTopLevelUnit of allTopLevelUnits) {
-        if (enemyTopLevelUnit.team === friendlySubUnit.team || enemyTopLevelUnit.isDestroyed) continue;
-
-        for (const enemySubUnit of enemyTopLevelUnit.combatSubUnits) {
-            const distance = Math.hypot(friendlySubUnit.x - enemySubUnit.x, friendlySubUnit.y - enemySubUnit.y);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestEnemy = enemySubUnit;
-            }
-        }
-    }
-    return { unit: closestEnemy, distance: minDistance };
-}
-
-/**
- * 파괴된 최상위 유닛(isDestroyed가 true)을 게임 월드에서 제거합니다.
- * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
- * @param {Unit | null} selectedUnit - 현재 선택된 유닛
- * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
- */
-function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
-    let newSelectedUnit = selectedUnit;
-
-    // 1. 각 최상위 부대 내에서 파괴된 하위 부대(대대, 중대 등)를 제거합니다.
-    function filterDestroyed(units) {
+    // --- 5. 파괴된 부대 정리 (가장 중요) ---
+    // 이 로직을 updateUnits의 마지막에 두어, 한 프레임 내에서 연쇄적으로 파괴가 처리되도록 합니다.
+    function cleanupRecursively(units) {
         units.forEach(u => {
+            // 1. 가장 깊은 하위 유닛부터 재귀적으로 정리합니다.
             if (u.subUnits.length > 0) {
+                cleanupRecursively(u.subUnits);
+                // 재귀 호출 후, 파괴된 하위 유닛을 배열에서 제거합니다.
                 u.subUnits = u.subUnits.filter(sub => !sub.isDestroyed);
-                filterDestroyed(u.subUnits);
+            }
+
+            // 2. 하위 유닛 정리 후, 현재 유닛이 파괴되어야 하는지 판단합니다.
+            if (u instanceof SymbolUnit) {
+                // 대대(echelon: BATTALION)는 휘하의 모든 전투 중대(Company)가 사라지면 파괴됩니다.
+                // 최상급 부대(사단 등)는 휘하의 모든 대대(SymbolUnit)가 사라지면 파괴됩니다.
+                if (u.subUnits.length === 0) {
+                    u.isDestroyed = true;
+                }
             }
         });
     }
-    filterDestroyed(topLevelUnits);
-
-    // 2. 최상위 부대 자체가 파괴되었는지 확인하고 목록에서 제거합니다.
-    const remainingUnits = topLevelUnits.filter(unit => {
-        // 부대가 파괴되었고, 하위 유닛도 모두 없어졌을 때 완전히 제거합니다.
-        const isTotallyDestroyed = unit.isDestroyed && unit.subUnits.length === 0;
-        if (isTotallyDestroyed && newSelectedUnit === unit) {
-            newSelectedUnit = null;
-        }
-        return !isTotallyDestroyed;
-    });
-
-    return { remainingUnits, newSelectedUnit };
+    cleanupRecursively(topLevelUnits);
 }
 
 /**
@@ -341,20 +285,12 @@ function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
  * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
  */
 function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
+    // 이 함수는 이제 최상위 레벨에서 파괴된 유닛만 제거하는 단순한 역할만 합니다.
+    // 복잡한 재귀 로직은 updateUnits 내부로 이동했습니다.
     let newSelectedUnit = selectedUnit;
 
-    // 1. 각 최상위 부대 내에서 파괴된 하위 대대를 제거합니다.
-    topLevelUnits.forEach(unit => {
-        if (unit instanceof SymbolUnit) {
-            unit.subUnits = unit.subUnits.filter(sub => !sub.isDestroyed);
-            unit.combatSubUnits = unit.combatSubUnits.filter(sub => !sub.isDestroyed);
-        }
-    });
-
-    // 2. 최상위 부대 자체가 파괴되었는지 확인하고 목록에서 제거합니다.
     const remainingUnits = topLevelUnits.filter(unit => {
-        // 부대가 파괴되었고, 하위 유닛도 모두 없어졌을 때 완전히 제거합니다.
-        const isTotallyDestroyed = unit.isDestroyed && unit.subUnits.length === 0;
+        const isTotallyDestroyed = unit.isDestroyed;
         if (isTotallyDestroyed && newSelectedUnit === unit) {
             newSelectedUnit = null;
         }
