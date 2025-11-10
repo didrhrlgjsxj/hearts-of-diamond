@@ -16,7 +16,7 @@ class Unit {
         this.reinforcementLevel = 0; // 증강 레벨
         this.isSelected = false; // 유닛 선택 여부
         this.damageTaken = 0; // 받은 피해량
-        this.engagementRange = 70; // 교전 범위
+        this.engagementRange = 200; // 교전 범위 (탐지 거리)
         this.isInCombat = false; // 전투 상태 여부
         this.isEnemyDetected = false; // 적 발견 상태 여부
         this.isDestroyed = false; // 유닛이 파괴되었는지 여부
@@ -260,7 +260,8 @@ class Unit {
      * @returns {Battalion[]}
      */
     getAllBattalions() {
-        if (this instanceof Battalion) {
+        // Battalion 클래스이거나, echelon이 'BATTALION'인 SymbolUnit을 대대로 인식합니다.
+        if (this instanceof Battalion || (this instanceof SymbolUnit && this.echelon === 'BATTALION')) {
             return [this];
         }
 

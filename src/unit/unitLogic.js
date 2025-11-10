@@ -30,6 +30,8 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         });
     });
 
+    console.log(`[디버그] updateUnits 시작. 전투 가능 중대 수: ${allCompanies.length}`);
+
     // --- 2. 목표 탐색 ---
     for (const myCompany of allCompanies) {
         // 일반적인 목표 탐색: 가장 가까운 적을 찾습니다.
@@ -37,15 +39,24 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         let minDistance = myCompany.engagementRange;
 
         for (const enemyCompany of allCompanies) {
-            if (enemyCompany.team === myCompany.team) continue;
+            if (enemyCompany.team === myCompany.team) {
+                continue;
+            }
 
             const distance = Math.hypot(myCompany.x - enemyCompany.x, myCompany.y - enemyCompany.y);
+            // console.log(`[디버그] 탐색 중: ${myCompany.name} -> ${enemyCompany.name} | 거리: ${distance.toFixed(1)}, 교전범위: ${minDistance}`);
             if (distance < minDistance) {
                 minDistance = distance;
                 closestEnemyCompany = enemyCompany;
             }
         }
-        myCompany.companyTarget = closestEnemyCompany; // 각 중대의 목표를 설정
+        // 목표가 변경되었거나 새로 설정되었을 때만 로그를 출력합니다.
+        if (myCompany.companyTarget !== closestEnemyCompany) {
+            myCompany.companyTarget = closestEnemyCompany; // 각 중대의 목표를 설정
+            if (closestEnemyCompany) {
+                console.log(`[목표 지정] ${myCompany.name}(팀:${myCompany.team}) -> ${closestEnemyCompany.name}(팀:${closestEnemyCompany.team}) | 거리: ${minDistance.toFixed(1)}`);
+            }
+        }
     }
 
     // --- 3. 공격 및 피해 계산 ---
