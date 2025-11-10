@@ -146,7 +146,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         // 대대 간의 굵은 전투선
         // 적 대대(enemyBattalion)의 중대들 중 하나라도 우리 대대(myBattalion)의 중대를 목표로 하고 있는지 확인합니다.
         const isFrontal = enemyBattalion.getAllCompanies().some(enemyComp => {
-            return enemyComp.companyTarget && enemyComp.companyTarget.parent === myBattalion;
+            return enemyComp.companyTarget && enemyComp.companyTarget.parent === myBattalion; // 중대의 부모는 대대
         });
         myBattalionTopLevel.tracers.push({
             from: myBattalion,
