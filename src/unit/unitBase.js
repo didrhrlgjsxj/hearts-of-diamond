@@ -34,6 +34,7 @@ class Unit {
         this.attackCooldown = 2.0; // 공격 주기 (초)
         this.attackProgress = 0;   // 현재 공격 진행도
         this.currentTarget = null; // 현재 공격 대상
+        this.battalionTarget = null; // 대대가 조준하는 적 대대
         this.isBeingTargeted = false; // 다른 유닛에게 공격받고 있는지 여부
         this.combatSubUnits = []; // 실제 전투를 수행하는 가상 하위 부대
         this.formationRadius = 0; // 전투 부대 배치 반경

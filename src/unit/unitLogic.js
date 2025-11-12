@@ -1,5 +1,5 @@
 /**
- * 게임 내 모든 유닛의 상태 업데이트(이동, 전투, 조직력 등)를 담당합니다.
+ * 게임 내 모든 유닛의 상태 업데이트(이동, 전투, 조직력 등)를 담당합니다. (대대 중심 로직)
  * 전역 변수 broadcastedBattle을 설정할 수 있습니다.
  * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
  * @param {number} scaledDeltaTime - 게임 속도가 적용된 프레임 간 시간 간격 (초)
@@ -7,85 +7,81 @@
 function updateUnits(topLevelUnits, scaledDeltaTime) {
 
     // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
-    const allCompanies = []; // 이제 전투의 주체는 '중대'입니다.
+    const allBattalions = [];
     topLevelUnits.forEach(unit => {
         unit.isInCombat = false;
         unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
         unit.tracers = []; // 예광탄 효과 초기화
         unit.updateVisuals(scaledDeltaTime); // 데미지 텍스트 등 시각 효과 업데이트
-        // isBeingTargeted는 이제 중대 단위로 관리되므로 여기서는 초기화하지 않습니다.
-        unit.getAllBattalions().forEach(b => b.isBeingTargeted = false); // 대대별 피격 상태 초기화 (UI 표시용)
 
-        // 모든 전투 가능 부대를 하나의 배열로 모읍니다.
-        // 파괴되지 않은 모든 대대를 순회하며 그 안의 중대를 추출합니다.
-        unit.getAllBattalions().forEach(battalion => {
-            if (!battalion.isDestroyed) {
-                battalion.getAllCompanies().forEach(company => {
-                    if (!company.isDestroyed) {
-                        company.isBeingTargeted = false; // 중대별 피격 상태 초기화
-                        allCompanies.push(company);
-                    }
-                });
-            }
-        });
+        const battalions = unit.getAllBattalions();
+        battalions.forEach(b => {
+            if (b.isDestroyed) return;
+            b.isBeingTargeted = false;
+            b.battalionTarget = null; // 매 턴 목표 초기화
+            b.getAllCompanies().forEach(c => {
+                c.isBeingTargeted = false;
+                c.companyTarget = null; // 중대 목표도 초기화
+            });
+            allBattalions.push(b);
+        })
     });
 
-    console.log(`[디버그] updateUnits 시작. 전투 가능 중대 수: ${allCompanies.length}`);
+    // --- 2. 대대 단위 목표 탐색 ---
+    for (const myBattalion of allBattalions) {
+        let closestEnemyBattalion = null;
+        let minDistance = myBattalion.engagementRange;
 
-    // --- 2. 목표 탐색 ---
-    for (const myCompany of allCompanies) {
-        // 일반적인 목표 탐색: 가장 가까운 적을 찾습니다.
-        let closestEnemyCompany = null;
-        let minDistance = myCompany.engagementRange;
-
-        for (const enemyCompany of allCompanies) {
-            if (enemyCompany.team === myCompany.team) {
-                continue;
-            }
-
-            const distance = Math.hypot(myCompany.x - enemyCompany.x, myCompany.y - enemyCompany.y);
-            // console.log(`[디버그] 탐색 중: ${myCompany.name} -> ${enemyCompany.name} | 거리: ${distance.toFixed(1)}, 교전범위: ${minDistance}`);
+        for (const enemyBattalion of allBattalions) {
+            if (enemyBattalion.team === myBattalion.team) continue;
+            const distance = Math.hypot(myBattalion.x - enemyBattalion.x, myBattalion.y - enemyBattalion.y);
             if (distance < minDistance) {
                 minDistance = distance;
-                closestEnemyCompany = enemyCompany;
+                closestEnemyBattalion = enemyBattalion;
             }
         }
-        // 목표가 변경되었거나 새로 설정되었을 때만 로그를 출력합니다.
-        if (myCompany.companyTarget !== closestEnemyCompany) {
-            myCompany.companyTarget = closestEnemyCompany; // 각 중대의 목표를 설정
-            if (closestEnemyCompany) {
-                console.log(`[목표 지정] ${myCompany.name}(팀:${myCompany.team}) -> ${closestEnemyCompany.name}(팀:${closestEnemyCompany.team}) | 거리: ${minDistance.toFixed(1)}`);
-            }
+        myBattalion.battalionTarget = closestEnemyBattalion;
+
+        // 3. 중대 단위 목표 할당
+        if (myBattalion.battalionTarget) {
+            const myCompanies = myBattalion.getAllCompanies().filter(c => !c.isDestroyed);
+            const enemyCompanies = myBattalion.battalionTarget.getAllCompanies().filter(c => !c.isDestroyed);
+
+            if (myCompanies.length === 0 || enemyCompanies.length === 0) continue;
+
+            // 각 중대에 공격할 적 중대를 할당합니다. (1대1 매칭)
+            myCompanies.forEach((myCompany, index) => {
+                // 적 중대가 더 적을 경우, 마지막 적 중대를 여러 아군 중대가 공격합니다.
+                const targetIndex = Math.min(index, enemyCompanies.length - 1);
+                myCompany.companyTarget = enemyCompanies[targetIndex];
+            });
         }
     }
 
-    // --- 3. 공격 및 피해 계산 ---
+    // --- 4. 공격 및 피해 계산 ---
     const engagedBattalions = new Set(); // 이번 턴에 공격을 수행한 대대를 기록
 
-    for (const myCompany of allCompanies) {
-        const enemyCompany = myCompany.companyTarget;
-        if (!enemyCompany) {
-            myCompany.isInCombat = false;
+    for (const myBattalion of allBattalions) {
+        const enemyBattalion = myBattalion.battalionTarget;
+        if (!enemyBattalion) {
+            myBattalion.isInCombat = false;
             continue;
         }
 
-        // 공격자와 방어자의 최상위 부모(대대)를 찾습니다.
-        const myBattalion = myCompany.parent; // 중대의 부모는 대대입니다.
-        const enemyBattalion = enemyCompany.parent;
-
-        if (!myBattalion || !enemyBattalion) continue;
-        
-        // 대대 및 그 상위 부대, 그리고 중대 자체를 전투 상태로 설정합니다.
+        // 대대 및 그 상위 부대를 전투 상태로 설정합니다.
         myBattalion.getTopLevelParent().isInCombat = true;
         myBattalion.isInCombat = true;
-        myCompany.isInCombat = true;
         enemyBattalion.getTopLevelParent().isInCombat = true;
         enemyBattalion.isInCombat = true;
-        enemyCompany.isInCombat = true;
 
-        // 중대가 공격받고 있음을 표시
-        enemyCompany.isBeingTargeted = true;
+        // 휘하 중대들도 전투 상태로 설정
+        myBattalion.getAllCompanies().forEach(c => c.isInCombat = true);
+        enemyBattalion.getAllCompanies().forEach(c => c.isInCombat = true);
+
+        // 적 대대가 공격받고 있음을 표시
         enemyBattalion.isBeingTargeted = true; // UI 표시용
+        // 적 중대들이 공격받고 있음을 표시
+        enemyBattalion.getAllCompanies().forEach(c => c.isBeingTargeted = true);
 
         // --- 대대 단위 로직 (전술 변경, 공격 턴) ---
         // 한 프레임에 대대별로 한 번만 실행되도록 합니다.
@@ -111,7 +107,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                 myBattalion.attackProgress = 0; // 턴 초기화
 
                 // 이 대대에 속한 모든 중대가 각자의 목표를 공격합니다. (본부 중대 제외)
-                const combatCompanies = myBattalion.getAllCompanies().filter(comp => comp !== myBattalion.hqCompany);
+                const combatCompanies = myBattalion.getAllCompanies().filter(comp => comp !== myBattalion.hqCompany && !comp.isDestroyed);
                 combatCompanies.forEach(c => {
                     if (c.isDestroyed || !c.companyTarget) return; // 파괴되었거나 목표가 없으면 공격 안함
 
@@ -150,15 +146,14 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         const myBattalionTopLevel = myBattalion.getTopLevelParent();
         
         // 중대 간의 얇은 예광탄 (쇼 연출)
-        if (myCompany.companyTarget && myCompany.combatEffectiveness > 0.1) {
-            myBattalionTopLevel.tracers.push({ from: myCompany, to: myCompany.companyTarget, life: 0.3, type: 'company' });
-        }
+        myBattalion.getAllCompanies().forEach(c => {
+            if (c.companyTarget && c.combatEffectiveness > 0.1) {
+                myBattalionTopLevel.tracers.push({ from: c, to: c.companyTarget, life: 0.3, type: 'company' });
+            }
+        });
 
         // 대대 간의 굵은 전투선
-        // 적 대대(enemyBattalion)의 중대들 중 하나라도 우리 대대(myBattalion)의 중대를 목표로 하고 있는지 확인합니다.
-        const isFrontal = enemyBattalion.getAllCompanies().some(enemyComp => {
-            return enemyComp.companyTarget && enemyComp.companyTarget.parent === myBattalion; // 중대의 부모는 대대
-        });
+        const isFrontal = enemyBattalion.battalionTarget === myBattalion;
         myBattalionTopLevel.tracers.push({
             from: myBattalion,
             to: enemyBattalion,
@@ -178,8 +173,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     }
 
     // 전투가 끝난 부대의 상태를 초기화합니다.
-    const allBattalions = new Set(allCompanies.map(c => c.parent).filter(b => b));
-    allBattalions.forEach(battalion => {
+    allBattalions.forEach(battalion => { // 이제 allBattalions는 이미 Set과 유사하게 고유한 대대 목록입니다.
         // 휘하 중대 중 하나라도 전투 중이면 대대는 전투 중 상태를 유지
         const isAnyCompanyInCombat = battalion.getAllCompanies().some(c => c.isInCombat);
         if (!isAnyCompanyInCombat) {
@@ -190,7 +184,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         }
     });
 
-    // --- 4. 조직력 회복 및 최종 업데이트 ---
+    // --- 5. 조직력 회복 및 최종 업데이트 ---
     for (const unit of topLevelUnits) {
         // --- 조직력 회복 로직 ---
         // 모든 중대의 조직력을 회복시킵니다.
@@ -208,7 +202,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
 
-    // --- 5. 파괴된 부대 정리 (가장 중요) ---
+    // --- 6. 파괴된 부대 정리 (가장 중요) ---
     // 이 로직을 updateUnits의 마지막에 두어, 한 프레임 내에서 연쇄적으로 파괴가 처리되도록 합니다.
     function cleanupRecursively(units) {
         units.forEach(u => {
@@ -252,30 +246,6 @@ function processFormationUpdate(unit) {
         unit.updateCombatSubUnitPositions();
     }
     unit.subUnits.forEach(subUnit => processFormationUpdate(subUnit)); // 파괴된 하위 유닛은 내부적으로 무시됨
-}
-
-/**
- * 특정 아군 전투 중대(sub-unit)에 가장 가까운 적 전투 중대를 찾습니다.
- * @param {Unit} friendlySubUnit - 대상 아군 전투 중대
- * @param {Unit[]} allTopLevelUnits - 게임 월드의 모든 최상위 유닛 목록
- * @returns {{unit: Unit|null, distance: number}} - 가장 가까운 적 유닛과 그 거리
- */
-function findClosestEnemySubUnit(friendlySubUnit, allTopLevelUnits) {
-    let closestEnemy = null;
-    let minDistance = friendlySubUnit.engagementRange;
-
-    for (const enemyTopLevelUnit of allTopLevelUnits) {
-        if (enemyTopLevelUnit.team === friendlySubUnit.team || enemyTopLevelUnit.isDestroyed) continue;
-
-        for (const enemySubUnit of enemyTopLevelUnit.combatSubUnits) {
-            const distance = Math.hypot(friendlySubUnit.x - enemySubUnit.x, friendlySubUnit.y - enemySubUnit.y);
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestEnemy = enemySubUnit;
-            }
-        }
-    }
-    return { unit: closestEnemy, distance: minDistance };
 }
 
 /**
