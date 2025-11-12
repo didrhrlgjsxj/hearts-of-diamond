@@ -42,15 +42,9 @@ const timeDisplay = document.createElement('div');
 timeDisplay.id = 'time-display';
 const timeText = document.createElement('span'); // 시간 텍스트만 담을 요소
 timeText.id = 'time-text';
-timeDisplay.appendChild(timeText);
 
-// --- 초기화 ---
-// 맵 초기화
-mapGrid = new MapGrid();
-// 국가 초기화
-initializeNations();
 // UI 인스턴스를 저장할 변수 및 초기화
-const gameUI = new GameUI(camera, nations);
+let gameUI;
 
 
 /**
@@ -75,9 +69,32 @@ function initializeNations() {
     nations.set('red', redNation);
 }
 
-// --- UI 초기화 ---
-document.body.appendChild(timeDisplay);
+/**
+ * 게임의 모든 요소를 초기화하는 메인 함수입니다.
+ */
+async function initializeGame() {
+    // 1. 맵 초기화
+    mapGrid = new MapGrid();
 
+    // 2. 국가 초기화
+    initializeNations();
+
+    // 3. 부대 템플릿 JSON 데이터 로드 (가장 중요)
+    await loadUnitTemplates();
+
+    // 4. UI 초기화 (템플릿 데이터 로드 후)
+    gameUI = new GameUI(camera, nations);
+    document.body.appendChild(timeDisplay);
+    timeDisplay.appendChild(timeText);
+    gameUI.createTimeControls(); // 시간 제어 UI 생성
+
+    // 5. 게임 루프 시작
+    requestAnimationFrame(loop);
+}
+
+// --- 게임 시작 ---
+initializeGame();
+// -----------------
 
 
 function resize() {
@@ -346,7 +363,3 @@ function loop(currentTime) {
     draw();
     requestAnimationFrame(loop);
 }
-
-gameUI.createTimeControls(); // timeDisplay가 DOM에 추가된 후, 시간 제어 UI를 생성합니다.
-
-requestAnimationFrame(loop);

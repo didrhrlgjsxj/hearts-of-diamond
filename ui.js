@@ -127,9 +127,16 @@ class GameUI {
         const teamSelect = this.createSelect('unit-team-select', '팀 선택:', { blue: '블루 공화국', red: '레드 왕국' });
 
         const templateOptions = {};
-        Object.keys(DIVISION_TEMPLATES).forEach(key => {
-            templateOptions[key] = DIVISION_TEMPLATES[key].name;
-        });
+        // JSON 데이터를 기반으로 드롭다운 메뉴를 채웁니다.
+        if (UNIT_TEMPLATES_JSON) {
+            Object.keys(UNIT_TEMPLATES_JSON).forEach(key => {
+                const template = UNIT_TEMPLATES_JSON[key];
+                // 사단급 이상 최상위 편제만 소환 메뉴에 표시합니다.
+                if (template.echelon === 'DIVISION' || template.echelon === 'BRIGADE') {
+                    templateOptions[key] = template.name;
+                }
+            });
+        }
         const templateSelect = this.createSelect('template-select', '부대 설계:', templateOptions);
 
         const spawnButton = document.createElement('button');
@@ -225,11 +232,10 @@ class GameUI {
     spawnUnit() {
         const team = document.getElementById('unit-team-select').value;
         const templateKey = document.getElementById('template-select').value;
-        const template = DIVISION_TEMPLATES[templateKey];
 
-        if (template && template.build) {
+        if (templateKey) {
             const worldCoords = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
-            const newUnit = template.build(worldCoords.x, worldCoords.y, team);
+            const newUnit = buildUnitFromTemplate(templateKey, worldCoords.x, worldCoords.y, team);
             if (newUnit) topLevelUnits.push(newUnit);
         }
     }
