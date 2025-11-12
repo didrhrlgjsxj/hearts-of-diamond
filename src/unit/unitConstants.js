@@ -149,4 +149,16 @@ const UNIT_STAT_AGGREGATORS = {
         const armoredCount = units.filter(unit => unit.armor > 0).length;
         return armoredCount / units.length;
     },
+        // 조직 방어력: 기동력, 정찰력, 최대 조직력에 기반하여 계산됩니다.
+    organizationDefense: (units, maxOrg) => {
+        if (units.length === 0) return 0;
+        // 기동력과 정찰력의 가중 합산
+        const baseDefense = units.reduce((total, unit) => total + (unit.mobility * 0.2 + unit.reconnaissance * 0.1), 0);
+        // 최대 조직력에 따른 보너스 (기본 100을 초과하는 만큼의 10%를 보너스로)
+        const orgBonus = (maxOrg - 100) * 0.1;
+        return baseDefense + orgBonus;
+    },
+
+    // 단위 방어력: 장갑과 화력의 가중 합산으로 계산됩니다.
+    unitDefense: (units) => units.reduce((total, unit) => total + (unit.armor * 0.5 + unit.firepower * 0.1), 0),
 };

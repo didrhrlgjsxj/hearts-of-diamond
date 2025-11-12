@@ -50,6 +50,8 @@ class Unit {
         this.softAttack = 0;
         this.hardAttack = 0;
         this.reconnaissance = 0;
+        this.organizationDefense = 0; // 부대의 유기적 방어력
+        this.unitDefense = 0;         // 개별 단위의 방어력
         this.armor = 0;
         this.tracers = []; // 예광탄 효과 배열
 
@@ -174,6 +176,8 @@ class Unit {
         this.softAttack = UNIT_STAT_AGGREGATORS.softAttack(allSquads);
         this.hardAttack = UNIT_STAT_AGGREGATORS.hardAttack(allSquads);
         this.reconnaissance = UNIT_STAT_AGGREGATORS.reconnaissance(allSquads);
+        this.organizationDefense = UNIT_STAT_AGGREGATORS.organizationDefense(allSquads, this.maxOrganization);
+        this.unitDefense = UNIT_STAT_AGGREGATORS.unitDefense(allSquads);
         this.armor = UNIT_STAT_AGGREGATORS.armor(allSquads);
         this._baseStrength = UNIT_STAT_AGGREGATORS.baseStrength(allSquads);
     }

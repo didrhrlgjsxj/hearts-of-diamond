@@ -58,7 +58,7 @@ class SymbolUnit extends Unit {
     }
     
     updateMovement(deltaTime) {
-        // 1. 지휘 부대 자체의 이동을 먼저 처리합니다. (Unit의 기본 로직 사용)
+        // 1. 부대 자체의 이동을 먼저 처리합니다. (Unit의 기본 로직 사용)
         super.updateMovement(deltaTime);
 
         // 2. 이동이 끝났는지 확인하고 상태를 업데이트합니다.
@@ -121,7 +121,6 @@ class SymbolUnit extends Unit {
             // 후위(Rearguard) 역할의 경우, 본부 중대를 중앙에 고정합니다.
             if (role === FORMATION_ROLES.REARGUARD) {
                 // 후위 부대들은 심볼 부대(this.x, this.y)를 중심으로 좌우로 배치됩니다.
-                // 본부 중대는 더 이상 물리적 유닛이 아니므로, 모든 후위 부대를 대상으로 배치 로직을 실행합니다.
                 unitsInRole.forEach((unit, i) => {
                     const positionIndex = i - (unitsInRole.length - 1) / 2;
                     const sideOffsetAngle = this.direction + Math.PI / 2;

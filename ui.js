@@ -454,6 +454,7 @@ class GameUI {
                 <progress value="${strPercent}" max="100" style="width: 100%;"></progress>
             </div>
             <p><strong>공격력(소프트/하드):</strong> ${softAttackDisplay} / ${hardAttackDisplay}</p>
+            <p><strong>방어력(조직/단위):</strong> ${unit.organizationDefense.toFixed(1)} / ${unit.unitDefense.toFixed(1)}</p>
             <p><strong>현재 전술:</strong> ${tacticInfo}</p>
             ${combatStatsHTML}
         `;
