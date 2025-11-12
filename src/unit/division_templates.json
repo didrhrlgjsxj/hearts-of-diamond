@@ -20,7 +20,7 @@
                     "role": "MIDGUARD"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Infantry_HQ_Company"
         },
         "Armored_Brigade": {
             "name": "기갑 여단",
@@ -37,7 +37,7 @@
                     "role": "FRONTLINE"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Armored_HQ_Company"
         },
         "Infantry_Regiment": {
             "name": "보병 연대",
@@ -54,7 +54,7 @@
                     "role": "FRONTLINE"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Infantry_HQ_Company"
         },
         "Infantry_Battalion": {
             "name": "보병 대대",
@@ -66,7 +66,7 @@
                     "role": "MIDGUARD"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Infantry_HQ_Company"
         },
         "Armored_Battalion": {
             "name": "기갑 대대",
@@ -78,7 +78,7 @@
                     "role": "FRONTLINE"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Armored_HQ_Company"
         },
         "Mechanized_Infantry_Battalion": {
             "name": "기계화 보병 대대",
@@ -90,10 +90,21 @@
                     "role": "FRONTLINE"
                 }
             ],
-            "hq_template_key": "HQ_Company"
+            "hq_template_key": "Infantry_HQ_Company"
         },
-        "HQ_Company": {
-            "name": "본부 중대",
+        "Infantry_HQ_Company": {
+            "name": "보병 본부 중대",
+            "echelon": "COMPANY",
+            "role": "REARGUARD",
+            "sub_units": [
+                {
+                    "template_key": "Infantry_Platoon",
+                    "count": 3
+                }
+            ]
+        },
+        "Armored_HQ_Company": {
+            "name": "기갑 본부 중대",
             "echelon": "COMPANY",
             "role": "REARGUARD",
             "sub_units": [

@@ -135,6 +135,7 @@ canvas.addEventListener('click', (e) => {
 
     // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
     gameUI.updateCompositionPanel(selectedUnit);
+    gameUI.updateStatsPanel(selectedUnit);
 });
 
 canvas.addEventListener('contextmenu', (e) => {

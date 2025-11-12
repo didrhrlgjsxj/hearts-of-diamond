@@ -18,6 +18,12 @@ class GameUI {
         document.body.appendChild(this.compositionPanel);
         this.updateCompositionPanel(null); // 처음에는 숨김
 
+        // 능력치 정보 패널 생성
+        this.statsPanel = document.createElement('div');
+        this.statsPanel.id = 'stats-panel';
+        document.body.appendChild(this.statsPanel);
+        this.updateStatsPanel(null); // 처음에는 숨김
+
         // 생산 정보 패널 생성
         this.productionPanel = document.createElement('div');
         this.productionPanel.id = 'production-panel';
@@ -132,7 +138,7 @@ class GameUI {
             Object.keys(UNIT_TEMPLATES_JSON).forEach(key => {
                 const template = UNIT_TEMPLATES_JSON[key];
                 // 사단급 이상 최상위 편제만 소환 메뉴에 표시합니다.
-                if (template.echelon === 'DIVISION' || template.echelon === 'BRIGADE') {
+                if (template.echelon === 'DIVISION' || template.echelon === 'BRIGADE' || template.echelon === 'REGIMENT') {
                     templateOptions[key] = template.name;
                 }
             });
@@ -303,13 +309,61 @@ class GameUI {
         if (Object.keys(composition).length > 0) {
             html += '<ul>';
             Object.entries(composition).forEach(([type, counts]) => {
-                html += `<li>${type}: ${counts.active} / ${counts.total}</li>`;
+                // 영문 type을 한글 이름으로 변환하여 표시
+                const typeNameMap = {
+                    'INFANTRY': '보병',
+                    'ARMOR': '기갑',
+                    'RECON': '정찰',
+                    'ARTILLERY': '포병',
+                    'ENGINEER': '공병'
+                };
+                const displayName = typeNameMap[type] || type;
+                html += `<li>${displayName}: ${counts.active} / ${counts.total}</li>`;
             });
             html += '</ul>';
         }
         this.compositionPanel.innerHTML = html;
         this.compositionPanel.style.display = 'block';
     }
+
+    /**
+     * 선택된 유닛의 상세 능력치를 UI에 업데이트합니다.
+     * @param {Unit | null} unit 선택된 유닛 또는 null
+     */
+    updateStatsPanel(unit) {
+        if (!unit) {
+            this.statsPanel.innerHTML = '';
+            this.statsPanel.style.display = 'none';
+            return;
+        }
+
+        // SymbolUnit의 경우, 하위 부대의 능력치를 합산하여 보여줍니다.
+        const statsToShow = {
+            '이동 속도': unit.moveSpeed.toFixed(1),
+            '화력': unit.firepower.toFixed(1),
+            '대인 공격': unit.softAttack.toFixed(1),
+            '대물 공격': unit.hardAttack.toFixed(1),
+            '장갑': unit.armor.toFixed(2),
+            '기갑화율': `${(unit.hardness * 100).toFixed(0)}%`,
+            '정찰': unit.reconnaissance.toFixed(1),
+            '조직 방어': unit.organizationDefense.toFixed(1),
+            '단위 방어': unit.unitDefense.toFixed(1),
+        };
+
+        let html = `<h3>${unit.name} 능력치</h3>`;
+        html += '<ul>';
+        Object.entries(statsToShow).forEach(([name, value]) => {
+            html += `<li>
+                        <span>${name}</span>
+                        <span>${value}</span>
+                     </li>`;
+        });
+        html += '</ul>';
+
+        this.statsPanel.innerHTML = html;
+        this.statsPanel.style.display = 'block';
+    }
+
 
     /**
      * 모든 국가의 생산 현황과 장비 비축량을 UI에 업데이트합니다.

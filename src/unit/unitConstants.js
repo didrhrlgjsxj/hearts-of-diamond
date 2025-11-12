@@ -7,55 +7,55 @@ const UNIT_STRENGTHS = {
 };
 
 const UNIT_TYPES = {
-    INFANTRY: '보병',
-    RECON: '정찰',
-    ARMOR: '기갑',
-    ARTILLERY: '포병',
-    ENGINEER: '공병',
+    INFANTRY: 'INFANTRY',
+    RECON: 'RECON',
+    ARMOR: 'ARMOR',
+    ARTILLERY: 'ARTILLERY',
+    ENGINEER: 'ENGINEER',
 };
 
 // NATO APP-6A 표준을 단순화한 유닛 타입 아이콘
 const UNIT_TYPE_ICONS = {
-    [UNIT_TYPES.INFANTRY]: '✕', // 보병 (교차 소총)
-    [UNIT_TYPES.RECON]: '◇',   // 정찰 (기병)
-    [UNIT_TYPES.ARMOR]: '⬬',   // 기갑 (궤도)
-    [UNIT_TYPES.ARTILLERY]: '●', // 포병 (포탄)
-    [UNIT_TYPES.ENGINEER]: 'E',   // 공병
+    'INFANTRY': '✕', // 보병 (교차 소총)
+    'RECON': '◇',   // 정찰 (기병)
+    'ARMOR': '⬬',   // 기갑 (궤도)
+    'ARTILLERY': '●', // 포병 (포탄)
+    'ENGINEER': 'E',   // 공병
 };
 
 // 유닛 타입별 색상
 const UNIT_TYPE_COLORS = {
-    [UNIT_TYPES.INFANTRY]: 'rgba(100, 149, 237, 0.9)', // CornflowerBlue
-    [UNIT_TYPES.RECON]: 'rgba(255, 255, 0, 0.9)',      // Yellow
-    [UNIT_TYPES.ARMOR]: 'rgba(47, 79, 79, 0.9)',       // DarkSlateGray
-    [UNIT_TYPES.ARTILLERY]: 'rgba(255, 69, 0, 0.9)',   // OrangeRed
-    [UNIT_TYPES.ENGINEER]: 'rgba(139, 69, 19, 0.9)',   // SaddleBrown
+    'INFANTRY': 'rgba(100, 149, 237, 0.9)', // CornflowerBlue
+    'RECON': 'rgba(255, 255, 0, 0.9)',      // Yellow
+    'ARMOR': 'rgba(47, 79, 79, 0.9)',       // DarkSlateGray
+    'ARTILLERY': 'rgba(255, 69, 0, 0.9)',   // OrangeRed
+    'ENGINEER': 'rgba(139, 69, 19, 0.9)',   // SaddleBrown
 };
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    [UNIT_TYPES.INFANTRY]: { firepower: 1, softAttack: 2, hardAttack: 0.5, reconnaissance: 1, armor: 0, organizationBonus: 10, mobility: 10 },
-    [UNIT_TYPES.RECON]:    { firepower: 0.5, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 2, mobility: 15 },
-    [UNIT_TYPES.ARMOR]:    { firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 12 },
-    [UNIT_TYPES.ARTILLERY]:{ firepower: 8, softAttack: 3, hardAttack: 4, reconnaissance: 1, armor: 1, organizationBonus: 1, mobility: 8 },
-    [UNIT_TYPES.ENGINEER]: { firepower: 1, softAttack: 1, hardAttack: 6, reconnaissance: 1, armor: 2, organizationBonus: 3, mobility: 10 },
+    'INFANTRY': { firepower: 1, softAttack: 2, hardAttack: 0.5, reconnaissance: 1, armor: 0, organizationBonus: 10, mobility: 10 },
+    'RECON':    { firepower: 0.5, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 2, mobility: 15 },
+    'ARMOR':    { firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 12 },
+    'ARTILLERY':{ firepower: 8, softAttack: 3, hardAttack: 4, reconnaissance: 1, armor: 1, organizationBonus: 1, mobility: 8 },
+    'ENGINEER': { firepower: 1, softAttack: 1, hardAttack: 6, reconnaissance: 1, armor: 2, organizationBonus: 3, mobility: 10 },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
 const UNIT_TYPE_EFFECTIVENESS_RANGE = {
-    [UNIT_TYPES.INFANTRY]: { optimal: 100 }, // 보병: 100 거리에서 효율 100%
-    [UNIT_TYPES.RECON]:    { optimal: 150 }, // 정찰: 150 거리에서 효율 100%
-    [UNIT_TYPES.ARMOR]:    { optimal: 120 }, // 기갑: 120 거리에서 효율 100%
-    [UNIT_TYPES.ARTILLERY]:{ optimal: 250 }, // 포병: 250 거리에서 효율 100%
-    [UNIT_TYPES.ENGINEER]: { optimal: 80  }, // 공병: 80 거리에서 효율 100%
+    'INFANTRY': { optimal: 100 }, // 보병: 100 거리에서 효율 100%
+    'RECON':    { optimal: 150 }, // 정찰: 150 거리에서 효율 100%
+    'ARMOR':    { optimal: 120 }, // 기갑: 120 거리에서 효율 100%
+    'ARTILLERY':{ optimal: 250 }, // 포병: 250 거리에서 효율 100%
+    'ENGINEER': { optimal: 80  }, // 공병: 80 거리에서 효율 100%
 };
 
 // 진형 역할 통일 (대대, 중대 공통 사용)
 const FORMATION_ROLES = {
-    VANGUARD: '선봉',   // Vanguard: 가장 앞에서 적과 처음으로 교전
-    FRONTLINE: '전위',  // Frontline: 주력 전투 담당
-    MIDGUARD: '중위',   // Midguard: 전위와 후위 사이에서 지원
-    REARGUARD: '후위',  // Rearguard: 후방 지원 및 예비대 역할 (본부 위치)
+    VANGUARD: 'VANGUARD',   // Vanguard: 가장 앞에서 적과 처음으로 교전
+    FRONTLINE: 'FRONTLINE',  // Frontline: 주력 전투 담당
+    MIDGUARD: 'MIDGUARD',   // Midguard: 전위와 후위 사이에서 지원
+    REARGUARD: 'REARGUARD',  // Rearguard: 후방 지원 및 예비대 역할 (본부 위치)
 };
 
 // 역할별 진형 오프셋 (상대적 거리)
@@ -69,11 +69,11 @@ const FORMATION_OFFSETS = {
 // 역할과 병과에 따른 전투 효율성 계수
 const EFFECTIVENESS_MODIFIERS = {
     // 선봉대: 정찰, 기갑 유닛이 효율적
-    [FORMATION_ROLES.VANGUARD]:  { [UNIT_TYPES.INFANTRY]: 0.9, [UNIT_TYPES.RECON]: 1.2, [UNIT_TYPES.ARMOR]: 1.1, [UNIT_TYPES.ARTILLERY]: 0.3, [UNIT_TYPES.ENGINEER]: 0.7 },
+    [FORMATION_ROLES.VANGUARD]:  { 'INFANTRY': 0.9, 'RECON': 1.2, 'ARMOR': 1.1, 'ARTILLERY': 0.3, 'ENGINEER': 0.7 },
     // 전위: 보병, 기갑, 공병 유닛이 효율적
-    [FORMATION_ROLES.FRONTLINE]: { [UNIT_TYPES.INFANTRY]: 1.2, [UNIT_TYPES.RECON]: 0.7, [UNIT_TYPES.ARMOR]: 1.2, [UNIT_TYPES.ARTILLERY]: 0.6, [UNIT_TYPES.ENGINEER]: 1.1 },
+    [FORMATION_ROLES.FRONTLINE]: { 'INFANTRY': 1.2, 'RECON': 0.7, 'ARMOR': 1.2, 'ARTILLERY': 0.6, 'ENGINEER': 1.1 },
     // 후위: 포병 유닛이 매우 효율적
-    [FORMATION_ROLES.REARGUARD]: { [UNIT_TYPES.INFANTRY]: 1.0, [UNIT_TYPES.RECON]: 0.8, [UNIT_TYPES.ARMOR]: 0.8, [UNIT_TYPES.ARTILLERY]: 1.5, [UNIT_TYPES.ENGINEER]: 0.9 },
+    [FORMATION_ROLES.REARGUARD]: { 'INFANTRY': 1.0, 'RECON': 0.8, 'ARMOR': 0.8, 'ARTILLERY': 1.5, 'ENGINEER': 0.9 },
 };
 
 // 유닛 간 최소 이격 거리

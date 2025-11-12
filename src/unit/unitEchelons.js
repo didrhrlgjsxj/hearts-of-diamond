@@ -181,7 +181,7 @@ class SymbolUnit extends Unit {
 class Battalion extends SymbolUnit {
     constructor(name, x, y, team, size) {
         super(name, x, y, team, size, 'BATTALION');
-        this.role = FORMATION_ROLES.FRONTLINE; // 기본 역할은 '전위'
+        this.role = 'FRONTLINE'; // 기본 역할은 '전위'
         // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 SymbolUnit이므로, x, y, direction getter/setter는 SymbolUnit의 것을 사용합니다.
@@ -207,8 +207,8 @@ class Battalion extends SymbolUnit {
 /** 중대 (Company) */
 class Company extends Unit {
     constructor(name, x, y, team) {
-        super(name, x, y, 0, 7, team, UNIT_TYPES.INFANTRY);
-        this.role = FORMATION_ROLES.REARGUARD; // 기본 역할은 '후위'
+        super(name, x, y, 0, 7, team, 'INFANTRY');
+        this.role = 'REARGUARD'; // 기본 역할은 '후위'
         this.formationRadius = 20;
         this.combatParticipation = 0; // 전투 참여도 (0 to 1, 거리에 따라)
         this.lineIndex = -1; // 진형 내 자신의 순번 (왼쪽부터 0, 1, 2...)
@@ -253,8 +253,8 @@ class Platoon extends Unit {
 /** 분대 (Squad) */
 class Squad extends Unit {
     constructor(name, x, y, team) {
-        super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, UNIT_TYPES.INFANTRY);
-        this.setType(UNIT_TYPES.INFANTRY); // 기본 타입을 보병으로 설정
+        super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, 'INFANTRY');
+        this.setType('INFANTRY'); // 기본 타입을 보병으로 설정
 
         // 분대는 최하위 단위이므로, combatSubUnits는 상위에서 설정합니다.
         // 만약 분대가 최상위로 생성되면, 자기 자신을 전투 단위로 가집니다.
@@ -267,9 +267,9 @@ class Squad extends Unit {
     setType(type) {
         this.type = type;
         const stats = UNIT_TYPE_STATS[type];
-        if (stats) {
-            Object.assign(this, stats); // stats 객체의 모든 속성을 this에 복사
-        }
+        // this._baseStrength = UNIT_STRENGTHS.SQUAD; // 이 줄을 제거합니다. _baseStrength는 생성자에서 이미 설정됩니다.
+        Object.assign(this, stats); // stats 객체의 모든 속성을 this에 복사
+        this.mobility = stats.mobility || 0; // mobility 속성을 명시적으로 할당
         this.organization = this.maxOrganization; // 조직력을 최대로 재설정
     }
 
