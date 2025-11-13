@@ -469,17 +469,6 @@ class Unit {
     }
 
     /**
-     * 대상 유닛을 공격하여 피해를 입힙니다.
-     * @param {Unit} target 공격할 대상 유닛
-     */
-    attack(target) {
-        // 피해량은 현재 병력의 일부로 계산 (예: 1%)
-        const damage = this.currentStrength * 0.01;
-        target.takeDamage(damage);
-        this.isInCombat = true;
-    }
-
-    /**
      * 피해를 받습니다.
      * @param {number} totalAttackPower 장갑으로 경감된 후의 총 공격력
      * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
@@ -496,13 +485,15 @@ class Unit {
         const strDamage = totalAttackPower * (1 - damageAbsorptionRate);
     
         // 3. 최종 조직력 피해를 계산하고 적용합니다.
-        const finalOrgDamage = orgDamage + firepowerDamage;
+        // 단위 방어력(unitDefense)이 조직력 피해를 일부 경감시킵니다.
+        const finalOrgDamage = Math.max(0, (orgDamage + firepowerDamage) - this.unitDefense);
     
         // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
         // 전술은 대대급에만 있으므로, 중대는 부모의 전술을 참조합니다.
-        const parentBattalion = this.parent?.parent; // 중대 -> 소대 -> 대대
-        const tacticModifier = parentBattalion?.tactic ? parentBattalion.tactic.orgDamageModifier : 1.0;
-        const modifiedOrgDamage = finalOrgDamage * tacticModifier;
+        // 중대의 부모는 대대(Battalion)입니다.
+        const parentBattalion = this.parent;
+        const tacticOrgModifier = parentBattalion?.tactic ? parentBattalion.tactic.orgDamageModifier : 1.0;
+        const modifiedOrgDamage = finalOrgDamage * tacticOrgModifier;
         this._organization = Math.max(0, this._organization - modifiedOrgDamage);
     
         // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.

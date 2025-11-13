@@ -160,5 +160,9 @@ const UNIT_STAT_AGGREGATORS = {
     },
 
     // 단위 방어력: 장갑과 화력의 가중 합산으로 계산됩니다.
-    unitDefense: (units) => units.reduce((total, unit) => total + (unit.armor * 0.5 + unit.firepower * 0.1), 0),
+    unitDefense: (units) => {
+        if (units.length === 0) return 0;
+        const totalDefense = units.reduce((total, unit) => total + (unit.armor * 0.5 + unit.firepower * 0.1), 0);
+        return totalDefense / units.length;
+    },
 };

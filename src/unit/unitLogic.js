@@ -130,9 +130,13 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                     const tacticAttackModifier = myBattalion.tactic ? myBattalion.tactic.attackModifier : 1.0;
                     const finalAttack = effectiveAttack * tacticAttackModifier;
 
-                    // 4. 최종 공격력 및 화력 피해 계산
-                    // 최종 공격력은 방어자의 장갑 수치에 의해 감소됩니다.
-                    const totalAttackPower = Math.max(0, finalAttack - target.armor);
+                    // 4. 최종 공격력 계산 (방어력과 장갑에 의한 피해 '경감' 적용)
+                    // 조직 방어력은 공격력의 일부를 비율(%)로 경감시킵니다.
+                    // 방어력이 100이면 50% 경감, 200이면 66% 경감됩니다. (점감 효과)
+                    const damageReductionFromDefense = target.organizationDefense / (target.organizationDefense + 100);
+                    const attackAfterDefense = finalAttack * (1 - damageReductionFromDefense);
+
+                    const totalAttackPower = Math.max(0, attackAfterDefense - target.armor);
                     const firepowerDamage = c.firepower * 1.5; // 화력 피해는 중대 개별로
 
                     // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
