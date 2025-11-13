@@ -6,17 +6,6 @@
 // JSON 데이터를 저장할 전역 변수
 let UNIT_TEMPLATES_JSON = null;
 
-// 부대 규모(Echelon) 문자열과 실제 클래스를 매핑합니다.
-const ECHELON_TO_CLASS = {
-    'DIVISION': SymbolUnit,
-    'BRIGADE': SymbolUnit,
-    'REGIMENT': SymbolUnit,
-    'BATTALION': SymbolUnit,
-    'COMPANY': Company,
-    'PLATOON': Platoon,
-    'SQUAD': Squad,
-};
-
 // 부대 규모별 아이콘 크기를 정의합니다.
 const ECHELON_SIZES = {
     'DIVISION': 12,
@@ -26,6 +15,15 @@ const ECHELON_SIZES = {
     'COMPANY': 7,
     'PLATOON': 6,
     'SQUAD': 4,
+};
+
+// 부대 규모(Echelon) 문자열과 실제 클래스를 매핑합니다.
+const ECHELON_TO_CLASS = {
+    'DIVISION': SymbolUnit,
+    'BRIGADE': SymbolUnit,
+    'REGIMENT': SymbolUnit,
+    'BATTALION': SymbolUnit,
+    'COMPANY': Company,
 };
 
 /**
@@ -65,6 +63,29 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
         return null;
     }
 
+    // 분대(Squad)와 소대(Platoon)는 실제 유닛이 아닌, 능력치 계산용 데이터 덩어리로 처리합니다.
+    if (template.echelon === 'SQUAD' || template.echelon === 'PLATOON') {
+        let squadsData = [];
+        if (template.echelon === 'SQUAD') {
+            // 분대 템플릿이면, 해당 타입의 기본 능력치를 데이터로 반환합니다.
+            squadsData.push({ 
+                ...UNIT_TYPE_STATS[template.type], 
+                type: template.type,
+                _baseStrength: UNIT_STRENGTHS.SQUAD // 기본 내구력 추가
+            });
+        } else { // 소대(PLATOON)인 경우
+            // 하위 분대들의 능력치 데이터를 재귀적으로 수집합니다.
+            if (template.sub_units) {
+                template.sub_units.forEach(subUnitInfo => {
+                    for (let i = 0; i < subUnitInfo.count; i++) {
+                        squadsData.push(...buildUnitFromTemplate(subUnitInfo.template_key, x, y, team));
+                    }
+                });
+            }
+        }
+        return squadsData;
+    }
+
     const UnitClass = ECHELON_TO_CLASS[template.echelon];
     const size = ECHELON_SIZES[template.echelon] || 5;
     let unitName = template.name;
@@ -81,11 +102,6 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
         ? new UnitClass(unitName, x, y, team, size, template.echelon)
         : new UnitClass(unitName, x, y, team);
 
-    // 분대(Squad)의 경우 병과(type)를 설정합니다.
-    if (template.type) {
-        unit.setType(template.type);
-    }
-
     // 역할(role)을 설정합니다.
     if (template.role) {
         unit.role = FORMATION_ROLES[template.role];
@@ -96,6 +112,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
         const hqCompany = buildUnitFromTemplate(template.hq_template_key, x, y, team);
         if (hqCompany) {
             unit.hqCompany = hqCompany;
+            // 본부 중대는 실제 유닛이 아니므로 subUnits에 추가하지 않습니다.
         }
     }
 
@@ -103,25 +120,21 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
     if (template.sub_units) {
         template.sub_units.forEach(subUnitInfo => {
             for (let i = 0; i < subUnitInfo.count; i++) {
-                const subUnit = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team);
-                if (subUnit) {
-                    // 하위 유닛의 역할을 지정합니다.
-                    if (subUnitInfo.role) {
-                        subUnit.role = FORMATION_ROLES[subUnitInfo.role];
-                    }
-                    unit.addUnit(subUnit);
+                const subUnitData = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team);
+                if (unit instanceof Company) {
+                    // 중대는 하위 분대 데이터를 직접 저장합니다.
+                    unit.squadsData.push(...subUnitData);
+                } else if (subUnitData instanceof Unit) { // 대대 이상은 실제 유닛을 하위 유닛으로 추가
+                    if (subUnitInfo.role) subUnitData.role = FORMATION_ROLES[subUnitInfo.role];
+                    unit.addUnit(subUnitData);
                 }
             }
         });
     }
 
     // *** 중요: 모든 유닛은 하위 유닛 구성이 끝난 후 자신의 능력치를 계산합니다. ***
-    // 능력치 계산에 본부 중대도 포함합니다.ㅅ
-    let allSquadsForStats = unit.getAllSquads();
-    if (unit.hqCompany) {
-        allSquadsForStats = [...allSquadsForStats, ...unit.hqCompany.getAllSquads()];
-    }
-    unit.calculateStats(allSquadsForStats);
+    // calculateStats 메서드가 hqCompany를 포함하여 모든 능력치를 계산합니다.
+    unit.calculateStats(); 
     unit.initializeOrganization();
 
     // 최상위 유닛만 최종 진형 설정을 수행합니다.

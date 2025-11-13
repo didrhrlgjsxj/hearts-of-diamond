@@ -192,15 +192,8 @@ class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, 'INFANTRY');
         this.role = 'REARGUARD'; // 기본 역할은 '후위'
-        this.formationRadius = 20;
-        this.combatParticipation = 0; // 전투 참여도 (0 to 1, 거리에 따라)
-        this.lineIndex = -1; // 진형 내 자신의 순번 (왼쪽부터 0, 1, 2...)
-        this.leftNeighbor = null; // 왼쪽 이웃 중대
-        this.rightNeighbor = null; // 오른쪽 이웃 중대
         this.combatEffectiveness = 1.0; // 전투 효율성 계수
-        this._organization = this.maxOrganization; // 중대별 개별 조직력
         this.companyTarget = null; // 중대가 조준하는 적 중대
-        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
     }
 
     drawEchelonSymbol(ctx) {
@@ -209,60 +202,4 @@ class Company extends Unit {
         ctx.fillText('|', this.x, this.y - this.size - 5);
     }
 }
-/** 소대 (Platoon) */
-class Platoon extends Unit {
-    constructor(name, x, y, team) {
-        super(name, x, y, 0, 6, team, UNIT_TYPES.INFANTRY);
-        this.formationRadius = 10;
-        // 하위 유닛 생성은 이제 division_templates.js에서 담당합니다.
-    }
-    drawEchelonSymbol(ctx) {
-        ctx.fillStyle = 'black';
-        const dotSize = 2;
-        const spacing = 5;
-        const yPos = this.y - this.size - 6;
-        // 3개의 점 그리기
-        ctx.beginPath();
-        ctx.arc(this.x - spacing, yPos, dotSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(this.x, yPos, dotSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(this.x + spacing, yPos, dotSize, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-/** 분대 (Squad) */
-class Squad extends Unit {
-    constructor(name, x, y, team) {
-        super(name, x, y, UNIT_STRENGTHS.SQUAD, 4, team, 'INFANTRY');
-        this.setType('INFANTRY'); // 기본 타입을 보병으로 설정
-
-        // 분대는 최하위 단위이므로, combatSubUnits는 상위에서 설정합니다.
-        // 만약 분대가 최상위로 생성되면, 자기 자신을 전투 단위로 가집니다.
-        if (!this.parent) {
-            this.combatSubUnits.push(this);
-        }
-    }
-
-    // 분대의 타입을 설정하고, 해당 타입의 능력치를 적용하는 메서드
-    setType(type) {
-        this.type = type;
-        const stats = UNIT_TYPE_STATS[type];
-        // this._baseStrength = UNIT_STRENGTHS.SQUAD; // 이 줄을 제거합니다. _baseStrength는 생성자에서 이미 설정됩니다.
-        Object.assign(this, stats); // stats 객체의 모든 속성을 this에 복사
-        this.mobility = stats.mobility || 0; // mobility 속성을 명시적으로 할당
-        this.organization = this.maxOrganization; // 조직력을 최대로 재설정
-    }
-
-    drawEchelonSymbol(ctx) {
-        ctx.fillStyle = 'black';
-        const dotSize = 2;
-        const yPos = this.y - this.size - 6;
-        // 1개의 점 그리기
-        ctx.beginPath();
-        ctx.arc(this.x, yPos, dotSize, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
+// 소대(Platoon)와 분대(Squad) 클래스는 더 이상 실제 유닛으로 생성되지 않으므로 제거합니다.

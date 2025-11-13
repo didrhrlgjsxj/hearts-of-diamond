@@ -45,6 +45,7 @@ class Unit {
         this.organizationRecoveryRateInCombat = 0.5; // 초당 조직력 회복량 (전투 중)
         this.minOrgDamageAbsorption = 0.1; // 조직력 0%일 때의 최소 피해 흡수율
         this.maxOrgDamageAbsorption = 0.9; // 조직력 100%일 때의 최대 피해 흡수율
+        this.squadsData = []; // 중대에서 사용할 분대 데이터 배열 (생성자 순서 문제 해결)
 
         // 신규 능력치
         this.firepower = 0;
@@ -166,11 +167,14 @@ class Unit {
      * 이 메서드는 편제가 변경될 때마다 호출되어야 합니다.
      */
     calculateStats(squadsToCalculate) {
-        // 최하위 전투 단위인 분대(Squad)는 이 메서드를 실행할 필요가 없습니다.
-        if (this instanceof Squad) return;
+        // 1. 자신의 하위 유닛에 속한 모든 분대를 가져옵니다.
+        let allSquads = this.getAllSquads();
 
-        // 인자로 분대 목록이 주어지지 않으면, 자신의 하위 분대를 사용합니다.
-        const allSquads = squadsToCalculate || this.getAllSquads();
+        // 2. 본부 중대(hqCompany)가 있다면, 본부 중대의 분대들도 능력치 계산에 포함합니다.
+        // 본부 중대는 실제 전투 유닛이 아니므로, 능력치 계산에만 반영됩니다.
+        if (this.hqCompany) {
+            allSquads = allSquads.concat(this.hqCompany.getAllSquads());
+        }
 
         // UNIT_STAT_AGGREGATORS에 정의된 각 계산 함수를 실행하여 능력치를 할당합니다.
         this.firepower = UNIT_STAT_AGGREGATORS.firepower(allSquads);
@@ -196,9 +200,6 @@ class Unit {
         // SymbolUnit은 휘하 모든 부대의 최대 조직력을 합산합니다.
         if (this instanceof SymbolUnit) {
             return this.subUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
-        }
-        if (this instanceof Squad) {
-            return 100 + (this.organizationBonus || 0);
         }
         return 100 + this.getAllSquads().reduce((total, squad) => total + squad.organizationBonus, 0);
     }
@@ -232,10 +233,11 @@ class Unit {
      * @returns {Squad[]}
      */
     getAllSquads() {
-        if (this instanceof Squad) {
-            return [this];
+        // 중대는 더 이상 하위 유닛을 갖지 않고, 분대 데이터를 직접 가집니다.
+        if (this instanceof Company) {
+            return this.squadsData;
         }
-
+ 
         let squads = [];
         for (const subUnit of this.subUnits) {
             squads = squads.concat(subUnit.getAllSquads());
@@ -589,8 +591,8 @@ class Unit {
     getUnitAt(x, y) {
         // 1. SymbolUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
         if (this instanceof SymbolUnit) {
-            const markCenterX = this.x;
-            const markCenterY = this.y - 40; // 부대 마크의 Y 오프셋
+            const markCenterX = this.x; // 부대 마크의 X 좌표
+            const markCenterY = this.y; // 부대 마크의 Y 좌표 (오프셋 제거)
             const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
             if (distanceToMark < this.size) {
                 return this; // 부대 마크가 클릭되면 CommandUnit 자신을 반환
