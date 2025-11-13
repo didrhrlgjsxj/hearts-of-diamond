@@ -135,8 +135,17 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                     // 방어력이 100이면 50% 경감, 200이면 66% 경감됩니다. (점감 효과)
                     const damageReductionFromDefense = target.organizationDefense / (target.organizationDefense + 100);
                     const attackAfterDefense = finalAttack * (1 - damageReductionFromDefense);
-
-                    const totalAttackPower = Math.max(0, attackAfterDefense - target.armor);
+                    
+                    // 장갑 관통 로직:
+                    // 대물 공격력이 장갑보다 높으면 관통 성공, 관통 보너스 데미지를 추가합니다.
+                    // 관통에 실패해도 대물 공격력의 10%는 최소 피해로 적용됩니다.
+                    let penetrationBonus = 0;
+                    if (c.hardAttack > target.armor) {
+                        penetrationBonus = (c.hardAttack - target.armor) * 0.5; // 관통 성공 시 추가 피해
+                    } else {
+                        penetrationBonus = c.hardAttack * 0.1; // 관통 실패 시 최소 피해
+                    }
+                    const totalAttackPower = attackAfterDefense + penetrationBonus;
                     const firepowerDamage = c.firepower * 1.5; // 화력 피해는 중대 개별로
 
                     // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
