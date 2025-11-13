@@ -17,6 +17,7 @@ class GameUI {
         this.compositionPanel.id = 'composition-panel';
         document.body.appendChild(this.compositionPanel);
         this.updateCompositionPanel(null); // 처음에는 숨김
+        this.addUIElementListener(this.compositionPanel);
 
         // 능력치 정보 패널 생성
         this.statsPanel = document.createElement('div');
@@ -24,15 +25,30 @@ class GameUI {
         document.body.appendChild(this.statsPanel);
         this.updateStatsPanel(null); // 처음에는 숨김
 
+        this.addUIElementListener(this.statsPanel);
+
         // 생산 정보 패널 생성
         this.productionPanel = document.createElement('div');
         this.productionPanel.id = 'production-panel';
         document.body.appendChild(this.productionPanel);
+        this.addUIElementListener(this.productionPanel);
 
         // 전투 정보 패널 생성
         this.battlePanel = document.createElement('div');
         this.battlePanel.id = 'battle-panel';
         document.body.appendChild(this.battlePanel);
+        this.addUIElementListener(this.battlePanel);
+    }
+
+    /**
+     * UI 요소에 마우스가 진입했을 때 카메라 키 입력을 초기화하는 리스너를 추가합니다.
+     * @param {HTMLElement} element 
+     */
+    addUIElementListener(element) {
+        element.addEventListener('mouseenter', () => {
+            // 카메라의 모든 키 입력을 리셋하여 이동을 멈춥니다.
+            this.camera.resetKeys();
+        });
     }
 
     /**
@@ -44,6 +60,7 @@ class GameUI {
 
         // 패널 전환 버튼 생성
         const buttonContainer = document.createElement('div');
+        this.addUIElementListener(buttonContainer);
         buttonContainer.className = 'panel-toggle-buttons';
 
         const economyButton = document.createElement('button');
@@ -62,6 +79,7 @@ class GameUI {
 
         container.append(buttonContainer, this.economyPanel, this.unitDebugPanel);
         document.body.appendChild(container);
+        this.addUIElementListener(container);
 
         // 초기 활성 패널 설정
         this.switchMainPanel('economy');

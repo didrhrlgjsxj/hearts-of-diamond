@@ -186,23 +186,6 @@ class Battalion extends SymbolUnit {
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 SymbolUnit이므로, x, y, direction getter/setter는 SymbolUnit의 것을 사용합니다.
     }
-
-    /**
-     * 대대의 이동 로직입니다. 대대 자체가 이동하고, 휘하 중대들이 진형을 유지하며 따라오게 합니다.
-     * @param {number} deltaTime 
-     */
-    updateMovement(deltaTime) {
-        // 1. 대대 자체의 이동을 처리합니다. (Unit의 기본 이동 로직 사용)
-        super.updateMovement(deltaTime);
-
-        // 2. 전투 중이 아닐 때, 휘하 중대들의 진형을 계속 업데이트합니다.
-        if (!this.isInCombat) {
-            this.updateCombatSubUnitPositions();
-        }
-
-        // 3. 모든 중대들이 각자의 목표(진형 위치)를 향해 이동하도록 업데이트를 호출합니다.
-        this.subUnits.forEach(c => c.updateMovement(deltaTime));
-    }
 }
 /** 중대 (Company) */
 class Company extends Unit {

@@ -46,19 +46,36 @@ class Camera {
             this.y += worldPosBeforeZoom.y - worldPosAfterZoom.y;
         });
 
-        window.addEventListener('keydown', (e) => {
+        this.canvas.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key in this.keys) {
                 this.keys[key] = true;
             }
         });
 
-        window.addEventListener('keyup', (e) => {
+        this.canvas.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
             if (key in this.keys) {
                 this.keys[key] = false;
             }
         });
+
+        // 캔버스가 포커스를 잃었을 때(예: 다른 UI 요소를 클릭했을 때)
+        // 모든 키 입력을 초기화하여 카메라 이동을 멈춥니다.
+        this.canvas.addEventListener('blur', () => {
+            for (const key in this.keys) {
+                this.keys[key] = false;
+            }
+        });
+    }
+
+    /**
+     * 모든 키 입력 상태를 초기화합니다.
+     */
+    resetKeys() {
+        for (const key in this.keys) {
+            this.keys[key] = false;
+        }
     }
 
     /**
