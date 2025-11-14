@@ -80,7 +80,9 @@ const MAX_FORMATION_DEVIATION = 50;
 
 // 유닛 이동 목표 우선순위 (낮을수록 높음)
 const MOVEMENT_PRIORITIES = {
-    PLAYER_COMMAND: 1,        // 플레이어의 직접 이동/후퇴 명령
+    RETREAT: 0,               // 후퇴 (최우선)
+    REFIT: 0.5,               // 재정비 (대대 따라다니기)
+    PLAYER_COMMAND: 1,        // 플레이어의 직접 이동 명령
     FORMATION_COHESION: 4,    // 진형 이탈 시 복귀
     COMBAT_EFFECTIVENESS: 7,  // 전투 효율성 극대화 위치로 이동
     DEFAULT_FORMATION: 10,    // 기본 진형 위치로 이동

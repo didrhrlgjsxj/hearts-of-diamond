@@ -24,6 +24,7 @@ class Unit {
         this.destination = null; // 이동 목표 지점 {x, y}
         this.playerDestination = null; // 플레이어가 직접 지정한 최종 목표
         this.isRetreating = false; // 후퇴 중인지 여부
+        this.isRefitting = false; // 재정비 중인지 여부
         this.isReserve = false; // 예비대 상태인지 여부
         this._direction = -Math.PI / 2; // 부대 진형의 현재 방향 (기본값: 위쪽)
         this._lastX = x; // 마지막 프레임의 X 위치 (방향 계산용)
@@ -304,6 +305,11 @@ class Unit {
      * @param {number} y 목표 y 좌표
      */
     moveTo(x, y, allUnits = []) {
+        // 재정비 중인 유닛은 플레이어 이동 명령을 무시합니다.
+        if (this.isRefitting) {
+            console.log(`${this.name}은(는) 재정비 중이라 이동할 수 없습니다.`);
+            return;
+        }
         // 플레이어의 직접 이동 명령은 playerDestination에 저장합니다.
         this.playerDestination = { x, y };
         this.isRetreating = false; // 일반 이동 시 후퇴 상태 해제
@@ -318,6 +324,12 @@ class Unit {
      */
     updateMovement(deltaTime) {
         if (this.isDestroyed) return;
+
+        // 재정비 상태 로직: 조직력이 90% 이상 회복되면 재정비 상태를 해제합니다.
+        if (this.isRefitting && this.organization >= this.maxOrganization * 0.9) {
+            this.isRefitting = false;
+            console.log(`${this.name} 재정비 완료, 전투 복귀 가능.`);
+        }
 
         // 1. 가능한 모든 이동 목표를 평가하고 가장 우선순위가 높은 목표를 선택합니다.
         const movementGoals = this.evaluateMovementGoals();
@@ -347,6 +359,12 @@ class Unit {
             this.x = finalDestination.x;
             this.y = finalDestination.y;
 
+            // 후퇴 목표에 도달하면, 재정비 상태로 전환합니다.
+            if (this.isRetreating) {
+                this.isRetreating = false;
+                this.isRefitting = true;
+            }
+
             // 플레이어 명령(최종 목표)에 도달했을 때만 상태를 초기화합니다.
             if (this.playerDestination && Math.hypot(this.x - this.playerDestination.x, this.y - this.playerDestination.y) < 1) {
                 this.playerDestination = null;
@@ -375,6 +393,31 @@ class Unit {
     evaluateMovementGoals() {
         const goals = [];
 
+        // 목표 0: 후퇴 (최우선)
+        if (this.isRetreating && this.parent) {
+            goals.push({ destination: { x: this.parent.x, y: this.parent.y }, priority: MOVEMENT_PRIORITIES.RETREAT });
+            return goals; // 후퇴 시 다른 모든 목표를 무시합니다.
+        }
+
+        // 목표 0.5: 재정비 (후퇴 다음으로 높은 우선순위)
+        if (this.isRefitting && this.parent) {
+            const parentBattalion = this.parent;
+            // 부모 대대에 속한 재정비 중인 중대 목록을 찾습니다.
+            const refittingCompanies = parentBattalion.subUnits.filter(u => u.isRefitting && !u.isDestroyed);
+            const myIndex = refittingCompanies.indexOf(this);
+
+            // 대대 크기, 중대 크기를 고려하여 적절한 이격 거리를 계산합니다.
+            const refitRadius = parentBattalion.size + this.size + 15; // 15는 추가 여유 공간
+            // 재정비 중인 중대 수에 따라 원형으로 배치될 각도를 계산합니다.
+            const angle = (myIndex / refittingCompanies.length) * 2 * Math.PI;
+
+            const destX = parentBattalion.x + refitRadius * Math.cos(angle);
+            const destY = parentBattalion.y + refitRadius * Math.sin(angle);
+
+            goals.push({ destination: { x: destX, y: destY }, priority: MOVEMENT_PRIORITIES.REFIT });
+            return goals; // 재정비 중에는 다른 모든 목표를 무시합니다.
+        }
+
         // 목표 1: 플레이어의 직접 명령 (우선순위 1)
         if (this.playerDestination) {
             goals.push({ destination: this.playerDestination, priority: MOVEMENT_PRIORITIES.PLAYER_COMMAND });
@@ -388,7 +431,7 @@ class Unit {
 
         // --- 중대(Company) 또는 향후 추가될 대대급 자율 AI 로직 ---
         // 이 로직은 Unit을 상속받는 특정 클래스에만 적용될 수 있습니다.
-        if (this instanceof Company && this.parent) {
+        if (this instanceof Company && this.parent) { // isRefitting 체크는 위에서 처리했으므로 제거
             const parentUnit = this.parent;
 
             // 목표 3: 진형 이탈 시 복귀 (우선순위 4)
@@ -445,6 +488,21 @@ class Unit {
     }
 
     /**
+     * 유닛이 후퇴를 시작하도록 합니다.
+     */
+    startRetreat() {
+        if (this.isRetreating || this.isRefitting) return; // 이미 후퇴/재정비 중이면 무시
+
+        console.log(`${this.name}의 조직력이 0이 되어 후퇴합니다!`);
+        this.isRetreating = true;
+        this.isRefitting = false;
+        this.isInCombat = false;
+        this.companyTarget = null;
+        this.playerDestination = null; // 플레이어 명령 취소
+        this.destination = null; // 진형 목표 취소
+    }
+
+    /**
      * 유닛이 특정 지점으로 후퇴하도록 명령합니다.
      * @param {number} x 후퇴할 x 좌표
      * @param {number} y 후퇴할 y 좌표
@@ -494,7 +552,7 @@ class Unit {
         const absorptionFromOrgRatio = orgRatio * 0.20;
 
         // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다.
-        const damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio);
+        const damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio + 0.95);
         
         // 3. 감소된 최종 공격력을 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamage = finalAttackPower * damageAbsorptionRate;
@@ -508,6 +566,11 @@ class Unit {
         const modifiedOrgDamage = orgDamage * tacticOrgModifier;
         this._organization = Math.max(0, this._organization - modifiedOrgDamage);
     
+        // 조직력이 0이 되면 후퇴를 시작합니다.
+        if (this._organization <= 0 && this instanceof Company) {
+            this.startRetreat();
+        }
+
         // 4. 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
         if (strDamage > 0) {
             this.damageTaken += strDamage;
@@ -796,36 +859,43 @@ class Unit {
      * @param {CanvasRenderingContext2D} ctx 
      */
     drawStatBars(ctx) {
-        const barWidth = 40;
-        const barHeight = 5;
+        const barWidth = 30; // 너비를 약간 줄여서 깔끔하게
+        const barHeight = 4;
         const barX = this.x - barWidth / 2;
-        const barY = this.y - this.size - 15; // 아이콘 위로
+        let orgBarY; // 조직력 바의 Y 위치
 
-        // 1. 내구력 바 배경
-        ctx.fillStyle = '#555';
-        ctx.fillRect(barX, barY, barWidth, barHeight);
+        // 중대는 내구력 바를 표시하지 않습니다.
+        if (!(this instanceof Company)) {
+            const strengthBarY = this.y - this.size - 15; // 아이콘 위로
+            orgBarY = strengthBarY + barHeight + 2;
 
-        // 2. 현재 내구력 바 (애니메이션 효과 포함)
-        if (this.displayStrength === -1) {
-            this.displayStrength = this.currentStrength;
-        } else {
-            // 부드럽게 감소하는 효과
-            if (this.displayStrength > this.currentStrength) {
-                const decreaseAmount = this.baseStrength * 0.5 * (ctx.canvas.deltaTime || 0.016);
-                this.displayStrength = Math.max(this.currentStrength, this.displayStrength - decreaseAmount);
-            } else {
+            // 1. 내구력 바 배경
+            ctx.fillStyle = '#555';
+            ctx.fillRect(barX, strengthBarY, barWidth, barHeight);
+
+            // 2. 현재 내구력 바 (애니메이션 효과 포함)
+            if (this.displayStrength === -1) {
                 this.displayStrength = this.currentStrength;
+            } else {
+                if (this.displayStrength > this.currentStrength) {
+                    const decreaseAmount = this.baseStrength * 0.5 * (ctx.canvas.deltaTime || 0.016);
+                    this.displayStrength = Math.max(this.currentStrength, this.displayStrength - decreaseAmount);
+                } else {
+                    this.displayStrength = this.currentStrength;
+                }
             }
+            const strengthRatio = this.baseStrength > 0 ? this.displayStrength / this.baseStrength : 0;
+            ctx.fillStyle = '#ff8c00'; // DarkOrange
+            ctx.fillRect(barX, strengthBarY, barWidth * strengthRatio, barHeight);
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, strengthBarY, barWidth, barHeight);
+        } else {
+            // 중대일 경우, 조직력 바만 아이콘 바로 위에 표시합니다.
+            orgBarY = this.y - this.size - 8;
         }
-        const strengthRatio = this.baseStrength > 0 ? this.displayStrength / this.baseStrength : 0;
-        ctx.fillStyle = '#ff8c00'; // DarkOrange
-        ctx.fillRect(barX, barY, barWidth * strengthRatio, barHeight);
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-        // 3. 조직력 바
-        const orgBarY = barY + barHeight + 2;
+        // 조직력 바 그리기
         ctx.fillStyle = '#555';
         ctx.fillRect(barX, orgBarY, barWidth, barHeight);
         const orgRatio = this.maxOrganization > 0 ? this._organization / this.maxOrganization : 0;

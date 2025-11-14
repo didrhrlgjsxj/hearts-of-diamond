@@ -108,9 +108,12 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                 myBattalion.attackProgress = 0; // 턴 초기화
 
                 // 이 대대에 속한 모든 중대가 각자의 목표를 공격합니다. (본부 중대 제외)
-                const combatCompanies = myBattalion.getAllCompanies().filter(comp => comp !== myBattalion.hqCompany && !comp.isDestroyed);
+                const combatCompanies = myBattalion.getAllCompanies().filter(comp => 
+                    comp !== myBattalion.hqCompany && !comp.isDestroyed && !comp.isRetreating && !comp.isRefitting
+                );
                 combatCompanies.forEach(c => {
-                    if (c.isDestroyed || !c.companyTarget) return; // 파괴되었거나 목표가 없으면 공격 안함
+                    // isDestroyed는 위에서 필터링 했으므로 목표 유무만 확인
+                    if (!c.companyTarget) return;
 
                     const target = c.companyTarget;
                     const distToTarget = Math.hypot(c.x - target.x, c.y - target.y);
@@ -204,9 +207,11 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     for (const unit of topLevelUnits) {
         // --- 조직력 회복 로직 ---
         // 모든 중대의 조직력을 회복시킵니다.
-        for (const company of unit.getAllCompanies()) {
-            if (company.organization < company.maxOrganization) {
-                const recoveryRate = company.isInCombat ? company.organizationRecoveryRateInCombat : company.organizationRecoveryRate;
+        const allCompanies = unit.getAllCompanies();
+        for (const company of allCompanies) {
+            if (company.organization < company.maxOrganization && !company.isDestroyed) {
+                // 재정비 중일 때는 비전투 상태와 동일한 속도로 회복합니다.
+                const recoveryRate = (company.isInCombat && !company.isRefitting) ? company.organizationRecoveryRateInCombat : company.organizationRecoveryRate;
                 company._organization = Math.min(company.maxOrganization, company._organization + recoveryRate * scaledDeltaTime);
             }
         }

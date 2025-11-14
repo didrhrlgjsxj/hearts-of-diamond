@@ -107,7 +107,8 @@ class SymbolUnit extends Unit {
         // 모든 하위 부대(본부 중대 포함)를 역할별로 그룹화합니다.
         const roles = {};
         this.subUnits.forEach(unit => {
-            if (unit.isDestroyed || !unit.role) return;
+            // 파괴되었거나, 역할이 없거나, 재정비 중인 유닛은 진형 배치에서 제외합니다.
+            if (unit.isDestroyed || !unit.role || unit.isRefitting) return;
             if (!roles[unit.role]) roles[unit.role] = [];
             roles[unit.role].push(unit);
         });
