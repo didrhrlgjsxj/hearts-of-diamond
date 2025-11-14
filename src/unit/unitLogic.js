@@ -134,14 +134,14 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                     const tacticAttackModifier = myBattalion.tactic ? myBattalion.tactic.attackModifier : 1.0;
                     const finalAttack = effectiveAttack * tacticAttackModifier;
 
-                    // 4. 최종 공격력 계산 (장갑과 방어력에 의한 피해 '경감' 적용)
-                    // 4-1. 장갑에 의한 대물 공격 피해 감소
-                    // 대물 공격력이 장갑보다 낮을 경우, 비율에 따라 피해량이 감소합니다.
-                    const hardAttackRatio = target.armor > 0 ? Math.min(1, c.hardAttack / target.armor) : 1;
+                    // 4. 최종 공격력 계산 (관통 및 방어력에 의한 피해 '경감' 적용)
+                    // 4-1. 대물 공격력 vs 단위 방어력: 대물 공격이 얼마나 효과적으로 피해를 주는지 계산합니다.
+                    // 대물 공격력이 단위 방어력보다 낮을 경우, 비율에 따라 대물 피해량이 감소합니다.
+                    const hardAttackPenetrationRatio = target.unitDefense > 0 ? Math.min(1, c.hardAttack / target.unitDefense) : 1;
                     
-                    // 4-2. 장갑의 영향을 받은 유효 공격력 재계산
+                    // 4-2. 관통 결과를 적용한 유효 공격력 재계산
                     const softPart = c.softAttack * (1 - defenderHardness);
-                    const hardPart = c.hardAttack * defenderHardness * hardAttackRatio;
+                    const hardPart = c.hardAttack * defenderHardness * hardAttackPenetrationRatio;
                     const attackAfterArmor = (softPart + hardPart) * c.combatEffectiveness * tacticAttackModifier;
 
                     // 4-3. 화력과 조직 방어력 비교를 통한 '공격 효율성' 계산

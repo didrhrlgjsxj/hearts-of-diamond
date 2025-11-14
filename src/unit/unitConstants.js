@@ -160,10 +160,12 @@ const UNIT_STAT_AGGREGATORS = {
         return baseDefense + orgBonus;
     },
 
-    // 단위 방어력: 장갑과 화력의 가중 합산으로 계산됩니다.
+    // 단위 방어력: 평균 장갑과 기갑화율에 비례하여 계산됩니다. 대물 공격력을 막는 역할을 합니다.
     unitDefense: (units) => {
         if (units.length === 0) return 0;
-        const totalDefense = units.reduce((total, unit) => total + (unit.armor * 10 + unit.firepower * 7), 0);
-        return totalDefense / units.length;
+        const avgArmor = units.reduce((total, unit) => total + unit.armor, 0) / units.length;
+        const armoredCount = units.filter(unit => unit.armor > 0).length;
+        const hardness = armoredCount / units.length;
+        return avgArmor * 5 * (1 + hardness); // 평균 장갑과 기갑화율을 모두 반영
     },
 };

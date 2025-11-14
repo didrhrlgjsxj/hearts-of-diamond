@@ -542,12 +542,9 @@ class Unit {
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
     takeDamage(totalAttackPower, fromCoords) {
-        // 1. 단위 방어력(unitDefense)으로 최종 피해량을 비율에 따라 감소시킵니다. (부대의 맷집)
-        // 이 방식은 방어력이 아무리 높아도 피해가 0이 되지 않도록 보장합니다.
-        // (방어력 100일 때 50% 감소, 200일 때 66% 감소)
-        const damageReductionFromUnitDefense = 100 / (100 + this.unitDefense);
-        const finalAttackPower = totalAttackPower * damageReductionFromUnitDefense;
-
+        // 1. 최종 공격력을 그대로 사용합니다.
+        // 단위 방어력(unitDefense)에 의한 피해 감소는 unitLogic.js에서 대물 공격력과 계산하는 방식으로 변경되었습니다.
+        const finalAttackPower = totalAttackPower;
         // 2. 피해 흡수율을 '대대'의 능력치를 기준으로 계산합니다.
         const parentBattalion = this.parent;
         let damageAbsorptionRate;
