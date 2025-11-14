@@ -859,30 +859,22 @@ class Unit {
      * @param {CanvasRenderingContext2D} ctx 
      */
     drawStatBars(ctx) {
-        const barWidth = 30; // 너비를 약간 줄여서 깔끔하게
-        const barHeight = 4;
-        const barX = this.x - barWidth / 2;
-        let orgBarY; // 조직력 바의 Y 위치
-
         // 중대는 내구력 바를 표시하지 않습니다.
         if (!(this instanceof Company)) {
+            const barWidth = 30;
+            const barHeight = 4;
+            const barX = this.x - barWidth / 2;
             const strengthBarY = this.y - this.size - 15; // 아이콘 위로
-            orgBarY = strengthBarY + barHeight + 2;
+            const orgBarY = strengthBarY + barHeight + 2;
 
-            // 1. 내구력 바 배경
+            // 내구력 바
             ctx.fillStyle = '#555';
             ctx.fillRect(barX, strengthBarY, barWidth, barHeight);
-
-            // 2. 현재 내구력 바 (애니메이션 효과 포함)
             if (this.displayStrength === -1) {
                 this.displayStrength = this.currentStrength;
             } else {
-                if (this.displayStrength > this.currentStrength) {
-                    const decreaseAmount = this.baseStrength * 0.5 * (ctx.canvas.deltaTime || 0.016);
-                    this.displayStrength = Math.max(this.currentStrength, this.displayStrength - decreaseAmount);
-                } else {
-                    this.displayStrength = this.currentStrength;
-                }
+                const decreaseAmount = this.baseStrength * 0.5 * (ctx.canvas.deltaTime || 0.016);
+                this.displayStrength = Math.max(this.currentStrength, this.displayStrength - decreaseAmount);
             }
             const strengthRatio = this.baseStrength > 0 ? this.displayStrength / this.baseStrength : 0;
             ctx.fillStyle = '#ff8c00'; // DarkOrange
@@ -890,18 +882,36 @@ class Unit {
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, strengthBarY, barWidth, barHeight);
-        } else {
-            // 중대일 경우, 조직력 바만 아이콘 바로 위에 표시합니다.
-            orgBarY = this.y - this.size - 8;
-        }
 
-        // 조직력 바 그리기
-        ctx.fillStyle = '#555';
-        ctx.fillRect(barX, orgBarY, barWidth, barHeight);
-        const orgRatio = this.maxOrganization > 0 ? this._organization / this.maxOrganization : 0;
-        ctx.fillStyle = '#00ff00'; // Lime Green
-        ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
-        ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+            // 조직력 바 (SymbolUnit 용)
+            ctx.fillStyle = '#555';
+            ctx.fillRect(barX, orgBarY, barWidth, barHeight);
+            const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
+            ctx.fillStyle = '#00ff00'; // Lime Green
+            ctx.fillRect(barX, orgBarY, barWidth * orgRatio, barHeight);
+            ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
+        } else {
+            // 중대일 경우, 오른쪽에 세로 조직력 바를 그립니다.
+            const barWidth = 4;
+            const barHeight = 28; // 세로 막대의 총 높이
+            const barX = this.x + this.size + 5;
+            const barY = this.y - barHeight / 2;
+
+            // 1. 배경 막대 그리기
+            ctx.fillStyle = '#555';
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+
+            // 2. 현재 조직력에 따라 채워진 막대 그리기 (아래에서 위로)
+            const orgRatio = this.maxOrganization > 0 ? this._organization / this.maxOrganization : 0;
+            const filledHeight = barHeight * orgRatio;
+            ctx.fillStyle = '#00ff00'; // Lime Green
+            ctx.fillRect(barX, barY + barHeight - filledHeight, barWidth, filledHeight);
+
+            // 3. 테두리 그리기
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+        }
     }
 
     /**
