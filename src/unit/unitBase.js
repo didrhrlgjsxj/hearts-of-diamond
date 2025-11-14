@@ -328,6 +328,9 @@ class Unit {
         // 재정비 상태 로직: 조직력이 90% 이상 회복되면 재정비 상태를 해제합니다.
         if (this.isRefitting && this.organization >= this.maxOrganization * 0.9) {
             this.isRefitting = false;
+            // 재정비가 끝나면, 대대를 따라다니던 목표를 초기화하여
+            // 다음 턴에 진형 위치로 복귀하도록 합니다.
+            this.destination = null;
             console.log(`${this.name} 재정비 완료, 전투 복귀 가능.`);
         }
 
@@ -539,8 +542,11 @@ class Unit {
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
     takeDamage(totalAttackPower, fromCoords) {
-        // 1. 단위 방어력(unitDefense)으로 최종 피해량을 먼저 감소시킵니다. (부대의 맷집)
-        const finalAttackPower = Math.max(0, totalAttackPower - this.unitDefense);
+        // 1. 단위 방어력(unitDefense)으로 최종 피해량을 비율에 따라 감소시킵니다. (부대의 맷집)
+        // 이 방식은 방어력이 아무리 높아도 피해가 0이 되지 않도록 보장합니다.
+        // (방어력 100일 때 50% 감소, 200일 때 66% 감소)
+        const damageReductionFromUnitDefense = 100 / (100 + this.unitDefense);
+        const finalAttackPower = totalAttackPower * damageReductionFromUnitDefense;
 
         // 2. 피해 흡수율을 '대대'의 능력치를 기준으로 계산합니다.
         const parentBattalion = this.parent;

@@ -34,11 +34,11 @@ const UNIT_TYPE_COLORS = {
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 0.5, reconnaissance: 1, armor: 0, organizationBonus: 10, mobility: 10 },
-    'RECON':    { firepower: 1, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 2, mobility: 15 },
-    'ARMOR':    { firepower: 2.5, softAttack: 3, hardAttack: 4, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 12 },
-    'ARTILLERY':{ firepower: 4, softAttack: 4.5, hardAttack: 2, reconnaissance: 1, armor: 0, organizationBonus: 1, mobility: 8 },
-    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 2, organizationBonus: 3, mobility: 10 },
+    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 1, reconnaissance: 1, armor: 0, organizationBonus: 8, mobility: 10 },
+    'RECON':    { firepower: 1, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 3, mobility: 15 },
+    'ARMOR':    { firepower: 2.5, softAttack: 3, hardAttack: 4, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 20 },
+    'ARTILLERY':{ firepower: 4, softAttack: 4.5, hardAttack: 2, reconnaissance: 1, armor: 0, organizationBonus: 3, mobility: 8 },
+    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 2, organizationBonus: 4, mobility: 10 },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
@@ -118,17 +118,20 @@ const TACTICS = {
  * 이를 통해 능력치 계산 방식을 중앙에서 관리하고 쉽게 수정할 수 있습니다.
  */
 const UNIT_STAT_AGGREGATORS = {
-    // 화력, 공격력, 정찰력은 단순 합산합니다.
+    // 화력, 공격력은 단순 합산합니다.
     firepower: (units) => units.reduce((total, unit) => total + unit.firepower, 0),
     softAttack: (units) => units.reduce((total, unit) => total + unit.softAttack, 0),
     hardAttack: (units) => units.reduce((total, unit) => total + unit.hardAttack, 0),
-    reconnaissance: (units) => units.reduce((total, unit) => total + unit.reconnaissance, 0),
 
-    // 장갑(Armor)은 모든 전투 분대의 평균값으로 계산합니다.
+    // 정찰(Reconnaissance)은 모든 분대의 평균값으로 계산합니다.
+    reconnaissance: (units) => {
+        if (units.length === 0) return 0;
+        return units.reduce((total, unit) => total + unit.reconnaissance, 0) / units.length;
+    },
+    // 장갑(Armor)은 모든 분대의 평균값으로 계산합니다.
     armor: (units) => {
         if (units.length === 0) return 0;
-        const totalArmor = units.reduce((total, unit) => total + unit.armor, 0);
-        return totalArmor / units.length;
+        return units.reduce((total, unit) => total + unit.armor, 0) / units.length;
     },
 
     // 최대 조직력(maxOrganization)은 기본 100에 각 분대의 보너스 값을 더합니다.
@@ -147,20 +150,20 @@ const UNIT_STAT_AGGREGATORS = {
         const armoredCount = units.filter(unit => unit.armor > 0).length;
         return armoredCount / units.length;
     },
-        // 조직 방어력: 기동력, 정찰력, 최대 조직력에 기반하여 계산됩니다.
-    organizationDefense: (units, maxOrg) => {
+        // 조직 방어력: 기동력, 정찰력, 본래 부대에 추가된 조직력에 기반하여 계산됩니다.
+    organizationDefense: (units) => {
         if (units.length === 0) return 0;
         // 기동력과 정찰력의 가중 합산
         const baseDefense = units.reduce((total, unit) => total + (unit.mobility * 0.2 + unit.reconnaissance * 0.1), 0);
-        // 최대 조직력에 따른 보너스 (기본 100을 초과하는 만큼의 10%를 보너스로)
-        const orgBonus = (maxOrg - 100) * 0.1;
+        // 편제에 의해 추가된 조직력(organizationBonus) 총합의 10%를 보너스로 추가합니다.
+        const orgBonus = units.reduce((total, unit) => total + unit.organizationBonus, 0) * 0.1;
         return baseDefense + orgBonus;
     },
 
     // 단위 방어력: 장갑과 화력의 가중 합산으로 계산됩니다.
     unitDefense: (units) => {
         if (units.length === 0) return 0;
-        const totalDefense = units.reduce((total, unit) => total + (unit.armor * 0.5 + unit.firepower * 0.1), 0);
+        const totalDefense = units.reduce((total, unit) => total + (unit.armor * 10 + unit.firepower * 7), 0);
         return totalDefense / units.length;
     },
 };
