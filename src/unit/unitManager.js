@@ -323,13 +323,19 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
     // 전투가 끝난 부대의 상태를 초기화합니다.
     allBattalions.forEach(battalion => { // 이제 allBattalions는 이미 Set과 유사하게 고유한 대대 목록입니다.
-        // 휘하 중대 중 하나라도 전투 중이면 대대는 전투 중 상태를 유지
-        const isAnyCompanyInCombat = battalion.getAllCompanies().some(c => c.isInCombat);
-        if (!isAnyCompanyInCombat) {
+        // 대대가 이번 턴에 공격할 목표가 없었다면, 전투가 끝난 것으로 간주합니다.
+        if (!battalion.battalionTarget) {
+            // 대대의 전투 상태를 해제합니다.
             battalion.isInCombat = false;
             battalion.tactic = null;
             battalion.tacticChangeProgress = 0;
             battalion.attackProgress = 0;
+
+            // 휘하의 모든 중대들의 전투 상태도 함께 해제합니다.
+            // 이것이 누락되어 중대들이 계속 전투 상태에 머무는 문제가 있었습니다.
+            battalion.getAllCompanies().forEach(c => {
+                c.isInCombat = false;
+            });
         }
     });
 
@@ -338,7 +344,7 @@ function updateUnits(unitManager, scaledDeltaTime) {
         // --- 조직력 회복 로직 ---
         // 모든 중대의 조직력을 회복시킵니다.
         const allCompanies = unit.getAllCompanies();
-        for (const company of allCompanies) {
+        for (const company of allCompanies) { // `_organization`에 직접 접근하는 것은 클래스 설계상 좋지 않지만, 현재 구조를 유지하며 수정합니다.
             if (company.organization < company.maxOrganization && !company.isDestroyed) {
                 // 전투 중이 아니고, 공격받고 있지도 않을 때만 조직력이 회복됩니다.
                 // 재정비(isRefitting) 중일 때도 공격받고 있다면 회복되지 않습니다.
