@@ -63,6 +63,12 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
         return null;
     }
 
+    const nation = nations.get(team);
+    if (!nation) {
+        console.error(`Nation with team ID "${team}" not found.`);
+        return null;
+    }
+
     // 분대(Squad)와 소대(Platoon)는 실제 유닛이 아닌, 능력치 계산용 데이터 덩어리로 처리합니다.
     if (template.echelon === 'SQUAD' || template.echelon === 'PLATOON') {
         let squadsData = [];
@@ -78,7 +84,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
             if (template.sub_units) {
                 template.sub_units.forEach(subUnitInfo => {
                     for (let i = 0; i < subUnitInfo.count; i++) {
-                        squadsData.push(...buildUnitFromTemplate(subUnitInfo.template_key, x, y, team));
+                        squadsData.push(...buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, nation));
                     }
                 });
             }
@@ -101,6 +107,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
     const unit = (UnitClass === SymbolUnit)
         ? new UnitClass(unitName, x, y, team, size, template.echelon)
         : new UnitClass(unitName, x, y, team);
+    unit.nation = nation; // 생성된 유닛에 Nation 객체 할당
 
     // 역할(role)을 설정합니다.
     if (template.role) {
@@ -109,7 +116,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
 
     // 본부 중대(hq_template_key)를 생성하고 할당합니다.
     if (template.hq_template_key && unit instanceof SymbolUnit) {
-        const hqCompany = buildUnitFromTemplate(template.hq_template_key, x, y, team);
+        const hqCompany = buildUnitFromTemplate(template.hq_template_key, x, y, team, nation);
         if (hqCompany) {
             unit.hqCompany = hqCompany;
             // 본부 중대는 실제 유닛이 아니므로 subUnits에 추가하지 않습니다.
@@ -120,7 +127,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
     if (template.sub_units) {
         template.sub_units.forEach(subUnitInfo => {
             for (let i = 0; i < subUnitInfo.count; i++) {
-                const subUnitData = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team);
+                const subUnitData = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, nation);
                 if (unit instanceof Company) {
                     // 중대는 하위 분대 데이터를 직접 저장합니다.
                     unit.squadsData.push(...subUnitData);

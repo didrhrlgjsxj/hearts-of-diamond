@@ -11,6 +11,7 @@ class Unit {
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
         this.parent = null; // 상위 유닛 참조
+        this.nation = null; // 유닛이 소속된 국가 (Nation 객체)
         this.size = size; // 유닛 아이콘의 크기 (반지름)
         this.team = team; // 유닛의 팀 ('blue' 또는 'red')
         this.reinforcementLevel = 0; // 증강 레벨
@@ -483,11 +484,18 @@ class Unit {
         // 1. 단위 방어력(unitDefense)으로 최종 피해량을 먼저 감소시킵니다. (부대의 맷집)
         const finalAttackPower = Math.max(0, totalAttackPower - this.unitDefense);
 
-        // 2. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
-        const orgRatio = this.organization / this.maxOrganization;
-        const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
-        const damageAbsorptionRate = this.minOrgDamageAbsorption + (orgRatio * absorptionRange);
-    
+        // 2. 피해 흡수율을 '조직 방어력'과 '현재 조직력 비율' 두 가지를 조합하여 계산합니다.
+        // 2-1. 조직 방어력에 따른 기본 흡수율 (최대 75%)
+        // (조직 방어력 50일 때 약 50%, 100일 때 66%의 피해를 조직력이 흡수)
+        const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
+
+        // 2-2. 현재 조직력 비율에 따른 추가 흡수율 (최대 20%)
+        const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
+        const absorptionFromOrgRatio = orgRatio * 0.20;
+
+        // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다.
+        const damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio);
+        
         // 3. 감소된 최종 공격력을 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamage = finalAttackPower * damageAbsorptionRate;
         const strDamage = finalAttackPower * (1 - damageAbsorptionRate);

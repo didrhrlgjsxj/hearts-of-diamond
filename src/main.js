@@ -61,11 +61,16 @@ function initializeNations() {
     const blueCapitalProvinceId = mapGrid.provinceManager.provinceGrid[0][0];
     const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', blueCapitalProvinceId);
     mapGrid.setProvinceOwner(blueCapitalProvinceId, blueNation);
-    nations.set('blue', blueNation);
 
     const redCapitalProvinceId = mapGrid.provinceManager.provinceGrid[15][15];
     const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', redCapitalProvinceId);
     mapGrid.setProvinceOwner(redCapitalProvinceId, redNation);
+
+    // 외교 관계 설정 (서로 전쟁 상태)
+    blueNation.setRelation('red', 'WAR');
+    redNation.setRelation('blue', 'WAR');
+
+    nations.set('blue', blueNation);
     nations.set('red', redNation);
 }
 

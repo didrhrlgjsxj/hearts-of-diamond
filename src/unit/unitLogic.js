@@ -33,7 +33,8 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         let minDistance = myBattalion.engagementRange;
 
         for (const enemyBattalion of allBattalions) {
-            if (enemyBattalion.team === myBattalion.team) continue;
+            // 외교 관계를 확인하여 적인지 판단합니다.
+            if (!myBattalion.nation.isEnemyWith(enemyBattalion.nation.id)) continue;
             const distance = Math.hypot(myBattalion.x - enemyBattalion.x, myBattalion.y - enemyBattalion.y);
             if (distance < minDistance) {
                 minDistance = distance;

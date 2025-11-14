@@ -19,6 +19,10 @@ class Nation {
 
         // 국가의 경제를 담당하는 Economy 인스턴스를 생성합니다.
         this.economy = new Economy(this);
+
+        // 외교 관계. key: 다른 국가 ID, value: 'WAR', 'NEUTRAL', 'ALLIED'
+        this.diplomacy = new Map();
+        this.diplomacy.set(this.id, 'ALLIED'); // 자기 자신과는 항상 동맹
     }
 
     /**
@@ -35,5 +39,25 @@ class Nation {
      */
     removeProvince(provinceId) {
         this.territory.delete(provinceId);
+    }
+
+    /**
+     * 다른 국가와의 외교 관계를 설정합니다.
+     * @param {string} otherNationId 
+     * @param {'WAR' | 'NEUTRAL' | 'ALLIED'} relation 
+     */
+    setRelation(otherNationId, relation) {
+        this.diplomacy.set(otherNationId, relation);
+    }
+
+    /**
+     * 특정 국가가 적인지 확인합니다.
+     * @param {string} otherNationId 
+     * @returns {boolean}
+     */
+    isEnemyWith(otherNationId) {
+        // 관계가 명시적으로 설정되지 않았다면 기본적으로 중립(적이 아님)으로 간주합니다.
+        const relation = this.diplomacy.get(otherNationId);
+        return relation === 'WAR';
     }
 }
