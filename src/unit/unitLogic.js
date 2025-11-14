@@ -130,22 +130,22 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                     const tacticAttackModifier = myBattalion.tactic ? myBattalion.tactic.attackModifier : 1.0;
                     const finalAttack = effectiveAttack * tacticAttackModifier;
 
-                    // 4. 최종 공격력 계산 (방어력과 장갑에 의한 피해 '경감' 적용)
-                    // 조직 방어력은 공격력의 일부를 비율(%)로 경감시킵니다.
-                    // 방어력이 100이면 50% 경감, 200이면 66% 경감됩니다. (점감 효과)
-                    const damageReductionFromDefense = target.organizationDefense / (target.organizationDefense + 100);
-                    const attackAfterDefense = finalAttack * (1 - damageReductionFromDefense);
+                    // 4. 최종 공격력 계산 (장갑과 방어력에 의한 피해 '경감' 적용)
+                    // 4-1. 장갑에 의한 대물 공격 피해 감소
+                    // 대물 공격력이 장갑보다 낮을 경우, 비율에 따라 피해량이 감소합니다.
+                    const hardAttackRatio = target.armor > 0 ? Math.min(1, c.hardAttack / target.armor) : 1;
                     
-                    // 장갑 관통 로직:
-                    // 대물 공격력이 장갑보다 높으면 관통 성공, 관통 보너스 데미지를 추가합니다.
-                    // 관통에 실패해도 대물 공격력의 10%는 최소 피해로 적용됩니다.
-                    let penetrationBonus = 0;
-                    if (c.hardAttack > target.armor) {
-                        penetrationBonus = (c.hardAttack - target.armor) * 0.5; // 관통 성공 시 추가 피해
-                    } else {
-                        penetrationBonus = c.hardAttack * 0.1; // 관통 실패 시 최소 피해
-                    }
-                    const totalAttackPower = attackAfterDefense + penetrationBonus;
+                    // 4-2. 장갑의 영향을 받은 유효 공격력 재계산
+                    const softPart = c.softAttack * (1 - defenderHardness);
+                    const hardPart = c.hardAttack * defenderHardness * hardAttackRatio;
+                    const attackAfterArmor = (softPart + hardPart) * c.combatEffectiveness * tacticAttackModifier;
+
+                    // 4-3. 조직 방어력에 의한 피해 감소
+                    // 조직 방어력은 공격력의 일부를 비율(%)로 경감시킵니다. (100이면 50%, 200이면 66%)
+                    const damageReductionFromDefense = target.organizationDefense / (target.organizationDefense + 100);
+                    const totalAttackPower = attackAfterArmor * (1 - damageReductionFromDefense);
+
+                    // 4-4. 화력 피해는 별도로 계산됩니다.
                     const firepowerDamage = c.firepower * 1.5; // 화력 피해는 중대 개별로
 
                     // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
@@ -158,7 +158,7 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         // --- 시각 효과 (매 프레임) ---
         const myBattalionTopLevel = myBattalion.getTopLevelParent();
         
-        // 중대 간의 얇은 예광탄 (쇼 연출)
+        // 중대 간의 얇은 예광탄 (연출)
         myBattalion.getAllCompanies().forEach(c => {
             if (c.companyTarget && c.combatEffectiveness > 0.1) {
                 myBattalionTopLevel.tracers.push({ from: c, to: c.companyTarget, life: 0.3, type: 'company' });

@@ -52,7 +52,6 @@ const UNIT_TYPE_EFFECTIVENESS_RANGE = {
 
 // 진형 역할 통일 (대대, 중대 공통 사용)
 const FORMATION_ROLES = {
-    VANGUARD: 'VANGUARD',   // Vanguard: 가장 앞에서 적과 처음으로 교전
     FRONTLINE: 'FRONTLINE',  // Frontline: 주력 전투 담당
     MIDGUARD: 'MIDGUARD',   // Midguard: 전위와 후위 사이에서 지원
     REARGUARD: 'REARGUARD',  // Rearguard: 후방 지원 및 예비대 역할 (본부 위치)
@@ -60,16 +59,13 @@ const FORMATION_ROLES = {
 
 // 역할별 진형 오프셋 (상대적 거리)
 const FORMATION_OFFSETS = {
-    [FORMATION_ROLES.VANGUARD]: { distance: 120, spread: 60 }, // 선봉: 가장 앞
-    [FORMATION_ROLES.FRONTLINE]: { distance: 80, spread: 80 },  // 전위: 중간 앞
+    [FORMATION_ROLES.FRONTLINE]: { distance: 100, spread: 80 },  // 전위: 주력 전투선
     [FORMATION_ROLES.MIDGUARD]: { distance: 40, spread: 100 }, // 중위: 중간 뒤, 넓게
     [FORMATION_ROLES.REARGUARD]: { distance: 0, spread: 70 },   // 후위: 본부와 같은 라인
 };
 
 // 역할과 병과에 따른 전투 효율성 계수
 const EFFECTIVENESS_MODIFIERS = {
-    // 선봉대: 정찰, 기갑 유닛이 효율적
-    [FORMATION_ROLES.VANGUARD]:  { 'INFANTRY': 0.9, 'RECON': 1.2, 'ARMOR': 1.1, 'ARTILLERY': 0.3, 'ENGINEER': 0.7 },
     // 전위: 보병, 기갑, 공병 유닛이 효율적
     [FORMATION_ROLES.FRONTLINE]: { 'INFANTRY': 1.2, 'RECON': 0.7, 'ARMOR': 1.2, 'ARTILLERY': 0.6, 'ENGINEER': 1.1 },
     // 후위: 포병 유닛이 매우 효율적

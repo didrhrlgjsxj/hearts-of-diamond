@@ -7,7 +7,7 @@
                 {
                     "template_key": "Infantry_Battalion",
                     "count": 2,
-                    "role": "VANGUARD"
+                    "role": "FRONTLINE"
                 },
                 {
                     "template_key": "Infantry_Battalion",
@@ -29,7 +29,7 @@
                 {
                     "template_key": "Armored_Battalion",
                     "count": 2,
-                    "role": "VANGUARD"
+                    "role": "FRONTLINE"
                 },
                 {
                     "template_key": "Mechanized_Infantry_Battalion",
@@ -46,7 +46,7 @@
                 {
                     "template_key": "Infantry_Battalion",
                     "count": 1,
-                    "role": "VANGUARD"
+                    "role": "FRONTLINE"
                 },
                 {
                     "template_key": "Infantry_Battalion",
