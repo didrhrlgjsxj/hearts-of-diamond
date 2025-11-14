@@ -352,6 +352,12 @@ class Unit {
                 this.isRetreating = false;
                 this.destination = null; // 상위 부대가 주는 기본 진형 위치도 초기화
             }
+
+            // 플레이어의 직접 명령이 아닌, 진형 이동에 의해 목표에 도달한 경우,
+            // 상위 부대의 방향으로 자신의 방향을 정렬합니다.
+            if (!this.playerDestination && this.parent && this.parent instanceof SymbolUnit) {
+                this.direction = this.parent.direction;
+            }
         } else {
             // 목표를 향해 이동
             const moveX = (dx / distance) * moveDistance;
