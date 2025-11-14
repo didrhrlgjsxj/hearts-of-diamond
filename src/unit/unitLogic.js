@@ -210,8 +210,13 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         const allCompanies = unit.getAllCompanies();
         for (const company of allCompanies) {
             if (company.organization < company.maxOrganization && !company.isDestroyed) {
-                // 재정비 중일 때는 비전투 상태와 동일한 속도로 회복합니다.
-                const recoveryRate = (company.isInCombat && !company.isRefitting) ? company.organizationRecoveryRateInCombat : company.organizationRecoveryRate;
+                // 전투 중이 아니고, 공격받고 있지도 않을 때만 조직력이 회복됩니다.
+                // 재정비(isRefitting) 중일 때도 공격받고 있다면 회복되지 않습니다.
+                let recoveryRate = 0;
+                if (!company.isInCombat && !company.isBeingTargeted) {
+                    recoveryRate = company.organizationRecoveryRate;
+                }
+
                 company._organization = Math.min(company.maxOrganization, company._organization + recoveryRate * scaledDeltaTime);
             }
         }

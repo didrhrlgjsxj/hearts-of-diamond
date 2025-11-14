@@ -550,15 +550,15 @@ class Unit {
         let damageAbsorptionRate;
 
         if (parentBattalion && parentBattalion instanceof SymbolUnit) {
-            // 2-1. 대대의 조직 방어력에 따른 기본 흡수율 (최대 75%)
-            const absorptionFromDefense = (parentBattalion.organizationDefense / (parentBattalion.organizationDefense + 50)) * 0.75;
+            // 2-1. 대대의 조직 방어력에 따른 기본 흡수율 (최대 70%)
+            const absorptionFromDefense = (parentBattalion.organizationDefense / (parentBattalion.organizationDefense + 50)) * 0.7;
 
-            // 2-2. 대대의 현재 조직력 비율에 따른 추가 흡수율 (최대 20%)
+            // 2-2. 대대의 현재 조직력 비율에 따른 추가 흡수율 (최대 25%)
             const orgRatio = parentBattalion.maxOrganization > 0 ? parentBattalion.organization / parentBattalion.maxOrganization : 0;
-            const absorptionFromOrgRatio = orgRatio * 0.20;
+            const absorptionFromOrgRatio = orgRatio * 0.25;
 
-            // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다.
-            damageAbsorptionRate = Math.min(0.95, 0.2 + absorptionFromDefense + absorptionFromOrgRatio); // 기본 흡수율 0.2 추가
+            // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다. 기본적으로 0.1의 흡수율을 추가합니다.
+            damageAbsorptionRate = Math.min(0.95, 0.1 + absorptionFromDefense + absorptionFromOrgRatio); // 기본 흡수율 0.2 추가
         } else {
             // 대대가 없는 경우(독립 중대 등 예외 상황)에는 기존 로직을 따릅니다.
             const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
