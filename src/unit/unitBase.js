@@ -542,18 +542,28 @@ class Unit {
         // 1. 단위 방어력(unitDefense)으로 최종 피해량을 먼저 감소시킵니다. (부대의 맷집)
         const finalAttackPower = Math.max(0, totalAttackPower - this.unitDefense);
 
-        // 2. 피해 흡수율을 '조직 방어력'과 '현재 조직력 비율' 두 가지를 조합하여 계산합니다.
-        // 2-1. 조직 방어력에 따른 기본 흡수율 (최대 75%)
-        // (조직 방어력 50일 때 약 50%, 100일 때 66%의 피해를 조직력이 흡수)
-        const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
+        // 2. 피해 흡수율을 '대대'의 능력치를 기준으로 계산합니다.
+        const parentBattalion = this.parent;
+        let damageAbsorptionRate;
 
-        // 2-2. 현재 조직력 비율에 따른 추가 흡수율 (최대 20%)
-        const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
-        const absorptionFromOrgRatio = orgRatio * 0.20;
+        if (parentBattalion && parentBattalion instanceof SymbolUnit) {
+            // 2-1. 대대의 조직 방어력에 따른 기본 흡수율 (최대 75%)
+            const absorptionFromDefense = (parentBattalion.organizationDefense / (parentBattalion.organizationDefense + 50)) * 0.75;
 
-        // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다.
-        const damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio + 0.95);
-        
+            // 2-2. 대대의 현재 조직력 비율에 따른 추가 흡수율 (최대 20%)
+            const orgRatio = parentBattalion.maxOrganization > 0 ? parentBattalion.organization / parentBattalion.maxOrganization : 0;
+            const absorptionFromOrgRatio = orgRatio * 0.20;
+
+            // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다.
+            damageAbsorptionRate = Math.min(0.95, 0.2 + absorptionFromDefense + absorptionFromOrgRatio); // 기본 흡수율 0.2 추가
+        } else {
+            // 대대가 없는 경우(독립 중대 등 예외 상황)에는 기존 로직을 따릅니다.
+            const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
+            const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
+            const absorptionFromOrgRatio = orgRatio * 0.20;
+            damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio);
+        }
+
         // 3. 감소된 최종 공격력을 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamage = finalAttackPower * damageAbsorptionRate;
         const strDamage = finalAttackPower * (1 - damageAbsorptionRate);
@@ -561,8 +571,7 @@ class Unit {
         // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
         // 전술은 대대급에만 있으므로, 중대는 부모의 전술을 참조합니다.
         // 중대의 부모는 대대(Battalion)입니다.
-        const parentBattalion = this.parent;
-        const tacticOrgModifier = parentBattalion?.tactic ? parentBattalion.tactic.orgDamageModifier : 1.0;
+        const tacticOrgModifier = this.parent?.tactic ? this.parent.tactic.orgDamageModifier : 1.0;
         const modifiedOrgDamage = orgDamage * tacticOrgModifier;
         this._organization = Math.max(0, this._organization - modifiedOrgDamage);
     
