@@ -36,9 +36,9 @@ const UNIT_TYPE_COLORS = {
 const UNIT_TYPE_STATS = {
     'INFANTRY': { firepower: 1, softAttack: 2, hardAttack: 0.5, reconnaissance: 1, armor: 0, organizationBonus: 10, mobility: 10 },
     'RECON':    { firepower: 0.5, softAttack: 1, hardAttack: 0.5, reconnaissance: 15, armor: 0, organizationBonus: 2, mobility: 15 },
-    'ARMOR':    { firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 12 },
-    'ARTILLERY':{ firepower: 8, softAttack: 3, hardAttack: 4, reconnaissance: 1, armor: 1, organizationBonus: 1, mobility: 8 },
-    'ENGINEER': { firepower: 1, softAttack: 1, hardAttack: 6, reconnaissance: 1, armor: 2, organizationBonus: 3, mobility: 10 },
+    'ARMOR':    { firepower: 4, softAttack: 4, hardAttack: 4, reconnaissance: 2, armor: 8, organizationBonus: 5, mobility: 12 },
+    'ARTILLERY':{ firepower: 6, softAttack: 4.5, hardAttack: 2, reconnaissance: 1, armor: 0, organizationBonus: 1, mobility: 8 },
+    'ENGINEER': { firepower: 1, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 2, organizationBonus: 3, mobility: 10 },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의

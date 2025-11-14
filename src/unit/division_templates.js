@@ -175,6 +175,10 @@ const DIVISION_TEMPLATES = {
     "Infantry_Regiment": {
         name: "보병 연대",
         build: (x, y, team) => buildUnitFromTemplate("Infantry_Regiment", x, y, team)
+    },
+    "Artillery_Brigade": {
+        name: "포병 여단",
+        build: (x, y, team) => buildUnitFromTemplate("Artillery_Brigade", x, y, team)
     }
     // 필요에 따라 다른 최상위 편제들을 여기에 추가할 수 있습니다.
 };

@@ -140,16 +140,18 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
                     const hardPart = c.hardAttack * defenderHardness * hardAttackRatio;
                     const attackAfterArmor = (softPart + hardPart) * c.combatEffectiveness * tacticAttackModifier;
 
-                    // 4-3. 조직 방어력에 의한 피해 감소
-                    // 조직 방어력은 공격력의 일부를 비율(%)로 경감시킵니다. (100이면 50%, 200이면 66%)
-                    const damageReductionFromDefense = target.organizationDefense / (target.organizationDefense + 100);
-                    const totalAttackPower = attackAfterArmor * (1 - damageReductionFromDefense);
+                    // 4-3. 화력과 조직 방어력 비교를 통한 '공격 효율성' 계산
+                    // 화력이 조직 방어력보다 낮으면, 그 비율만큼 최종 피해량이 감소합니다.
+                    // 이는 공격이 얼마나 효과적으로 적의 방어망을 뚫는지를 나타냅니다.
+                    const attackEffectiveness = target.organizationDefense > 0 
+                        ? Math.min(1, c.firepower / target.organizationDefense) 
+                        : 1;
 
-                    // 4-4. 화력 피해는 별도로 계산됩니다.
-                    const firepowerDamage = c.firepower * 1.5; // 화력 피해는 중대 개별로
+                    const totalAttackPower = attackAfterArmor * attackEffectiveness;
 
                     // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
-                    target.takeDamage(totalAttackPower, firepowerDamage, { x: c.x, y: c.y });
+                    // 단위 방어력에 의한 최종 피해 감소는 takeDamage 내부에서 처리됩니다.
+                    target.takeDamage(totalAttackPower, { x: c.x, y: c.y });
                 });
             }
             engagedBattalions.add(myBattalion);

@@ -56,6 +56,23 @@
             ],
             "hq_template_key": "Infantry_HQ_Company"
         },
+        "Artillery_Brigade": {
+            "name": "포병 여단",
+            "echelon": "BRIGADE",
+            "sub_units": [
+                {
+                    "template_key": "Infantry_Battalion",
+                    "count": 1,
+                    "role": "FRONTLINE"
+                },
+                {
+                    "template_key": "Artillery_Battalion",
+                    "count": 2,
+                    "role": "REARGUARD"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
         "Infantry_Battalion": {
             "name": "보병 대대",
             "echelon": "BATTALION",
@@ -88,6 +105,18 @@
                     "template_key": "Mechanized_Infantry_Company",
                     "count": 4,
                     "role": "FRONTLINE"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
+        "Artillery_Battalion": {
+            "name": "포병 대대",
+            "echelon": "BATTALION",
+            "sub_units": [
+                {
+                    "template_key": "Artillery_Company",
+                    "count": 4,
+                    "role": "REARGUARD"
                 }
             ],
             "hq_template_key": "Infantry_HQ_Company"
@@ -147,6 +176,17 @@
                 }
             ]
         },
+        "Artillery_Company": {
+            "name": "포병 중대",
+            "echelon": "COMPANY",
+            "role": "REARGUARD",
+            "sub_units": [
+                {
+                    "template_key": "Artillery_Platoon",
+                    "count": 3
+                }
+            ]
+        },
         "Infantry_Platoon": {
             "name": "보병 소대",
             "echelon": "PLATOON",
@@ -177,6 +217,16 @@
                 }
             ]
         },
+        "Artillery_Platoon": {
+            "name": "포병 소대",
+            "echelon": "PLATOON",
+            "sub_units": [
+                {
+                    "template_key": "Artillery_Squad",
+                    "count": 4
+                }
+            ]
+        },
         "Infantry_Squad": {
             "name": "보병 분대",
             "echelon": "SQUAD",
@@ -191,6 +241,11 @@
             "name": "기계화 보병 분대",
             "echelon": "SQUAD",
             "type": "INFANTRY"
+        },
+        "Artillery_Squad": {
+            "name": "포병 분대",
+            "echelon": "SQUAD",
+            "type": "ARTILLERY"
         }
     }
 }

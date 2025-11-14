@@ -477,32 +477,30 @@ class Unit {
     /**
      * 피해를 받습니다.
      * @param {number} totalAttackPower 장갑으로 경감된 후의 총 공격력
-     * @param {number} firepowerDamage 화력에 의한 추가 조직력 피해
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
      */
-    takeDamage(totalAttackPower, firepowerDamage, fromCoords) {
-        // 1. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
+    takeDamage(totalAttackPower, fromCoords) {
+        // 1. 단위 방어력(unitDefense)으로 최종 피해량을 먼저 감소시킵니다. (부대의 맷집)
+        const finalAttackPower = Math.max(0, totalAttackPower - this.unitDefense);
+
+        // 2. 현재 조직력 상태에 따라 피해 흡수율을 계산합니다.
         const orgRatio = this.organization / this.maxOrganization;
         const absorptionRange = this.maxOrgDamageAbsorption - this.minOrgDamageAbsorption;
         const damageAbsorptionRate = this.minOrgDamageAbsorption + (orgRatio * absorptionRange);
     
-        // 2. 총 공격력을 조직력 피해와 내구력 피해로 분배합니다.
-        const orgDamage = totalAttackPower * damageAbsorptionRate;
-        const strDamage = totalAttackPower * (1 - damageAbsorptionRate);
-    
-        // 3. 최종 조직력 피해를 계산하고 적용합니다.
-        // 단위 방어력(unitDefense)이 조직력 피해를 일부 경감시킵니다.
-        const finalOrgDamage = Math.max(0, (orgDamage + firepowerDamage) - this.unitDefense);
+        // 3. 감소된 최종 공격력을 조직력 피해와 내구력 피해로 분배합니다.
+        const orgDamage = finalAttackPower * damageAbsorptionRate;
+        const strDamage = finalAttackPower * (1 - damageAbsorptionRate);
     
         // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
         // 전술은 대대급에만 있으므로, 중대는 부모의 전술을 참조합니다.
         // 중대의 부모는 대대(Battalion)입니다.
         const parentBattalion = this.parent;
         const tacticOrgModifier = parentBattalion?.tactic ? parentBattalion.tactic.orgDamageModifier : 1.0;
-        const modifiedOrgDamage = finalOrgDamage * tacticOrgModifier;
+        const modifiedOrgDamage = orgDamage * tacticOrgModifier;
         this._organization = Math.max(0, this._organization - modifiedOrgDamage);
     
-        // 4. 최종 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
+        // 4. 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
         if (strDamage > 0) {
             this.damageTaken += strDamage;
             // 내구력 피해량 텍스트를 생성합니다.
