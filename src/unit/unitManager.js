@@ -175,13 +175,15 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
         // 3. 중대 단위 목표 할당
         if (myBattalion.battalionTarget) {
-            const myCompanies = myBattalion.getAllCompanies().filter(c => !c.isDestroyed);
+            // 전투 가능한 아군 중대만 필터링합니다. (파괴, 후퇴, 재정비 중인 중대 제외)
+            const myCombatReadyCompanies = myBattalion.getAllCompanies().filter(c => !c.isDestroyed && !c.isRetreating && !c.isRefitting);
             const enemyCompanies = myBattalion.battalionTarget.getAllCompanies().filter(c => !c.isDestroyed);
 
-            if (myCompanies.length === 0 || enemyCompanies.length === 0) continue;
+            if (myCombatReadyCompanies.length === 0 || enemyCompanies.length === 0) continue;
 
             // 각 중대에 공격할 적 중대를 할당합니다. (1대1 매칭)
-            myCompanies.forEach((myCompany, index) => {
+            // 이제 재정비 중인 중대는 companyTarget을 할당받지 않습니다.
+            myCombatReadyCompanies.forEach((myCompany, index) => {
                 // 적 중대가 더 적을 경우, 마지막 적 중대를 여러 아군 중대가 공격합니다.
                 const targetIndex = Math.min(index, enemyCompanies.length - 1);
                 myCompany.companyTarget = enemyCompanies[targetIndex];
@@ -206,8 +208,17 @@ function updateUnits(unitManager, scaledDeltaTime) {
         enemyBattalion.isInCombat = true;
 
         // 휘하 중대들도 전투 상태로 설정
-        myBattalion.getAllCompanies().forEach(c => c.isInCombat = true);
-        enemyBattalion.getAllCompanies().forEach(c => c.isInCombat = true);
+        // 단, 재정비(isRefitting) 중인 중대는 전투 상태에서 제외합니다.
+        myBattalion.getAllCompanies().forEach(c => {
+            // 재정비 중이 아니며, 후퇴 중도 아닌 중대만 전투 상태로 설정합니다.
+            // 이렇게 하면 재정비 중인 중대가 노란색으로 깜빡이는 문제를 해결합니다.
+            if (!c.isRefitting && !c.isRetreating) c.isInCombat = true;
+        });
+        // 적 부대도 재정비/후퇴 중이 아닌 중대만 전투 상태로 설정합니다.
+        enemyBattalion.getAllCompanies().forEach(c => {
+            if (!c.isRefitting && !c.isRetreating) c.isInCombat = true;
+        });
+
 
         // 적 대대가 공격받고 있음을 표시
         enemyBattalion.isBeingTargeted = true; // UI 표시용
@@ -347,9 +358,11 @@ function updateUnits(unitManager, scaledDeltaTime) {
         for (const company of allCompanies) { // `_organization`에 직접 접근하는 것은 클래스 설계상 좋지 않지만, 현재 구조를 유지하며 수정합니다.
             if (company.organization < company.maxOrganization && !company.isDestroyed) {
                 // 전투 중이 아니고, 공격받고 있지도 않을 때만 조직력이 회복됩니다.
-                // 재정비(isRefitting) 중일 때도 공격받고 있다면 회복되지 않습니다.
+                // 재정비 중인 부대는 대대가 공격받는 것과 무관하게, 자기 자신이 직접 공격받지 않으면 조직력을 회복해야 합니다.
+                // 따라서 isBeingTargeted는 중대 자신이 공격받을 때만 true가 되어야 합니다. (현재 로직은 대대 단위로 설정됨)
                 let recoveryRate = 0;
-                if (!company.isInCombat && !company.isBeingTargeted) {
+                // 재정비 중인 중대는 isInCombat이 항상 false이므로, isBeingTargeted만 확인하면 됩니다.
+                if (!company.isInCombat && !company.isBeingTargeted) { // isBeingTargeted는 이제 중대 단위로 관리되어야 정확합니다.
                     recoveryRate = company.organizationRecoveryRate;
                 }
 
@@ -358,6 +371,15 @@ function updateUnits(unitManager, scaledDeltaTime) {
         }
     }
 
+    // --- 중대 단위 isBeingTargeted 플래그 설정 ---
+    // 모든 공격이 끝난 후, 어떤 중대가 실제로 공격받았는지(companyTarget으로 지정되었는지) 다시 확인합니다.
+    allBattalions.forEach(battalion => {
+        battalion.getAllCompanies().forEach(company => {
+            // 다른 중대가 나를 companyTarget으로 삼고 있는지 확인합니다.
+            const isTargeted = allBattalions.some(b => b.getAllCompanies().some(c => c.companyTarget === company));
+            company.isBeingTargeted = isTargeted;
+        });
+    });
     // --- 이동 및 진형 업데이트 ---
     // 1단계: 모든 유닛의 이동을 먼저 처리합니다.
     topLevelUnits.forEach(unit => processUnitMovement(unit, scaledDeltaTime));
