@@ -22,18 +22,35 @@
             ],
             "hq_template_key": "Infantry_HQ_Company"
         },
+        "Mixed_Recon_Division": {
+            "name": "혼성 정찰 사단",
+            "echelon": "DIVISION",
+            "sub_units": [
+                {
+                    "template_key": "Recon_Infantry_Battalion",
+                    "count": 4,
+                    "role": "FRONTLINE"
+                },
+                {
+                    "template_key": "Artillery_Mixed_Battalion",
+                    "count": 3,
+                    "role": "MIDGUARD"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
         "Armored_Brigade": {
             "name": "기갑 여단",
             "echelon": "BRIGADE",
             "sub_units": [
                 {
                     "template_key": "Armored_Battalion",
-                    "count": 2,
+                    "count": 3,
                     "role": "FRONTLINE"
                 },
                 {
                     "template_key": "Mechanized_Infantry_Battalion",
-                    "count": 1,
+                    "count": 2,
                     "role": "FRONTLINE"
                 }
             ],
@@ -62,12 +79,12 @@
             "sub_units": [
                 {
                     "template_key": "Infantry_Battalion",
-                    "count": 1,
+                    "count": 2,
                     "role": "FRONTLINE"
                 },
                 {
                     "template_key": "Artillery_Battalion",
-                    "count": 2,
+                    "count": 3,
                     "role": "REARGUARD"
                 }
             ],
@@ -82,6 +99,27 @@
                     "count": 4,
                     "role": "MIDGUARD"
                 }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
+        "Recon_Infantry_Battalion": {
+            "name": "정찰 보병 대대",
+            "echelon": "BATTALION",
+            "sub_units": [
+                {
+                    "template_key": "Recon_Infantry_Company",
+                    "count": 4,
+                    "role": "FRONTLINE"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
+        "Artillery_Mixed_Battalion": {
+            "name": "포병 혼성 대대",
+            "echelon": "BATTALION",
+            "sub_units": [
+                { "template_key": "Infantry_Company", "count": 2, "role": "FRONTLINE" },
+                { "template_key": "Artillery_Company", "count": 2, "role": "REARGUARD" }
             ],
             "hq_template_key": "Infantry_HQ_Company"
         },
@@ -176,6 +214,17 @@
                 }
             ]
         },
+        "Recon_Infantry_Company": {
+            "name": "정찰 보병 중대",
+            "echelon": "COMPANY",
+            "role": "FRONTLINE",
+            "sub_units": [
+                {
+                    "template_key": "Recon_Infantry_Platoon",
+                    "count": 3
+                }
+            ]
+        },
         "Artillery_Company": {
             "name": "포병 중대",
             "echelon": "COMPANY",
@@ -217,6 +266,20 @@
                 }
             ]
         },
+        "Recon_Infantry_Platoon": {
+            "name": "정찰 보병 소대",
+            "echelon": "PLATOON",
+            "sub_units": [
+                {
+                    "template_key": "Infantry_Squad",
+                    "count": 3
+                },
+                {
+                    "template_key": "Recon_Squad",
+                    "count": 1
+                }
+            ]
+        },
         "Artillery_Platoon": {
             "name": "포병 소대",
             "echelon": "PLATOON",
@@ -241,6 +304,11 @@
             "name": "기계화 보병 분대",
             "echelon": "SQUAD",
             "type": "INFANTRY"
+        },
+        "Recon_Squad": {
+            "name": "정찰 분대",
+            "echelon": "SQUAD",
+            "type": "RECON"
         },
         "Artillery_Squad": {
             "name": "포병 분대",

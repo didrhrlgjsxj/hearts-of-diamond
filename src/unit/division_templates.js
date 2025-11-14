@@ -186,6 +186,10 @@ const DIVISION_TEMPLATES = {
     "Artillery_Brigade": {
         name: "포병 여단",
         build: (x, y, team) => buildUnitFromTemplate("Artillery_Brigade", x, y, team)
+    },
+    "Mixed_Recon_Division": {
+        name: "혼성 정찰 사단",
+        build: (x, y, team) => buildUnitFromTemplate("Mixed_Recon_Division", x, y, team)
     }
     // 필요에 따라 다른 최상위 편제들을 여기에 추가할 수 있습니다.
 };

@@ -34,11 +34,11 @@ const UNIT_TYPE_COLORS = {
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 1.5, reconnaissance: 1, armor: 0, organizationBonus: 8, mobility: 10 },
-    'RECON':    { firepower: 1, softAttack: 2.5, hardAttack: 1, reconnaissance: 15, armor: 0, organizationBonus: 3, mobility: 15 },
-    'ARMOR':    { firepower: 2.5, softAttack: 3, hardAttack: 4, reconnaissance: 2, armor: 8, organizationBonus: 4, mobility: 20 },
-    'ARTILLERY':{ firepower: 4, softAttack: 4.5, hardAttack: 3, reconnaissance: 1, armor: 0, organizationBonus: 3, mobility: 8 },
-    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 2, organizationBonus: 4, mobility: 10 },
+    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10 },
+    'RECON':    { firepower: 1, softAttack: 2.5, hardAttack: 1, reconnaissance: 7, armor: 0, organizationBonus: 3, mobility: 15 },
+    'ARMOR':    { firepower: 2.5, softAttack: 3, hardAttack: 4, reconnaissance: 3, armor: 8, organizationBonus: 4, mobility: 20 },
+    'ARTILLERY':{ firepower: 4, softAttack: 4.5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 3, mobility: 8 },
+    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 2, organizationBonus: 5, mobility: 10 },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
