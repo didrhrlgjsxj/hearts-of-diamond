@@ -154,7 +154,7 @@ const UNIT_STAT_AGGREGATORS = {
     organizationDefense: (units) => {
         if (units.length === 0) return 0;
         // 1. 편제에 의해 추가된 조직력(organizationBonus) 총합을 기본 방어력으로 설정합니다.
-        const baseOrgDefense = units.reduce((total, unit) => total + unit.organizationBonus, 0);
+        const baseOrgDefense = units.reduce((total, unit) => total + unit.organizationBonus / 2, 0);
 
         // 2. 평균 기동력과 정찰력을 기반으로 배율을 계산합니다.
         const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
