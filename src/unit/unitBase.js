@@ -20,7 +20,7 @@ class Unit {
         this.engagementRange = 200; // 교전 범위 (탐지 거리)
         this.isInCombat = false; // 전투 상태 여부
         this.isEnemyDetected = false; // 적 발견 상태 여부
-        this.isDestroyed = false; // 유닛이 파괴되었는지 여부
+        this._isDestroyed = false; // 유닛이 파괴되었는지 여부 (내부 플래그)
         this.destination = null; // 이동 목표 지점 {x, y}
         this.playerDestination = null; // 플레이어가 직접 지정한 최종 목표
         this.isRetreating = false; // 후퇴 중인지 여부
@@ -129,12 +129,29 @@ class Unit {
      * 하위 유닛이 있으면 그 유닛들의 병력 총합을, 없으면 자신의 기본 병력을 기준으로 계산합니다.
      */
     get currentStrength() {
-        // SymbolUnit은 휘하 모든 부대의 내구력을 합산하여 반환합니다.
+        // SymbolUnit은 자신의 기본 내구력에서 받은 피해를 빼서 계산합니다.
+        // 이는 하위 중대로부터 받은 피해(damageTaken)를 반영하기 위함입니다.
         if (this instanceof SymbolUnit) {
-            return this.subUnits.reduce((sum, unit) => sum + unit.currentStrength, 0);
+            return Math.max(0, this.baseStrength - this.damageTaken);
         }
         if (this.isDestroyed) return 0;
         return Math.max(0, this.damageTaken > 0 ? this._baseStrength - this.damageTaken : this._baseStrength);
+    }
+
+    /**
+     * 유닛의 파괴 상태를 설정합니다.
+     * SymbolUnit의 경우, 자신이 파괴될 때 모든 하위 유닛도 함께 파괴시킵니다.
+     */
+    set isDestroyed(value) {
+        if (this._isDestroyed === value) return; // 이미 같은 상태이면 변경하지 않음
+        this._isDestroyed = value;
+        if (value && this instanceof SymbolUnit) {
+            // 자신이 파괴될 때 하위 유닛들도 연쇄적으로 파괴시킵니다.
+            this.subUnits.forEach(sub => sub.isDestroyed = true);
+        }
+    }
+    get isDestroyed() {
+        return this._isDestroyed;
     }
 
     /**
@@ -537,6 +554,34 @@ class Unit {
     }
 
     /**
+     * 피해 흡수율을 계산합니다. 이 로직은 takeDamage에서만 사용됩니다.
+     * @returns {number} 0과 1 사이의 피해 흡수율
+     * @private
+     */
+    _calculateDamageAbsorptionRate() {
+        // 중대는 상위 대대의 능력치를 기준으로 피해 흡수율을 계산합니다.
+        const decisionMaker = (this instanceof Company && this.parent) ? this.parent : this;
+
+        if (decisionMaker instanceof SymbolUnit) {
+            // 1. 대대의 조직 방어력에 따른 기본 흡수율 (최대 70%)
+            const absorptionFromDefense = (decisionMaker.organizationDefense / (decisionMaker.organizationDefense + 50)) * 0.7;
+
+            // 2. 대대의 현재 조직력 비율에 따른 추가 흡수율 (최대 25%)
+            const orgRatio = decisionMaker.maxOrganization > 0 ? decisionMaker.organization / decisionMaker.maxOrganization : 0;
+            const absorptionFromOrgRatio = orgRatio * 0.25;
+
+            // 3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다. 기본적으로 0.1의 흡수율을 가집니다.
+            return Math.min(0.95, 0.1 + absorptionFromDefense + absorptionFromOrgRatio);
+        } else {
+            // 대대가 없는 경우(독립 중대 등 예외 상황)에는 기존 로직을 따릅니다.
+            const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
+            const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
+            const absorptionFromOrgRatio = orgRatio * 0.20;
+            return Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio);
+        }
+    }
+
+    /**
      * 피해를 받습니다.
      * @param {number} totalAttackPower 장갑으로 경감된 후의 총 공격력
      * @param {{x: number, y: number}} fromCoords 공격자 좌표
@@ -545,64 +590,63 @@ class Unit {
         // 1. 최종 공격력을 그대로 사용합니다.
         // 단위 방어력(unitDefense)에 의한 피해 감소는 unitLogic.js에서 대물 공격력과 계산하는 방식으로 변경되었습니다.
         const finalAttackPower = totalAttackPower;
-        // 2. 피해 흡수율을 '대대'의 능력치를 기준으로 계산합니다.
-        const parentBattalion = this.parent;
-        let damageAbsorptionRate;
 
-        if (parentBattalion && parentBattalion instanceof SymbolUnit) {
-            // 2-1. 대대의 조직 방어력에 따른 기본 흡수율 (최대 70%)
-            const absorptionFromDefense = (parentBattalion.organizationDefense / (parentBattalion.organizationDefense + 50)) * 0.7;
+        // 2. 피해 흡수율을 계산합니다.
+        const damageAbsorptionRate = this._calculateDamageAbsorptionRate();
 
-            // 2-2. 대대의 현재 조직력 비율에 따른 추가 흡수율 (최대 25%)
-            const orgRatio = parentBattalion.maxOrganization > 0 ? parentBattalion.organization / parentBattalion.maxOrganization : 0;
-            const absorptionFromOrgRatio = orgRatio * 0.25;
-
-            // 2-3. 두 흡수율을 합산하되, 최대 95%를 넘지 않도록 제한합니다. 기본적으로 0.1의 흡수율을 추가합니다.
-            damageAbsorptionRate = Math.min(0.95, 0.1 + absorptionFromDefense + absorptionFromOrgRatio); // 기본 흡수율 0.2 추가
-        } else {
-            // 대대가 없는 경우(독립 중대 등 예외 상황)에는 기존 로직을 따릅니다.
-            const absorptionFromDefense = (this.organizationDefense / (this.organizationDefense + 50)) * 0.75;
-            const orgRatio = this.maxOrganization > 0 ? this.organization / this.maxOrganization : 0;
-            const absorptionFromOrgRatio = orgRatio * 0.20;
-            damageAbsorptionRate = Math.min(0.95, absorptionFromDefense + absorptionFromOrgRatio);
-        }
-
-        // 3. 감소된 최종 공격력을 조직력 피해와 내구력 피해로 분배합니다.
+        // 3. 조직력 피해와 내구력 피해로 분배합니다.
         const orgDamage = finalAttackPower * damageAbsorptionRate;
         const strDamage = finalAttackPower * (1 - damageAbsorptionRate);
     
-        // 현재 전술에 따른 조직력 피해량 수정을 적용합니다.
-        // 전술은 대대급에만 있으므로, 중대는 부모의 전술을 참조합니다.
-        // 중대의 부모는 대대(Battalion)입니다.
-        const tacticOrgModifier = this.parent?.tactic ? this.parent.tactic.orgDamageModifier : 1.0;
-        const modifiedOrgDamage = orgDamage * tacticOrgModifier;
-        this._organization = Math.max(0, this._organization - modifiedOrgDamage);
-    
-        // 조직력이 0이 되면 후퇴를 시작합니다.
-        if (this._organization <= 0 && this instanceof Company) {
-            this.startRetreat();
-        }
+        // --- 요청사항 적용 ---
+        // 이 유닛이 중대(Company)인 경우, 피해 적용 방식을 변경합니다.
+        if (this instanceof Company) {
+            // 1. 조직력 피해는 중대 자신에게 적용합니다.
+            const tacticOrgModifier = this.parent?.tactic ? this.parent.tactic.orgDamageModifier : 1.0;
+            const modifiedOrgDamage = orgDamage * tacticOrgModifier;
+            this._organization = Math.max(0, this._organization - modifiedOrgDamage);
 
-        // 4. 내구력 피해를 적용하고, 파괴 여부를 확인합니다.
-        if (strDamage > 0) {
-            this.damageTaken += strDamage;
-            // 내구력 피해량 텍스트를 생성합니다.
-            this.floatingTexts.push({
-                text: `-${Math.floor(strDamage)}`,
-                life: 1.5,
-                alpha: 1.0,
-                x: this.x, // 피해는 중대 자신이 받으므로 this.x 사용
-                y: this.y - this.size - 15,
-            });
-        }
-    
-        // 5. 유닛 파괴 확인
-        if (this.currentStrength <= 0) {
-            this.isDestroyed = true;
-            this._organization = 0;
-            this.destination = null;
+            // 조직력이 0이 되면 후퇴를 시작합니다.
+            if (this._organization <= 0) {
+                this.startRetreat();
+            }
+
+            // 2. 내구력 피해는 상위 대대(parent)에게 적용하고, 대대의 파괴 여부를 즉시 확인합니다.
+            if (strDamage > 0 && this.parent) {
+                this.parent.takeStrengthDamage(strDamage);
+
+                // 내구력 피해량 텍스트는 대대 위치에 표시합니다.
+                this.parent.floatingTexts.push({
+                    text: `-${Math.floor(strDamage)}`,
+                    life: 1.5,
+                    alpha: 1.0,
+                    x: this.parent.x,
+                    y: this.parent.y - this.parent.size - 15,
+                });
+            }
+            // 3. 중대는 스스로 파괴되지 않습니다.
+
+        } else {
+            // 중대가 아닌 다른 유닛(독립 대대 등)은 자신에게 모든 피해를 적용합니다.
+            this._organization = Math.max(0, this._organization - orgDamage);
+            this.takeStrengthDamage(strDamage);
         }
     }
+
+    /**
+     * 내구력(Strength) 피해만 입고, 파괴 여부를 확인합니다.
+     * @param {number} strDamage - 입을 내구력 피해량
+     */
+    takeStrengthDamage(strDamage) {
+        if (strDamage <= 0 || this.isDestroyed) return;
+
+        this.damageTaken += strDamage;
+        if (this.currentStrength <= 0) {
+            this.isDestroyed = true; // isDestroyed setter가 연쇄 파괴를 처리합니다.
+            this._organization = 0;
+        }
+    }
+
     /**
      * 유닛의 시각 효과(피해량 텍스트 등)를 업데이트합니다.
      * @param {number} deltaTime

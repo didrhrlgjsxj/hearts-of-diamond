@@ -54,9 +54,10 @@ async function loadUnitTemplates() {
  * @param {number} x - 생성 위치 x 좌표
  * @param {number} y - 생성 위치 y 좌표
  * @param {string} team - 유닛의 팀 ('blue' or 'red')
+ * @param {UnitManager} unitManager - 유닛 카운터를 포함한 유닛 관리자
  * @returns {Unit|null} 생성된 최상위 유닛 객체
  */
-function buildUnitFromTemplate(templateKey, x, y, team) {
+function buildUnitFromTemplate(templateKey, x, y, team, unitManager) {
     const template = UNIT_TEMPLATES_JSON[templateKey];
     if (!template) {
         console.error(`Template with key "${templateKey}" not found.`);
@@ -83,9 +84,9 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
             // 하위 분대들의 능력치 데이터를 재귀적으로 수집합니다.
             if (template.sub_units) {
                 template.sub_units.forEach(subUnitInfo => {
-                    for (let i = 0; i < subUnitInfo.count; i++) {
-                        squadsData.push(...buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, nation));
-                    }
+                    for (let i = 0; i < subUnitInfo.count; i++) { 
+                        squadsData.push(...buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, unitManager));
+                    } 
                 });
             }
         }
@@ -99,7 +100,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
     // 사단, 여단, 연대, 대대급에는 고유 번호를 붙여줍니다.
     if (['DIVISION', 'BRIGADE', 'REGIMENT', 'BATTALION', 'COMPANY'].includes(template.echelon)) {
         const counterKey = template.echelon.charAt(0) + template.echelon.slice(1).toLowerCase();
-        const unitNumber = unitCounters[counterKey]++;
+        const unitNumber = unitManager.unitCounters[counterKey]++;
         unitName = `제${unitNumber}${template.name.replace(/.* (.*)/, '$1')}`; // e.g., 제1사단, 제2대대
     }
 
@@ -116,7 +117,7 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
 
     // 본부 중대(hq_template_key)를 생성하고 할당합니다.
     if (template.hq_template_key && unit instanceof SymbolUnit) {
-        const hqCompany = buildUnitFromTemplate(template.hq_template_key, x, y, team, nation);
+        const hqCompany = buildUnitFromTemplate(template.hq_template_key, x, y, team, unitManager);
         if (hqCompany) {
             unit.hqCompany = hqCompany;
             // 본부 중대는 실제 유닛이 아니므로 subUnits에 추가하지 않습니다.
@@ -126,8 +127,8 @@ function buildUnitFromTemplate(templateKey, x, y, team) {
     // 하위 유닛(sub_units)을 재귀적으로 생성하고 추가합니다.
     if (template.sub_units) {
         template.sub_units.forEach(subUnitInfo => {
-            for (let i = 0; i < subUnitInfo.count; i++) {
-                const subUnitData = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, nation);
+            for (let i = 0; i < subUnitInfo.count; i++) { 
+                const subUnitData = buildUnitFromTemplate(subUnitInfo.template_key, x, y, team, unitManager);
                 if (unit instanceof Company) {
                     // 중대는 하위 분대 데이터를 직접 저장합니다.
                     unit.squadsData.push(...subUnitData);

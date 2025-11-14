@@ -4,10 +4,8 @@ const ctx = canvas.getContext('2d');
 // --- 게임 월드 설정 ---
 let mapGrid; // 맵 데이터 관리 인스턴스
 const nations = new Map(); // 국가 인스턴스 관리
-const topLevelUnits = []; // 최상위 부대들을 관리하는 배열
-let selectedUnit = null;   // 현재 선택된 유닛
+let unitManager; // 유닛 관리자 인스턴스
 const camera = new Camera(canvas); // 카메라 인스턴스 생성
-let broadcastedBattle = null; // 현재 중계 중인 전투
 
 // --- 게임 시간 및 생산 주기 설정 ---
 const GAME_SPEED_MULTIPLIERS = {
@@ -27,15 +25,6 @@ let gameTime = {
 let mouseX = 0;
 let mouseY = 0;
 let lastTime = 0; // deltaTime 계산을 위한 마지막 시간
-
-// 부대 고유 번호 생성을 위한 전역 카운터
-const unitCounters = {
-    'Division': 1,
-    'Brigade': 1,
-    'Regiment': 1,
-    'Battalion': 1,
-    'Company': 1,
-};
 
 // --- 시간 표시 UI 요소 ---
 const timeDisplay = document.createElement('div');
@@ -87,13 +76,16 @@ async function initializeGame() {
     // 3. 부대 템플릿 JSON 데이터 로드 (가장 중요)
     await loadUnitTemplates();
 
-    // 4. UI 초기화 (템플릿 데이터 로드 후)
-    gameUI = new GameUI(camera, nations);
+    // 4. 유닛 관리자 초기화
+    unitManager = new UnitManager();
+
+    // 5. UI 초기화 (템플릿 및 유닛 관리자 로드 후)
+    gameUI = new GameUI(camera, nations, unitManager);
     document.body.appendChild(timeDisplay);
     timeDisplay.appendChild(timeText);
     gameUI.createTimeControls(); // 시간 제어 UI 생성
 
-    // 5. 게임 루프 시작
+    // 6. 게임 루프 시작
     requestAnimationFrame(loop);
 }
 
@@ -118,43 +110,18 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('click', (e) => {
     // 마우스 클릭 위치를 월드 좌표로 변환
     const worldCoords = camera.screenToWorld(mouseX, mouseY);
-
-    let clickedUnit = null;
-    // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
-    for (let i = topLevelUnits.length - 1; i >= 0; i--) {
-        const unit = topLevelUnits[i];
-        clickedUnit = unit.getUnitAt(worldCoords.x, worldCoords.y);
-        if (clickedUnit) break;
-    }
-
-    // 이전에 선택된 유닛의 선택 상태를 해제
-    if (selectedUnit) {
-        selectedUnit.setSelected(false);
-    }
-
-    // 새로 클릭된 유닛을 선택 상태로 만듦
-    selectedUnit = clickedUnit;
-    if (selectedUnit) {
-        selectedUnit.setSelected(true);
-    }
+    const newSelectedUnit = unitManager.selectUnitAt(worldCoords.x, worldCoords.y);
 
     // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
-    gameUI.updateCompositionPanel(selectedUnit);
-    gameUI.updateStatsPanel(selectedUnit);
+    gameUI.updateCompositionPanel(newSelectedUnit);
+    gameUI.updateStatsPanel(newSelectedUnit);
 });
 
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
 
-    if (selectedUnit) {
-        const worldCoords = camera.screenToWorld(mouseX, mouseY);
-        // Shift 키를 누르고 우클릭하면 후퇴, 아니면 일반 이동
-        if (e.shiftKey) {
-            selectedUnit.retreatTo(worldCoords.x, worldCoords.y);
-        } else {
-            selectedUnit.moveTo(worldCoords.x, worldCoords.y, topLevelUnits);
-        }
-    }
+    const worldCoords = camera.screenToWorld(mouseX, mouseY);
+    unitManager.orderSelectedUnitTo(worldCoords.x, worldCoords.y, e.shiftKey);
 });
 
 function update(currentTime) {
@@ -194,33 +161,16 @@ function update(currentTime) {
     camera.update(deltaTime);
     
     // --- 유닛 로직 업데이트 ---
-    // unitLogic.js에 위임하여 모든 유닛의 상태(전투, 이동, 조직력 등)를 업데이트합니다.
-    broadcastedBattle = null; // 매 프레임 중계 전투 초기화
-    updateUnits(topLevelUnits, scaledDeltaTime);
+    unitManager.update(scaledDeltaTime);
 
     // 전투 중계 UI 업데이트
-    if (broadcastedBattle && (broadcastedBattle.unitA.isDestroyed || broadcastedBattle.unitB.isDestroyed)) {
-        broadcastedBattle = null; // 전투 종료 시 중계 해제
-    }
-    gameUI.updateBattlePanel(broadcastedBattle);
+    gameUI.updateBattlePanel(unitManager.broadcastedBattle);
     
     gameUI.updateProductionPanel();
 
-    // --- 파괴된 유닛 제거 ---
-    const cleanupResult = cleanupDestroyedUnits(topLevelUnits, selectedUnit);
-    // topLevelUnits 배열을 직접 수정하는 대신, 필터링된 새 배열을 할당합니다.
-    // 이렇게 하면 참조 문제를 피하고 더 안전하게 상태를 관리할 수 있습니다.
-    // topLevelUnits = cleanupResult.remainingUnits; // 이 방식은 전역 변수 참조 문제 발생 가능
-    
-    // 원래 배열의 내용을 변경하여 전역 참조를 유지합니다.
-    topLevelUnits.length = 0;
-    Array.prototype.push.apply(topLevelUnits, cleanupResult.remainingUnits);
-    
-    selectedUnit = cleanupResult.newSelectedUnit;
-
     // 선택된 유닛이 파괴되었다면 UI를 업데이트합니다.
-    if (selectedUnit !== cleanupResult.newSelectedUnit) {
-        gameUI.updateCompositionPanel(selectedUnit);
+    if (gameUI.selectedUnit !== unitManager.selectedUnit) {
+        gameUI.updateCompositionPanel(unitManager.selectedUnit);
     }
 }
 
@@ -306,9 +256,7 @@ function draw() {
     });
 
     // 모든 최상위 부대를 그립니다.
-    for (const unit of topLevelUnits) {
-        unit.draw(ctx);
-    }
+    unitManager.draw(ctx);
 
     ctx.restore();
 }

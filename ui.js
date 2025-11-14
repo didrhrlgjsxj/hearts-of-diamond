@@ -5,10 +5,12 @@ class GameUI {
     /**
      * @param {Camera} camera - 게임 카메라 인스턴스
      * @param {Map<string, Nation>} nations - 국가 목록
+     * @param {UnitManager} unitManager - 유닛 관리자 인스턴스
      */
-    constructor(camera, nations) {
+    constructor(camera, nations, unitManager) {
         this.camera = camera;
         this.nations = nations;
+        this.unitManager = unitManager;
         this.createMainInterface();
 
 
@@ -259,8 +261,7 @@ class GameUI {
 
         if (templateKey) {
             const worldCoords = this.camera.screenToWorld(this.camera.canvas.width / 2, this.camera.canvas.height / 2);
-            const newUnit = buildUnitFromTemplate(templateKey, worldCoords.x, worldCoords.y, team);
-            if (newUnit) topLevelUnits.push(newUnit);
+            this.unitManager.spawnUnit(templateKey, worldCoords.x, worldCoords.y, team);
         }
     }
 

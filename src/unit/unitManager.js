@@ -1,10 +1,140 @@
 /**
+ * 게임 내 모든 유닛의 생성, 상태 업데이트, 렌더링을 총괄하는 관리자 클래스입니다.
+ */
+class UnitManager {
+    constructor() {
+        this.topLevelUnits = []; // 최상위 부대들을 관리하는 배열
+        this.selectedUnit = null;   // 현재 선택된 유닛
+        this.broadcastedBattle = null; // 현재 중계 중인 전투
+
+        // 부대 고유 번호 생성을 위한 카운터
+        this.unitCounters = {
+            'Division': 1,
+            'Brigade': 1,
+            'Regiment': 1,
+            'Battalion': 1,
+            'Company': 1,
+        };
+    }
+
+    /**
+     * 템플릿을 기반으로 유닛을 생성하고 게임 월드에 추가합니다.
+     * @param {string} templateKey - 생성할 유닛의 템플릿 키
+     * @param {number} x - 생성 위치 x 좌표
+     * @param {number} y - 생성 위치 y 좌표
+     * @param {string} team - 유닛의 팀 ('blue' or 'red')
+     */
+    spawnUnit(templateKey, x, y, team) {
+        if (templateKey) {
+            // buildUnitFromTemplate 함수가 this.unitCounters를 참조하도록 this를 전달합니다.
+            const newUnit = buildUnitFromTemplate(templateKey, x, y, team, this);
+            if (newUnit) {
+                this.topLevelUnits.push(newUnit);
+            }
+        }
+    }
+
+    /**
+     * 특정 월드 좌표에 있는 유닛을 찾아 선택합니다.
+     * @param {number} worldX 
+     * @param {number} worldY 
+     * @returns {Unit | null} 새로 선택된 유닛
+     */
+    selectUnitAt(worldX, worldY) {
+        let clickedUnit = null;
+        // 최상위 부대부터 순회하며 클릭된 유닛을 찾음
+        for (let i = this.topLevelUnits.length - 1; i >= 0; i--) {
+            const unit = this.topLevelUnits[i];
+            clickedUnit = unit.getUnitAt(worldX, worldY);
+            if (clickedUnit) break;
+        }
+
+        // 이전에 선택된 유닛의 선택 상태를 해제
+        if (this.selectedUnit) {
+            this.selectedUnit.setSelected(false);
+        }
+
+        // 새로 클릭된 유닛을 선택 상태로 만듦
+        this.selectedUnit = clickedUnit;
+        if (this.selectedUnit) {
+            this.selectedUnit.setSelected(true);
+        }
+
+        return this.selectedUnit;
+    }
+
+    /**
+     * 선택된 유닛에게 이동 또는 후퇴 명령을 내립니다.
+     * @param {number} worldX 
+     * @param {number} worldY 
+     * @param {boolean} isShiftKey - Shift 키가 눌렸는지 여부 (후퇴 명령)
+     */
+    orderSelectedUnitTo(worldX, worldY, isShiftKey) {
+        if (this.selectedUnit) {
+            if (isShiftKey) {
+                this.selectedUnit.retreatTo(worldX, worldY);
+            } else {
+                this.selectedUnit.moveTo(worldX, worldY, this.topLevelUnits);
+            }
+        }
+    }
+
+    /**
+     * 모든 유닛의 로직을 업데이트합니다.
+     * @param {number} scaledDeltaTime 
+     */
+    update(scaledDeltaTime) {
+        this.broadcastedBattle = null; // 매 프레임 중계 전투 초기화
+        
+        // unitLogic.js의 updateUnits 함수를 호출합니다.
+        // updateUnits는 이제 이 클래스의 인스턴스를 받아 내부 상태를 직접 변경합니다.
+        updateUnits(this, scaledDeltaTime);
+
+        // 파괴된 유닛을 제거합니다.
+        this.cleanupDestroyedUnits();
+    }
+
+    /**
+     * 모든 유닛을 캔버스에 그립니다.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    draw(ctx) {
+        for (const unit of this.topLevelUnits) {
+            unit.draw(ctx);
+        }
+    }
+
+    /**
+     * 파괴된 최상위 유닛을 게임 월드에서 제거합니다.
+     */
+    cleanupDestroyedUnits() {
+        // isDestroyed 플래그가 true인 최상위 유닛을 필터링하여 제거합니다.
+        this.topLevelUnits = this.topLevelUnits.filter(unit => {
+            if (unit.isDestroyed) {
+                // 파괴된 유닛이 현재 선택된 유닛이라면, 선택을 해제합니다.
+                if (this.selectedUnit === unit) {
+                    this.selectedUnit = null;
+                }
+                return false; // 배열에서 제거
+            }
+            return true; // 배열에 유지
+        });
+
+        // 선택된 유닛이 (하위 유닛으로서) 파괴되었을 경우를 대비한 추가 확인
+        if (this.selectedUnit && this.selectedUnit.isDestroyed) {
+            this.selectedUnit = null;
+        }
+    }
+}
+
+
+/**
  * 게임 내 모든 유닛의 상태 업데이트(이동, 전투, 조직력 등)를 담당합니다. (대대 중심 로직)
- * 전역 변수 broadcastedBattle을 설정할 수 있습니다.
- * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
+ * @param {UnitManager} unitManager - 유닛 관리자 인스턴스
  * @param {number} scaledDeltaTime - 게임 속도가 적용된 프레임 간 시간 간격 (초)
  */
-function updateUnits(topLevelUnits, scaledDeltaTime) {
+function updateUnits(unitManager, scaledDeltaTime) {
+    const topLevelUnits = unitManager.topLevelUnits;
 
     // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
     const allBattalions = [];
@@ -181,8 +311,8 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
         });
 
         // 첫 번째 정면 전투를 중계 대상으로 설정
-        if (isFrontal && !broadcastedBattle) {
-            broadcastedBattle = { unitA: myBattalion, unitB: enemyBattalion };
+        if (isFrontal && !unitManager.broadcastedBattle) {
+            unitManager.broadcastedBattle = { unitA: myBattalion, unitB: enemyBattalion };
         }
 
         // 전투 중 방향 전환
@@ -229,27 +359,8 @@ function updateUnits(topLevelUnits, scaledDeltaTime) {
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
 
     // --- 6. 파괴된 부대 정리 (가장 중요) ---
-    // 이 로직을 updateUnits의 마지막에 두어, 한 프레임 내에서 연쇄적으로 파괴가 처리되도록 합니다.
-    function cleanupRecursively(units) {
-        units.forEach(u => {
-            // 1. 가장 깊은 하위 유닛부터 재귀적으로 정리합니다.
-            if (u.subUnits.length > 0) {
-                cleanupRecursively(u.subUnits);
-                // 재귀 호출 후, 파괴된 하위 유닛을 배열에서 제거합니다.
-                u.subUnits = u.subUnits.filter(sub => !sub.isDestroyed);
-            }
-
-            // 2. 하위 유닛 정리 후, 현재 유닛이 파괴되어야 하는지 판단합니다.
-            if (u instanceof SymbolUnit) {
-                // 대대(echelon: BATTALION)는 휘하의 모든 전투 중대(Company)가 사라지면 파괴됩니다.
-                // 최상급 부대(사단 등)는 휘하의 모든 대대(SymbolUnit)가 사라지면 파괴됩니다.
-                if (u.subUnits.length === 0) {
-                    u.isDestroyed = true;
-                }
-            }
-        });
-    }
-    cleanupRecursively(topLevelUnits);
+    // 파괴된 유닛을 정리하고, 상위 유닛의 파괴 여부를 결정합니다.
+    processDestruction(topLevelUnits);
 }
 
 /**
@@ -262,6 +373,7 @@ function processUnitMovement(unit, scaledDeltaTime) {
     unit.updateMovement(scaledDeltaTime);
     unit.subUnits.forEach(subUnit => processUnitMovement(subUnit, scaledDeltaTime));
 }
+
 /**
  * 유닛과 그 하위 유닛들의 진형 로직(updateCombatSubUnitPositions)을 재귀적으로 처리합니다.
  * @param {Unit} unit 
@@ -275,23 +387,22 @@ function processFormationUpdate(unit) {
 }
 
 /**
- * 파괴된 최상위 유닛(isDestroyed가 true)을 게임 월드에서 제거합니다.
- * @param {Unit[]} topLevelUnits - 게임 월드의 모든 최상위 유닛 목록
- * @param {Unit | null} selectedUnit - 현재 선택된 유닛
- * @returns {{ remainingUnits: Unit[], newSelectedUnit: Unit | null }} - 제거 후 남은 유닛 목록과 새로운 선택 유닛
+ * 파괴된 유닛을 정리하고, 상위 유닛의 파괴 여부를 결정합니다.
+ * @param {Unit[]} units - 처리할 유닛 목록 (주로 topLevelUnits)
  */
-function cleanupDestroyedUnits(topLevelUnits, selectedUnit) {
-    // 이 함수는 이제 최상위 레벨에서 파괴된 유닛만 제거하는 단순한 역할만 합니다.
-    // 복잡한 재귀 로직은 updateUnits 내부로 이동했습니다.
-    let newSelectedUnit = selectedUnit;
-
-    const remainingUnits = topLevelUnits.filter(unit => {
-        const isTotallyDestroyed = unit.isDestroyed;
-        if (isTotallyDestroyed && newSelectedUnit === unit) {
-            newSelectedUnit = null;
+function processDestruction(units) {
+    units.forEach(u => {
+        // 1. 하위 유닛부터 재귀적으로 정리합니다.
+        if (u.subUnits.length > 0) {
+            processDestruction(u.subUnits);
+            // 2. 파괴된 하위 유닛을 배열에서 제거합니다.
+            u.subUnits = u.subUnits.filter(sub => !sub.isDestroyed);
         }
-        return !isTotallyDestroyed;
-    });
 
-    return { remainingUnits, newSelectedUnit };
+        // 3. 하위 유닛이 모두 사라진 상위 유닛(사단 등)을 파괴 처리합니다.
+        // (대대는 내구력 기반으로 takeDamage에서 이미 파괴 처리됨)
+        if (u instanceof SymbolUnit && u.subUnits.length === 0 && u.echelon !== 'BATTALION') {
+            u.isDestroyed = true;
+        }
+    });
 }
