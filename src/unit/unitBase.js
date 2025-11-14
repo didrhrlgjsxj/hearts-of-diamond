@@ -44,7 +44,7 @@ class Unit {
         this.tacticChangeCooldown = 3.0; // 전술 변경 주기 (초)
         this.tacticChangeProgress = 0;   // 현재 전술 변경 진행도
         this.organizationRecoveryRate = 5; // 초당 조직력 회복량 (비전투)
-        this.organizationRecoveryRateInCombat = 0.5; // 초당 조직력 회복량 (전투 중)
+        this.organizationRecoveryRateInCombat = 0; // 초당 조직력 회복량 (전투 중)
         this.minOrgDamageAbsorption = 0.1; // 조직력 0%일 때의 최소 피해 흡수율
         this.maxOrgDamageAbsorption = 0.9; // 조직력 100%일 때의 최대 피해 흡수율
         this.squadsData = []; // 중대에서 사용할 분대 데이터 배열 (생성자 순서 문제 해결)

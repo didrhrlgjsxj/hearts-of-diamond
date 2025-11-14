@@ -153,11 +153,16 @@ const UNIT_STAT_AGGREGATORS = {
         // 조직 방어력: 기동력, 정찰력, 본래 부대에 추가된 조직력에 기반하여 계산됩니다.
     organizationDefense: (units) => {
         if (units.length === 0) return 0;
-        // 기동력과 정찰력의 가중 합산
-        const baseDefense = units.reduce((total, unit) => total + (unit.mobility * 0.2 + unit.reconnaissance * 0.1), 0);
-        // 편제에 의해 추가된 조직력(organizationBonus) 총합의 10%를 보너스로 추가합니다.
-        const orgBonus = units.reduce((total, unit) => total + unit.organizationBonus, 0) * 0.1;
-        return baseDefense + orgBonus;
+        // 1. 편제에 의해 추가된 조직력(organizationBonus) 총합을 기본 방어력으로 설정합니다.
+        const baseOrgDefense = units.reduce((total, unit) => total + unit.organizationBonus, 0);
+
+        // 2. 평균 기동력과 정찰력을 기반으로 배율을 계산합니다.
+        const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
+        const avgRecon = units.reduce((total, unit) => total + unit.reconnaissance, 0) / units.length;
+        const multiplier = 1 + (avgMobility * 0.02) + (avgRecon * 0.01);
+
+        // 3. 기본 방어력에 배율을 적용하여 최종 조직 방어력을 계산합니다.
+        return baseOrgDefense * multiplier;
     },
 
     // 단위 방어력: 평균 장갑과 기갑화율에 비례하여 계산됩니다. 대물 공격력을 막는 역할을 합니다.
