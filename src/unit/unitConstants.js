@@ -159,7 +159,7 @@ const UNIT_STAT_AGGREGATORS = {
         // 2. 평균 기동력과 정찰력을 기반으로 배율을 계산합니다.
         const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
         const avgRecon = units.reduce((total, unit) => total + unit.reconnaissance, 0) / units.length;
-        const multiplier = 1 + (avgMobility * 0.02) + (avgRecon * 0.01);
+        const multiplier = 1 + (avgMobility * 0.02) + (avgRecon * 0.03);
 
         // 3. 기본 방어력에 배율을 적용하여 최종 조직 방어력을 계산합니다.
         return baseOrgDefense * multiplier;

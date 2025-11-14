@@ -129,11 +129,18 @@ class Unit {
      * 하위 유닛이 있으면 그 유닛들의 병력 총합을, 없으면 자신의 기본 병력을 기준으로 계산합니다.
      */
     get currentStrength() {
-        // SymbolUnit은 자신의 기본 내구력에서 받은 피해를 빼서 계산합니다.
-        // 이는 하위 중대로부터 받은 피해(damageTaken)를 반영하기 위함입니다.
+        // SymbolUnit(사단, 대대 등)의 현재 내구력을 계산합니다.
         if (this instanceof SymbolUnit) {
-            return Math.max(0, this.baseStrength - this.damageTaken);
+            // 대대(Battalion)는 자신에게 누적된 피해(damageTaken)를 기반으로 계산합니다.
+            if (this.echelon === 'BATTALION') {
+                return Math.max(0, this.baseStrength - this.damageTaken);
+            }
+            // 사단, 여단 등 최상급 부대는 휘하 대대들의 현재 내구력(currentStrength)을 모두 합산합니다.
+            // 이렇게 해야 대대가 입은 피해가 상위 부대 UI에 정확히 반영됩니다.
+            const battalions = this.getAllBattalions();
+            return battalions.reduce((sum, battalion) => sum + battalion.currentStrength, 0);
         }
+
         if (this.isDestroyed) return 0;
         return Math.max(0, this.damageTaken > 0 ? this._baseStrength - this.damageTaken : this._baseStrength);
     }
@@ -158,9 +165,15 @@ class Unit {
      * 기본 편성 병력을 반환합니다.
      */
     get baseStrength() {
-        // SymbolUnit은 휘하 모든 부대의 기본 내구력을 합산하여 반환합니다.
+        // SymbolUnit(사단, 대대 등)의 최대 내구력을 계산합니다.
         if (this instanceof SymbolUnit) {
-            return this.subUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+            // 대대(Battalion)는 휘하 중대들의 기본 내구력을 합산합니다.
+            if (this.echelon === 'BATTALION') {
+                return this.subUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+            }
+            // 사단, 여단 등 최상급 부대는 휘하 대대들의 최대 내구력(baseStrength)을 모두 합산합니다.
+            const battalions = this.getAllBattalions();
+            return battalions.reduce((sum, battalion) => sum + battalion.baseStrength, 0);
         }
         return this._baseStrength;
     }
