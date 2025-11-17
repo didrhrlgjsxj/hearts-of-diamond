@@ -8,12 +8,12 @@ let UNIT_TEMPLATES_JSON = null;
 
 // 부대 규모별 아이콘 크기를 정의합니다.
 const ECHELON_SIZES = {
-    'DIVISION': 12,
-    'BRIGADE': 10,
-    'REGIMENT': 9,
-    'BATTALION': 8,
-    'COMPANY': 7,
-    'PLATOON': 6,
+    'DIVISION': 16,
+    'BRIGADE': 14,
+    'REGIMENT': 12,
+    'BATTALION': 9,
+    'COMPANY': 5,
+    'PLATOON': 5,
     'SQUAD': 4,
 };
 

@@ -8,7 +8,6 @@ class Unit {
         this._x = x; // 유닛의 절대 또는 상대 X 좌표
         this._y = y; // 유닛의 절대 또는 상대 Y 좌표
         this.type = type; // 유닛 타입 (보병, 기갑 등)
-        this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
         this.parent = null; // 상위 유닛 참조
         this.currentProvinceId = null; // 현재 유닛이 위치한 프로빈스 ID
@@ -48,6 +47,10 @@ class Unit {
         this.organizationRecoveryRateInCombat = 0; // 초당 조직력 회복량 (전투 중)
         this.minOrgDamageAbsorption = 0.1; // 조직력 0%일 때의 최소 피해 흡수율
         this.maxOrgDamageAbsorption = 0.9; // 조직력 100%일 때의 최대 피해 흡수율
+        this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
+        this._maxOrganization = 0; // 계산된 최대 조직력을 저장하는 내부 변수
+        // _baseStrength는 이미 있지만, SymbolUnit을 위해 명시적으로 초기화
+        this._baseStrength = baseStrength;
         this.squadsData = []; // 중대에서 사용할 분대 데이터 배열 (생성자 순서 문제 해결)
 
         // 신규 능력치
@@ -136,10 +139,12 @@ class Unit {
             if (this.echelon === 'BATTALION') {
                 return Math.max(0, this.baseStrength - this.damageTaken);
             }
-            // 사단, 여단 등 최상급 부대는 휘하 대대들의 현재 내구력(currentStrength)을 모두 합산합니다.
-            // 이렇게 해야 대대가 입은 피해가 상위 부대 UI에 정확히 반영됩니다.
-            const battalions = this.getAllBattalions();
-            return battalions.reduce((sum, battalion) => sum + battalion.currentStrength, 0);
+            // 사단, 여단 등 최상급 부대는 휘하의 모든 대대들의 현재 내구력을 합산합니다.
+            // 파괴된 대대의 내구력은 0으로 계산됩니다.
+            return this.subUnits.reduce((sum, subUnit) => {
+                // isDestroyed 플래그를 확인하여 파괴된 유닛의 현재 내구력을 0으로 처리합니다.
+                return sum + (subUnit.isDestroyed ? 0 : subUnit.currentStrength);
+            }, 0);
         }
 
         if (this.isDestroyed) return 0;
@@ -166,17 +171,11 @@ class Unit {
      * 기본 편성 병력을 반환합니다.
      */
     get baseStrength() {
-        // SymbolUnit(사단, 대대 등)의 최대 내구력을 계산합니다.
-        if (this instanceof SymbolUnit) {
-            // 대대(Battalion)는 휘하 중대들의 기본 내구력을 합산합니다.
-            if (this.echelon === 'BATTALION') {
-                return this.subUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
-            }
-            // 사단, 여단 등 최상급 부대는 휘하 대대들의 최대 내구력(baseStrength)을 모두 합산합니다.
-            const battalions = this.getAllBattalions();
-            return battalions.reduce((sum, battalion) => sum + battalion.baseStrength, 0);
-        }
-        return this._baseStrength;
+        // 생성 시점에 계산된 _baseStrength 값을 반환합니다.
+        // 이렇게 하면 하위 유닛이 파괴되어도 최대 내구력 총합이 변하지 않습니다.
+        // Company의 경우, calculateStats에서 _baseStrength가 설정됩니다.
+        // SymbolUnit의 경우, calculateStats에서 하위 유닛의 값을 합산하여 _baseStrength를 설정합니다.
+        return this._baseStrength || 0;
     }
 
     /**
@@ -217,7 +216,15 @@ class Unit {
         this.organizationDefense = UNIT_STAT_AGGREGATORS.organizationDefense(allSquads, this.maxOrganization);
         this.unitDefense = UNIT_STAT_AGGREGATORS.unitDefense(allSquads);
         this.armor = UNIT_STAT_AGGREGATORS.armor(allSquads);
-        this._baseStrength = UNIT_STAT_AGGREGATORS.baseStrength(allSquads);
+
+        // _baseStrength 값을 한 번만 계산하여 저장합니다.
+        if (this instanceof SymbolUnit) {
+            // SymbolUnit은 하위 유닛들의 baseStrength를 합산합니다.
+            // 이 시점에는 하위 유닛들의 calculateStats가 모두 완료된 상태여야 합니다.
+            this._baseStrength = this.subUnits.reduce((sum, unit) => sum + unit.baseStrength, 0);
+        } else {
+            this._baseStrength = UNIT_STAT_AGGREGATORS.baseStrength(allSquads);
+        }
     }
 
     /**
@@ -225,16 +232,21 @@ class Unit {
      * 이 메서드는 재귀적으로 모든 하위 유닛에 대해 호출됩니다.
      */
     initializeOrganization() {
+        // 1. 최대 조직력을 계산하고 _maxOrganization에 저장합니다.
+        if (this instanceof SymbolUnit) {
+            this._maxOrganization = this.subUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
+        } else {
+            this._maxOrganization = 100 + this.getAllSquads().reduce((total, squad) => total + squad.organizationBonus, 0);
+        }
+        // 2. 현재 조직력을 최대치로 초기화합니다.
         this.organization = this.maxOrganization;
+        // 3. 하위 유닛에 대해 재귀적으로 호출합니다.
         this.subUnits.forEach(subUnit => subUnit.initializeOrganization());
     }
 
     get maxOrganization() {
-        // SymbolUnit은 휘하 모든 부대의 최대 조직력을 합산합니다.
-        if (this instanceof SymbolUnit) {
-            return this.subUnits.reduce((sum, unit) => sum + unit.maxOrganization, 0);
-        }
-        return 100 + this.getAllSquads().reduce((total, squad) => total + squad.organizationBonus, 0);
+        // 생성 시점에 계산된 _maxOrganization 값을 반환합니다.
+        return this._maxOrganization || 0;
     }
 
     set organization(value) {
@@ -244,7 +256,11 @@ class Unit {
     }
     get organization() {
         if (this instanceof SymbolUnit) {
-            return this.subUnits.reduce((sum, unit) => sum + unit.organization, 0);
+            // 휘하 모든 부대의 현재 조직력을 합산합니다.
+            // 파괴된 부대의 조직력은 0으로 계산됩니다.
+            return this.subUnits.reduce((sum, unit) => {
+                return sum + (unit.isDestroyed ? 0 : unit.organization); // 파괴된 유닛의 조직력은 0
+            }, 0);
         }
         return this._organization;
     }
@@ -870,12 +886,12 @@ class Unit {
             ctx.stroke();
         }
 
-        // SymbolUnit 자체는 이름을 그리지 않고, 하위 부대들이 각자 이름을 그립니다.
-        if (!(this instanceof SymbolUnit)) {
+        // SymbolUnit(대대 이상)만 자신의 이름을 그립니다.
+        if (this instanceof SymbolUnit) {
             ctx.fillStyle = 'black';
             ctx.textAlign = 'center';
             ctx.font = '11px sans-serif';
-            ctx.fillText(`${this.name}`, this.x, this.y + 25);
+            ctx.fillText(`${this.name}`, this.x, this.y + this.size + 15);
         }
 
         // 피해량 텍스트 그리기
@@ -962,25 +978,31 @@ class Unit {
             ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
         } else {
             // 중대일 경우, 오른쪽에 세로 조직력 바를 그립니다.
-            const barWidth = 4;
-            const barHeight = 28; // 세로 막대의 총 높이
-            const barX = this.x + this.size + 5;
+            const barWidth = 5;
+            const barHeight = 20; // 세로 막대의 총 높이 (5의 배수로 설정)
+            const barX = this.x + this.size + 4;
             const barY = this.y - barHeight / 2;
+            const numBlocks = 5; // 조직력을 5개의 블록으로 나눔
+            const blockHeight = barHeight / numBlocks;
 
-            // 1. 배경 막대 그리기
-            ctx.fillStyle = '#555';
-            ctx.fillRect(barX, barY, barWidth, barHeight);
-
-            // 2. 현재 조직력에 따라 채워진 막대 그리기 (아래에서 위로)
             const orgRatio = this.maxOrganization > 0 ? this._organization / this.maxOrganization : 0;
-            const filledHeight = barHeight * orgRatio;
-            ctx.fillStyle = '#00ff00'; // Lime Green
-            ctx.fillRect(barX, barY + barHeight - filledHeight, barWidth, filledHeight);
+            const filledBlocks = Math.floor(orgRatio * numBlocks);
 
-            // 3. 테두리 그리기
-            ctx.strokeStyle = 'black';
             ctx.lineWidth = 1;
-            ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+            // 각 블록을 아래에서부터 위로 그립니다.
+            for (let i = 0; i < numBlocks; i++) {
+                const blockY = barY + (numBlocks - 1 - i) * blockHeight;
+
+                // 조직력 수준에 따라 블록을 채웁니다.
+                if (i < filledBlocks) {
+                    ctx.fillStyle = '#00ff00'; // 채워진 블록 (녹색)
+                    ctx.fillRect(barX, blockY, barWidth, blockHeight);
+                }
+                // 모든 블록에 테두리를 그려 구분선을 만듭니다.
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(barX, blockY, barWidth, blockHeight);
+            }
         }
     }
 
