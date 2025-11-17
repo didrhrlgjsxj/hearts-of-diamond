@@ -11,6 +11,7 @@ class Unit {
         this.subUnits = []; // 이 유닛에 소속된 하위 유닛들
         this._baseStrength = baseStrength; // 기본 인원 (내부 속성)
         this.parent = null; // 상위 유닛 참조
+        this.currentProvinceId = null; // 현재 유닛이 위치한 프로빈스 ID
         this.nation = null; // 유닛이 소속된 국가 (Nation 객체)
         this.size = size; // 유닛 아이콘의 크기 (반지름)
         this.team = team; // 유닛의 팀 ('blue' 또는 'red')
@@ -382,7 +383,7 @@ class Unit {
         // 현재 이동 속도를 결정합니다. 전투 중일 경우 10% 페널티를 적용합니다.
         let currentMoveSpeed = this.moveSpeed;
         if (this.isInCombat) {
-            currentMoveSpeed *= 0.9; // 10% 속도 감소
+            currentMoveSpeed *= 0.5; // 50% 속도 감소
         }
 
         const moveDistance = currentMoveSpeed * deltaTime;
@@ -810,7 +811,7 @@ class Unit {
                 ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
                 // 4. 반투명한 부대 아이콘 그리기
-                const markOpacity = this.isSelected ? 0.5 : 0.2; // 더 투명하게 변경
+                const markOpacity = this.isSelected ? 0.9 : 0.8; // 더 진하게 변경
                 const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
                 ctx.fillStyle = color;
                 ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
@@ -986,9 +987,9 @@ class Unit {
     /**
      * 유닛의 고유 아이콘을 그립니다. (사각형, 팀 색상, 유닛 타입 심볼)
      * @param {CanvasRenderingContext2D} ctx 
-     * @param {number} [opacity=0.7] 아이콘의 불투명도
+     * @param {number} [opacity=0.4] 아이콘의 불투명도
      */
-    drawOwnIcon(ctx, opacity = 0.7) {
+    drawOwnIcon(ctx, opacity = 0.4) {
         const color = this.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`; // CornflowerBlue / Tomato
         ctx.fillStyle = color;
         ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);

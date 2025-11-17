@@ -18,6 +18,7 @@ class Camera {
             a: false,
             s: false,
             d: false,
+            shift: false,
         };
         this._addEventListeners();
     }
@@ -48,14 +49,14 @@ class Camera {
 
         this.canvas.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
-            if (key in this.keys) {
+            if (key in this.keys || e.key === 'Shift') {
                 this.keys[key] = true;
             }
         });
 
         this.canvas.addEventListener('keyup', (e) => {
             const key = e.key.toLowerCase();
-            if (key in this.keys) {
+            if (key in this.keys || e.key === 'Shift') {
                 this.keys[key] = false;
             }
         });
@@ -85,7 +86,8 @@ class Camera {
     update(deltaTime) {
         // 줌 레벨에 관계없이 화면 이동 속도를 일정하게 유지하기 위해
         // 이동 거리를 현재 줌 레벨로 나눕니다.
-        const moveAmount = this.moveSpeed * deltaTime / this.zoom;
+        const speedMultiplier = this.keys.shift ? 2.5 : 1;
+        const moveAmount = this.moveSpeed * speedMultiplier * deltaTime / this.zoom;
         
         if (this.keys.w) {
             this.y -= moveAmount;

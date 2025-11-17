@@ -52,6 +52,7 @@ class ProvinceManager {
         this.mapHeight = mapHeight;
         this.provinces = new Map(); // id를 키로 사용하여 Province 객체를 저장
         this.provinceGrid = Array(mapWidth).fill(null).map(() => Array(mapHeight).fill(null));
+        this.provinceAdjacency = new Map(); // 프로빈스 인접 목록
         this.nextProvinceId = 1;
 
         this.generateProvinces();
@@ -115,6 +116,9 @@ class ProvinceManager {
 
         // 4. 너무 큰 프로빈스를 분할하는 후처리 단계를 실행합니다.
         this.splitLargeProvinces();
+
+        // 5. 모든 프로빈스 생성이 끝난 후, 인접 목록을 계산합니다.
+        this.calculateAdjacency();
     }
 
     /**
@@ -199,5 +203,54 @@ class ProvinceManager {
         if (y < this.mapHeight - 1) neighbors.push({ x: x, y: y + 1 });
 
         return neighbors.sort(() => Math.random() - 0.5);
+    }
+
+    /**
+     * 모든 프로빈스의 인접 관계를 계산하여 provinceAdjacency 맵에 저장합니다.
+     */
+    calculateAdjacency() {
+        this.provinces.forEach(province => {
+            const adjacentProvinces = new Set();
+            province.tiles.forEach(tile => {
+                const neighbors = [
+                    { x: tile.x + 1, y: tile.y },
+                    { x: tile.x - 1, y: tile.y },
+                    { x: tile.x, y: tile.y + 1 },
+                    { x: tile.x, y: tile.y - 1 },
+                ];
+
+                neighbors.forEach(n => {
+                    if (n.x >= 0 && n.x < this.mapWidth && n.y >= 0 && n.y < this.mapHeight) {
+                        const neighborProvinceId = this.provinceGrid[n.x][n.y];
+                        if (neighborProvinceId !== province.id) {
+                            adjacentProvinces.add(neighborProvinceId);
+                        }
+                    }
+                });
+            });
+            this.provinceAdjacency.set(province.id, Array.from(adjacentProvinces));
+        });
+    }
+
+    /**
+     * 특정 프로빈스가 수도까지 연결되어 있는지 확인합니다. (BFS 사용)
+     * @param {number} startProvinceId - 확인할 프로빈스 ID
+     * @param {Nation} nation - 소유 국가
+     * @returns {boolean}
+     */
+    isPathToCapital(startProvinceId, nation) {
+        const queue = [startProvinceId];
+        const visited = new Set([startProvinceId]);
+        while (queue.length > 0) {
+            const currentId = queue.shift();
+            if (currentId === nation.capitalProvinceId) return true;
+            this.provinceAdjacency.get(currentId)?.forEach(neighborId => {
+                if (!visited.has(neighborId) && nation.territory.has(neighborId)) {
+                    visited.add(neighborId);
+                    queue.push(neighborId);
+                }
+            });
+        }
+        return false;
     }
 }

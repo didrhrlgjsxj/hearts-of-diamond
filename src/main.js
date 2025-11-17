@@ -255,6 +255,33 @@ function draw() {
         }
     });
 
+    // --- 점령 진행 상황 시각화 ---
+    const CAPTURE_TIME = 24; // unitManager.js에 정의된 점령 시간과 동일한 값
+    unitManager.captureProgress.forEach((capture, provinceId) => {
+        const province = mapGrid.provinceManager.provinces.get(provinceId);
+        if (!province) return;
+
+        const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
+        const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
+
+        // 프로빈스 중심이 화면에 보일 때만 그립니다.
+        if (centerX > view.left && centerX < view.right && centerY > view.top && centerY < view.bottom) {
+            const progressRatio = Math.min(1, capture.progress / CAPTURE_TIME);
+            const radius = 15;
+
+            // 원형 프로그레스 바 (파이 차트) 그리기
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            // -90도(위쪽)에서 시작하여 진행도만큼 호를 그립니다.
+            ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + progressRatio * 2 * Math.PI);
+            ctx.closePath();
+
+            // 점령 중인 국가의 색상으로 채웁니다 (더 진하게).
+            ctx.fillStyle = capture.nation.color.replace('0.3', '0.7');
+            ctx.fill();
+        }
+    });
+
     // 모든 최상위 부대를 그립니다.
     unitManager.draw(ctx);
 

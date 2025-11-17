@@ -5,6 +5,8 @@ class UnitManager {
     constructor() {
         this.topLevelUnits = []; // 최상위 부대들을 관리하는 배열
         this.selectedUnit = null;   // 현재 선택된 유닛
+        // key: provinceId, value: { nation, progress, unitId }
+        this.captureProgress = new Map();
         this.broadcastedBattle = null; // 현재 중계 중인 전투
 
         // 부대 고유 번호 생성을 위한 카운터
@@ -156,6 +158,9 @@ function updateUnits(unitManager, scaledDeltaTime) {
             allBattalions.push(b);
         })
     });
+
+    // --- 점령 진행 상황 업데이트 ---
+    updateCaptureProgress(unitManager, allBattalions, scaledDeltaTime);
 
     // --- 2. 대대 단위 목표 탐색 ---
     for (const myBattalion of allBattalions) {
@@ -384,6 +389,7 @@ function updateUnits(unitManager, scaledDeltaTime) {
     // 1단계: 모든 유닛의 이동을 먼저 처리합니다.
     topLevelUnits.forEach(unit => processUnitMovement(unit, scaledDeltaTime));
     // 2단계: 이동이 완료된 위치를 기준으로 모든 유닛의 진형을 업데이트합니다.
+    // 이 단계에서 유닛의 현재 프로빈스 ID도 업데이트합니다.
     topLevelUnits.forEach(unit => processFormationUpdate(unit));
 
     // --- 6. 파괴된 부대 정리 (가장 중요) ---
@@ -408,6 +414,12 @@ function processUnitMovement(unit, scaledDeltaTime) {
  */
 function processFormationUpdate(unit) {
     if (unit.isDestroyed) return;
+
+    // 유닛의 현재 프로빈스 ID 업데이트
+    const tileX = Math.floor(unit.x / TILE_SIZE);
+    const tileY = Math.floor(unit.y / TILE_SIZE);
+    unit.currentProvinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY] || null;
+
     if (unit instanceof SymbolUnit) {
         unit.updateCombatSubUnitPositions();
     }
@@ -431,6 +443,75 @@ function processDestruction(units) {
         // (대대는 내구력 기반으로 takeDamage에서 이미 파괴 처리됨)
         if (u instanceof SymbolUnit && u.subUnits.length === 0 && u.echelon !== 'BATTALION') {
             u.isDestroyed = true;
+        }
+    });
+}
+
+/**
+ * 프로빈스 점령 진행 상황을 업데이트하고 점령을 처리합니다.
+ * @param {UnitManager} unitManager 
+ * @param {Battalion[]} allBattalions 
+ * @param {number} scaledDeltaTime 
+ */
+function updateCaptureProgress(unitManager, allBattalions, scaledDeltaTime) {
+    const CAPTURE_TIME = 24; // 점령에 필요한 시간 (게임 시간 기준)
+    const provincesWithUnits = new Map(); // key: provinceId, value: Set of nation IDs
+
+    // 1. 모든 대대의 현재 위치를 기반으로 프로빈스별 주둔 국가를 집계합니다.
+    allBattalions.forEach(b => {
+        if (!b.currentProvinceId) return;
+        if (!provincesWithUnits.has(b.currentProvinceId)) {
+            provincesWithUnits.set(b.currentProvinceId, new Set());
+        }
+        provincesWithUnits.get(b.currentProvinceId).add(b.nation.id);
+    });
+
+    // 2. 점령을 시도할 수 있는 대대를 찾습니다.
+    allBattalions.forEach(battalion => {
+        const provinceId = battalion.currentProvinceId;
+        if (!provinceId) return;
+
+        const province = mapGrid.provinceManager.provinces.get(provinceId);
+        // 이미 우리 땅이거나, 이미 점령이 진행 중인 프로빈스는 건너뜁니다.
+        if (province.owner === battalion.nation || unitManager.captureProgress.has(provinceId)) {
+            return;
+        }
+
+        // 점령 조건 확인
+        // 조건 1: 프로빈스에 적이 없는가? (해당 프로빈스에 우리 국가 유닛만 있어야 함)
+        const nationsInProvince = provincesWithUnits.get(provinceId);
+        const hasEnemies = Array.from(nationsInProvince).some(nationId => nationId !== battalion.nation.id);
+        if (hasEnemies) return;
+
+        // 조건 2: 수도로부터 보급선이 연결되어 있는가? (인접한 아군 프로빈스가 있고, 그 프로빈스가 수도와 연결)
+        const adjacentProvinces = mapGrid.provinceManager.provinceAdjacency.get(provinceId) || [];
+        const isConnected = adjacentProvinces.some(adjId => 
+            battalion.nation.territory.has(adjId) && mapGrid.provinceManager.isPathToCapital(adjId, battalion.nation)
+        );
+        if (!isConnected) return;
+
+        // 모든 조건을 만족하면 점령을 시작합니다.
+        console.log(`[${battalion.nation.name}] ${battalion.name}이(가) ${provinceId}번 프로빈스 점령 시작.`);
+        unitManager.captureProgress.set(provinceId, {
+            nation: battalion.nation,
+            progress: 0,
+            unitId: battalion.id // 어떤 유닛이 점령을 시작했는지 기록 (선택사항)
+        });
+    });
+
+    // 3. 진행 중인 모든 점령 상태를 업데이트합니다.
+    unitManager.captureProgress.forEach((capture, provinceId) => {
+        capture.progress += scaledDeltaTime;
+
+        // 점령군이 사라지거나 적이 나타나면 점령을 중단합니다.
+        const nationsInProvince = provincesWithUnits.get(provinceId) || new Set();
+        if (!nationsInProvince.has(capture.nation.id) || Array.from(nationsInProvince).some(id => id !== capture.nation.id)) {
+            console.log(`${provinceId}번 프로빈스 점령 중단 (점령군 이탈 또는 적 출현)`);
+            unitManager.captureProgress.delete(provinceId);
+        } else if (capture.progress >= CAPTURE_TIME) {
+            console.log(`[${capture.nation.name}] ${provinceId}번 프로빈스 점령 완료!`);
+            mapGrid.setProvinceOwner(provinceId, capture.nation);
+            unitManager.captureProgress.delete(provinceId);
         }
     });
 }
