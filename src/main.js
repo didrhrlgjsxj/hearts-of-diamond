@@ -34,6 +34,7 @@ timeText.id = 'time-text';
 
 // UI 인스턴스를 저장할 변수 및 초기화
 let gameUI;
+let selectedProvince = null; // 현재 선택된 프로빈스를 저장할 변수
 
 
 /**
@@ -110,11 +111,25 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('click', (e) => {
     // 마우스 클릭 위치를 월드 좌표로 변환
     const worldCoords = camera.screenToWorld(mouseX, mouseY);
+
+    // 1. 유닛 선택 시도
     const newSelectedUnit = unitManager.selectUnitAt(worldCoords.x, worldCoords.y);
 
-    // 선택된 유닛이 변경되었으므로 UI를 업데이트합니다.
-    gameUI.updateCompositionPanel(newSelectedUnit);
-    gameUI.updateStatsPanel(newSelectedUnit);
+    if (newSelectedUnit) {
+        // 유닛이 선택되면, 유닛 정보 UI를 업데이트하고 프로빈스 정보 UI는 숨깁니다.
+        gameUI.updateCompositionPanel(newSelectedUnit);
+        gameUI.updateStatsPanel(newSelectedUnit);
+        gameUI.updateProvinceInfoPanel(null);
+        selectedProvince = null; // 유닛 선택 시 프로빈스 선택 해제
+    } else {
+        // 유닛이 선택되지 않으면, 프로빈스 정보를 표시합니다.
+        const tileX = Math.floor(worldCoords.x / TILE_SIZE);
+        const tileY = Math.floor(worldCoords.y / TILE_SIZE);
+        const provinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY];
+        const province = mapGrid.provinceManager.provinces.get(provinceId);
+        gameUI.updateProvinceInfoPanel(province);
+        selectedProvince = province; // 클릭된 프로빈스를 선택 상태로 저장
+    }
 });
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -254,6 +269,42 @@ function draw() {
             ctx.fillText(province.id, centerX, centerY);
         }
     });
+
+    // --- 선택된 프로빈스 강조 표시 ---
+    if (selectedProvince) {
+        // 시간에 따라 투명도가 0.3 ~ 1.0 사이에서 부드럽게 변하도록 설정
+        const blinkAlpha = (Math.sin(Date.now() / 150) + 1) / 2 * 0.7 + 0.3;
+        ctx.strokeStyle = `rgba(255, 255, 0, ${blinkAlpha})`; // 깜빡이는 노란색
+        ctx.lineWidth = 4; // 강조를 위해 두꺼운 선 사용
+
+        // 선택된 프로빈스의 모든 타일을 순회하며 외곽선을 그립니다.
+        selectedProvince.tiles.forEach(tile => {
+            // 화면 밖 타일은 그리지 않습니다.
+            if (tile.x < startCol -1 || tile.x > endCol + 1 || tile.y < startRow -1 || tile.y > endRow + 1) return;
+
+            const tileX = tile.x * mapGrid.tileSize;
+            const tileY = tile.y * mapGrid.tileSize;
+
+            // 각 방향의 인접 타일이 다른 프로빈스에 속하는 경우에만 해당 방향의 테두리를 그립니다.
+            // 위쪽 테두리
+            if (tile.y === 0 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y - 1] !== selectedProvince.id) {
+                ctx.beginPath(); ctx.moveTo(tileX, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY); ctx.stroke();
+            }
+            // 아래쪽 테두리
+            if (tile.y === mapGrid.height - 1 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y + 1] !== selectedProvince.id) {
+                ctx.beginPath(); ctx.moveTo(tileX, tileY + mapGrid.tileSize); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize); ctx.stroke();
+            }
+            // 왼쪽 테두리
+            if (tile.x === 0 || mapGrid.provinceManager.provinceGrid[tile.x - 1][tile.y] !== selectedProvince.id) {
+                ctx.beginPath(); ctx.moveTo(tileX, tileY); ctx.lineTo(tileX, tileY + mapGrid.tileSize); ctx.stroke();
+            }
+            // 오른쪽 테두리
+            if (tile.x === mapGrid.width - 1 || mapGrid.provinceManager.provinceGrid[tile.x + 1][tile.y] !== selectedProvince.id) {
+                ctx.beginPath(); ctx.moveTo(tileX + mapGrid.tileSize, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize); ctx.stroke();
+            }
+        });
+    }
+
 
     // --- 점령 진행 상황 시각화 ---
     const CAPTURE_TIME = 24; // unitManager.js에 정의된 점령 시간과 동일한 값

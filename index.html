@@ -93,6 +93,27 @@
             display: flex;
             justify-content: space-between;
         }
+        #province-info-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: sans-serif;
+            min-width: 200px;
+            z-index: 10; /* 다른 패널 위에 표시될 수 있도록 */
+        }
+        #province-info-panel ul {
+            padding-left: 0;
+            list-style-type: none;
+            margin: 0;
+        }
+        #province-info-panel li {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
         #production-panel {
             position: absolute;
             top: 10px;

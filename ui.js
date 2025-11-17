@@ -40,6 +40,13 @@ class GameUI {
         this.battlePanel.id = 'battle-panel';
         document.body.appendChild(this.battlePanel);
         this.addUIElementListener(this.battlePanel);
+
+        // 프로빈스 정보 패널 생성
+        this.provinceInfoPanel = document.createElement('div');
+        this.provinceInfoPanel.id = 'province-info-panel';
+        document.body.appendChild(this.provinceInfoPanel);
+        this.updateProvinceInfoPanel(null); // 처음에는 숨김
+        this.addUIElementListener(this.provinceInfoPanel);
     }
 
     /**
@@ -381,6 +388,34 @@ class GameUI {
 
         this.statsPanel.innerHTML = html;
         this.statsPanel.style.display = 'block';
+    }
+
+    /**
+     * 선택된 프로빈스의 정보를 UI에 업데이트합니다.
+     * @param {Province | null} province 선택된 프로빈스 또는 null
+     */
+    updateProvinceInfoPanel(province) {
+        if (!province) {
+            this.provinceInfoPanel.innerHTML = '';
+            this.provinceInfoPanel.style.display = 'none';
+            return;
+        }
+
+        const ownerName = province.owner ? province.owner.name : '중립';
+        const ownerColor = province.owner ? province.owner.color.replace('0.3', '1.0') : '#888';
+
+        let html = `<h3>프로빈스 정보</h3>`;
+        html += '<ul>';
+        html += `<li><span>ID</span><span>${province.id}</span></li>`;
+        html += `<li><span>크기</span><span>${province.tiles.length} 타일</span></li>`;
+        html += `<li>
+                    <span>소유</span>
+                    <span style="color: ${ownerColor}; font-weight: bold;">${ownerName}</span>
+                 </li>`;
+        html += '</ul>';
+
+        this.provinceInfoPanel.innerHTML = html;
+        this.provinceInfoPanel.style.display = 'block';
     }
 
 
