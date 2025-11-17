@@ -126,9 +126,17 @@ canvas.addEventListener('click', (e) => {
         const tileX = Math.floor(worldCoords.x / TILE_SIZE);
         const tileY = Math.floor(worldCoords.y / TILE_SIZE);
         const provinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY];
-        const province = mapGrid.provinceManager.provinces.get(provinceId);
-        gameUI.updateProvinceInfoPanel(province);
-        selectedProvince = province; // 클릭된 프로빈스를 선택 상태로 저장
+        const clickedProvince = mapGrid.provinceManager.provinces.get(provinceId);
+
+        // 이미 선택된 프로빈스를 다시 클릭하면 선택 해제합니다.
+        if (selectedProvince && clickedProvince && selectedProvince.id === clickedProvince.id) {
+            selectedProvince = null;
+            gameUI.updateProvinceInfoPanel(null);
+        } else {
+            // 새로운 프로빈스를 선택합니다.
+            selectedProvince = clickedProvince;
+            gameUI.updateProvinceInfoPanel(clickedProvince);
+        }
     }
 });
 
