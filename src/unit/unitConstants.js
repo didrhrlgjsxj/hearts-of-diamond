@@ -34,11 +34,11 @@ const UNIT_TYPE_COLORS = {
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10 },
-    'RECON':    { firepower: 3, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 6, mobility: 15 },
-    'ARMOR':    { firepower: 2.5, softAttack: 4, hardAttack: 4, reconnaissance: 3, armor: 8, organizationBonus: 5, mobility: 20 },
-    'ARTILLERY':{ firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 4, mobility: 8 },
-    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 6, mobility: 10 },
+    'INFANTRY': { firepower: 2, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
+    'RECON':    { firepower: 3, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 6, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
+    'ARMOR':    { firepower: 2.5, softAttack: 4, hardAttack: 4, reconnaissance: 3, armor: 8, organizationBonus: 5, mobility: 20, tags: ['ARMOR'] },
+    'ARTILLERY':{ firepower: 4, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 4, mobility: 8, tags: ['SUPPORT'] },
+    'ENGINEER': { firepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 6, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
