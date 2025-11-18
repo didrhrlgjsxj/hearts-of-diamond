@@ -265,11 +265,21 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     const distToTarget = Math.hypot(c.x - target.x, c.y - target.y);
 
                     // 1. 전투 효율성 계산 (거리에 따라 0~1)
-                    // 최적 거리에서 100%, 최적 거리의 2배 또는 0 거리에서 0%가 됩니다.
+                    // 최적 거리에서 100%, 거리가 0일 때 70%의 효율을 가집니다.
                     const range = UNIT_TYPE_EFFECTIVENESS_RANGE[c.type] || { optimal: 100 };
                     const optimalDistance = range.optimal;
-                    const distanceDifference = Math.abs(distToTarget - optimalDistance);
-                    c.combatEffectiveness = Math.max(0, 1 - (distanceDifference / optimalDistance));
+
+                    if (distToTarget <= optimalDistance) {
+                        // 거리가 0일 때 0.7, 최적 거리일 때 1.0이 되도록 선형 보간
+                        c.combatEffectiveness = 0.7 + (distToTarget / optimalDistance) * 0.3;
+                    } else {
+                        // 최적 거리보다 멀어질 경우 효율이 감소
+                        // 최적 거리의 2배일 때 0.4, 3.5배일 때 0이 되도록 설정
+                        const falloff = (distToTarget - optimalDistance) / (optimalDistance * 2.5);
+                        c.combatEffectiveness = Math.max(0, 1.0 - falloff);
+                    }
+                    // 최종 효율성은 0과 1 사이 값으로 제한
+                    c.combatEffectiveness = Math.max(0, Math.min(1, c.combatEffectiveness));
 
                     // 2. 유효 공격력 계산 (방어자의 기갑화율에 따라 대인/대물 공격력 조합)
                     const defenderHardness = target.hardness;
