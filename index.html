@@ -61,6 +61,136 @@
             background-color: #ffc107;
             border: none;
         }
+        #unit-designer-panel .org-chart-container {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9e9e9;
+            border-radius: 4px;
+            position: relative; /* 대대 선택 목록의 기준점 */
+            min-height: 150px;
+        }
+        #unit-designer-panel .org-chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        #unit-designer-panel #battalion-count-display {
+            font-size: 12px;
+        }
+        #unit-designer-panel .org-chart {
+            font-size: 12px;
+        }
+        .designer-buttons {
+            display: flex;
+            gap: 10px; /* 버튼 사이 간격 */
+        }
+        .designer-buttons button {
+            flex: 1; /* 버튼이 공간을 균등하게 차지하도록 */
+        }
+        #unit-designer-panel #save-template-button {
+            background-color: #28a745;
+            color: white;
+        }
+        #unit-designer-panel #new-design-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        #unit-designer-panel .load-button {
+            background-color: #17a2b8;
+            color: white;
+        }
+        #unit-designer-panel #add-subunit-button {
+            margin-top: 10px;
+            background-color: #007bff;
+            color: white;
+        }
+        .battalion-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 5px;
+            margin: 2px 0;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .battalion-role-select {
+            width: 60px !important; /* !important를 사용하여 다른 스타일 규칙을 덮어씁니다. */
+            margin-bottom: 0 !important;
+        }
+        .battalion-item.dragging {
+            opacity: 0.5;
+            background: #cce5ff;
+        }
+        #template-load-selection-list {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            cursor: pointer;
+        }
+        .battalion-item.dragging {
+            opacity: 0.5;
+            background: #cce5ff;
+        }
+        #battalion-selection-list {
+            position: absolute;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 100;
+            bottom: 45px; /* '하위 부대 추가' 버튼 위에 표시 */
+            left: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #template-load-selection-list ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        #template-load-selection-list li {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #template-load-selection-list li:hover {
+            background-color: #f0f0f0;
+        }
+        #battalion-selection-list ul {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+        #battalion-selection-list li {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        #battalion-selection-list li:hover {
+            background-color: #f0f0f0;
+        }
+        #battalion-tooltip {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: sans-serif;
+            font-size: 12px;
+            z-index: 101;
+            pointer-events: none; /* 툴팁이 마우스 이벤트를 가로채지 않도록 설정 */
+            min-width: 180px;
+        }
+        #battalion-tooltip h4 {
+            margin: 0 0 5px 0;
+            color: #ffc107;
+        }
+        #battalion-tooltip ul {
+            list-style: none;
+            padding: 0; margin: 0;
+        }
         #composition-panel {
             position: absolute;
             bottom: 10px;
