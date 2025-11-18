@@ -10,7 +10,7 @@ class SymbolUnit extends Unit {
         this.isIndependentMoving = false; // 독립적으로 이동 중인지 여부
         this.formationMode = 'base'; // 'base' 또는 'custom'
         this.echelon = echelon; // 부대 규모 (e.g., 'DIVISION', 'BRIGADE')
-        this.echelonSymbol = ECHELON_SYMBOLS[echelon] || '';
+        this.echelonSymbol = ECHELON_SYMBOLS[echelon] || ''; // 이제 ECHELON_SYMBOLS가 로드된 후 호출됩니다.
         this.hqCompany = null;   // 모든 지휘부대의 본부 역할을 하는 '중대'
     }
 

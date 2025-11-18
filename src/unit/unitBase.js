@@ -13,6 +13,8 @@ class Unit {
         this.currentProvinceId = null; // 현재 유닛이 위치한 프로빈스 ID
         this.nation = null; // 유닛이 소속된 국가 (Nation 객체)
         this.size = size; // 유닛 아이콘의 크기 (반지름)
+        this.echelon = null; // 부대 규모 (e.g., 'DIVISION', 'BATTALION')
+        this.echelonSymbol = ''; // 부대 규모 심볼 (e.g., 'XX', '||')
         this.team = team; // 유닛의 팀 ('blue' 또는 'red')
         this.reinforcementLevel = 0; // 증강 레벨
         this.isSelected = false; // 유닛 선택 여부

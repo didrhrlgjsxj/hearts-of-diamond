@@ -222,7 +222,18 @@ class GameUI {
                     <option value="DIVISION">사단 (XX)</option>
                     <option value="BRIGADE">여단 (X)</option>
                     <option value="REGIMENT">연대 (|||)</option>
+                    <option value="BATTALION">대대 (||)</option>
+                    <option value="COMPANY">중대 (|)</option>
+                    <option value="PLATOON">소대 (•)</option>
                 </select>
+            </div>
+            <div id="hq-unit-container">
+                <div class="org-chart-header">
+                    <h4>본부 부대</h4>
+                    <span id="hq-unit-status">0 / 1</span>
+                </div>
+                <div id="hq-unit-display">본부를 선택하세요.</div>
+                <button id="select-hq-button">본부 선택</button>
             </div>
             <div class="org-chart-container">
                 <div class="org-chart-header">
@@ -242,11 +253,24 @@ class GameUI {
         `;
         panel.innerHTML = html;
 
-        // 부대 규모 변경 시 편제 수 제한 업데이트
-        panel.querySelector('#template-echelon-select').onchange = () => this.updateBattalionCountLimit();
+        // 부대 규모 변경 시 편제 초기화 및 UI 업데이트
+        panel.querySelector('#template-echelon-select').onchange = () => {
+            // 1. 본부 부대 선택 초기화
+            const hqDisplay = document.getElementById('hq-unit-display');
+            hqDisplay.textContent = '본부를 선택하세요.';
+            delete hqDisplay.dataset.templateKey;
+
+            // 2. 편제 구조 초기화
+            const orgChart = document.querySelector('#unit-designer-panel .org-chart');
+            orgChart.innerHTML = '<p>하위 부대를 추가하여 편제를 구성하세요.</p>';
+
+            // 3. 카운터 및 제한 업데이트
+            this.updateBattalionCountLimit();
+        };
 
         // 이벤트 리스너 연결
-        panel.querySelector('#add-subunit-button').onclick = () => this.showBattalionSelection();
+        panel.querySelector('#add-subunit-button').onclick = () => this.showSubUnitSelection();
+        panel.querySelector('#select-hq-button').onclick = () => this.showHqUnitSelection();
         panel.querySelector('#new-design-button').onclick = () => this.resetDesignerPanel();
         panel.querySelector('#load-template-button').onclick = () => this.showTemplateSelectionForLoad();
         panel.querySelector('#save-template-button').onclick = () => this.saveUnitTemplate();
@@ -285,17 +309,36 @@ class GameUI {
      * 부대 설계 UI의 대대 편제 수 제한과 현재 상태를 업데이트합니다.
      */
     updateBattalionCountLimit() {
+        const hqContainer = document.getElementById('hq-unit-container');
+        const hqStatus = document.getElementById('hq-unit-status');
+        const hqDisplay = document.getElementById('hq-unit-display');
         const echelonSelect = document.getElementById('template-echelon-select');
+        const selectedEchelon = echelonSelect.value;
         const countDisplay = document.getElementById('battalion-count-display');
         const orgChart = document.querySelector('#unit-designer-panel .org-chart');
 
         const limits = {
             'DIVISION': { min: 7, max: 10 },
             'BRIGADE': { min: 4, max: 6 },
-            'REGIMENT': { min: 2, max: 3 }
+            'REGIMENT': { min: 2, max: 3 },
+            'BATTALION': { min: 2, max: 5 }, // 대대는 2~5개의 중대로 구성
+            'COMPANY': { min: 2, max: 5 },   // 중대는 2~5개의 소대로 구성
+            'PLATOON': { min: 2, max: 5 }    // 소대는 2~5개의 분대로 구성
         };
 
-        const selectedEchelon = echelonSelect.value;
+        // 중대 이하 설계 시에는 본부 부대 섹션을 숨깁니다.
+        if (['COMPANY', 'PLATOON', 'SQUAD'].includes(selectedEchelon)) {
+            hqContainer.style.display = 'none';
+        } else {
+            hqContainer.style.display = 'block';
+        }
+
+        // 본부 부대 상태 업데이트
+        const hqSelected = hqDisplay.dataset.templateKey ? 1 : 0;
+        hqStatus.textContent = `${hqSelected} / 1`;
+        hqStatus.style.color = hqSelected < 1 ? 'red' : 'black';
+
+        // 편제 구조 상태 업데이트
         const limit = limits[selectedEchelon];
         const currentCount = orgChart.querySelectorAll('.battalion-item').length;
 
@@ -308,9 +351,56 @@ class GameUI {
     }
 
     /**
-     * 부대 설계 UI에 추가할 수 있는 대대 목록을 표시합니다.
+     * 부대 설계 UI에 추가할 수 있는 본부 부대 목록을 표시합니다.
      */
-    showBattalionSelection() {
+    showHqUnitSelection() {
+        const existingList = document.getElementById('hq-selection-list');
+        if (existingList) {
+            existingList.remove();
+            return;
+        }
+
+        const selectionList = document.createElement('div');
+        selectionList.id = 'hq-selection-list';
+
+        const list = document.createElement('ul');
+
+        // 본부 역할에 적합한 유닛(주로 중대급)을 필터링합니다.
+        // 여기서는 이름에 'HQ' 또는 '본부'가 포함된 중대를 대상으로 합니다.
+        Object.keys(UNIT_TEMPLATES_JSON).forEach(key => {
+            const template = UNIT_TEMPLATES_JSON[key];
+            if (template.echelon === 'COMPANY' && (template.name.includes('HQ') || template.name.includes('본부'))) {
+                const listItem = document.createElement('li');
+                listItem.textContent = template.name;
+                listItem.dataset.templateKey = key;
+                listItem.onclick = () => {
+                    this.setHqUnit(key, template.name);
+                    selectionList.remove();
+                };
+                list.appendChild(listItem);
+            }
+        });
+
+        selectionList.appendChild(list);
+        document.getElementById('hq-unit-container').appendChild(selectionList);
+    }
+
+    /**
+     * 선택된 본부 부대를 UI에 설정합니다.
+     * @param {string} templateKey 
+     * @param {string} name 
+     */
+    setHqUnit(templateKey, name) {
+        const hqDisplay = document.getElementById('hq-unit-display');
+        hqDisplay.textContent = `| ${name}`; // 중대 기호와 함께 표시
+        hqDisplay.dataset.templateKey = templateKey;
+        this.updateBattalionCountLimit(); // 상태 업데이트
+    }
+
+    /**
+     * 부대 설계 UI에 추가할 수 있는 하위 부대 목록을 표시합니다.
+     */
+    showSubUnitSelection() {
         // 기존 목록이 있으면 제거하여 중복 생성을 방지합니다.
         const existingList = document.getElementById('battalion-selection-list');
         if (existingList) {
@@ -318,20 +408,32 @@ class GameUI {
             return; // 목록이 이미 열려있었다면 닫기만 합니다.
         }
 
+        const selectedEchelon = document.getElementById('template-echelon-select').value;
+        let targetEchelon;
+        if (['DIVISION', 'BRIGADE', 'REGIMENT'].includes(selectedEchelon)) {
+            targetEchelon = 'BATTALION';
+        } else if (selectedEchelon === 'BATTALION') {
+            targetEchelon = 'COMPANY';
+        } else if (selectedEchelon === 'COMPANY') {
+            targetEchelon = 'PLATOON';
+        } else if (selectedEchelon === 'PLATOON') {
+            targetEchelon = 'SQUAD';
+        }
+
         const selectionList = document.createElement('div');
         selectionList.id = 'battalion-selection-list';
 
         const list = document.createElement('ul');
 
-        // UNIT_TEMPLATES_JSON에서 대대(BATTALION)급 편제만 필터링합니다.
+        // 선택된 규모에 따라 적절한 하위 부대 템플릿을 필터링합니다.
         Object.keys(UNIT_TEMPLATES_JSON).forEach(key => {
             const template = UNIT_TEMPLATES_JSON[key];
-            if (template.echelon === 'BATTALION') {
+            if (template.echelon === targetEchelon) {
                 const listItem = document.createElement('li');
                 listItem.textContent = template.name;
                 listItem.dataset.templateKey = key; // 데이터 속성에 템플릿 키 저장
                 listItem.onclick = () => {
-                    this.addBattalionToChart(key, template.name);
+                    this.addSubUnitToChart(key, template.name);
                     selectionList.remove(); // 대대를 추가한 후 목록을 닫습니다.
                 };
                 list.appendChild(listItem);
@@ -343,17 +445,17 @@ class GameUI {
     }
 
     /**
-     * 선택된 대대를 편제 구조 차트에 추가합니다.
-     * @param {string} templateKey - 추가할 대대의 템플릿 키
-     * @param {string} name - 추가할 대대의 이름
+     * 선택된 하위 부대를 편제 구조 차트에 추가합니다.
+     * @param {string} templateKey - 추가할 부대의 템플릿 키
+     * @param {string} name - 추가할 부대의 이름
      */
-    addBattalionToChart(templateKey, name) {
+    addSubUnitToChart(templateKey, name) {
         const countDisplay = document.getElementById('battalion-count-display');
         const maxCount = parseInt(countDisplay.dataset.max, 10);
         const currentCount = document.querySelectorAll('#unit-designer-panel .org-chart .battalion-item').length;
 
         if (currentCount >= maxCount) {
-            alert(`편제 가능한 최대 대대 수(${maxCount}개)를 초과했습니다.`);
+            alert(`편제 가능한 최대 하위 부대 수(${maxCount}개)를 초과했습니다.`);
             this.showBattalionSelection(); // 목록을 다시 닫아줍니다.
             return;
         }
@@ -370,23 +472,38 @@ class GameUI {
         battalionItem.draggable = true; // 드래그 가능하도록 설정
         battalionItem.dataset.templateKey = templateKey;
 
+        const subUnitTemplate = UNIT_TEMPLATES_JSON[templateKey];
+        const echelonSymbols = {
+            'BATTALION': '||',
+            'COMPANY': '|',
+            'PLATOON': '•',
+            'SQUAD': 'ø'
+        };
+        const symbol = echelonSymbols[subUnitTemplate.echelon] || '';
+
+
         // 대대 이름 표시
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = `|| ${name}`;
-
-        // 역할 선택 드롭다운 생성
-        const roleSelect = document.createElement('select');
-        roleSelect.className = 'battalion-role-select';
-        roleSelect.innerHTML = `
-            <option value="FRONTLINE">전위</option>
-            <option value="MIDGUARD">중위</option>
-            <option value="REARGUARD">후위</option>
-        `;
-        // 드롭다운 클릭 시 부모의 드래그가 시작되지 않도록 이벤트 전파 중단
-        roleSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+        nameSpan.textContent = `${symbol} ${name}`;
 
         battalionItem.appendChild(nameSpan);
-        battalionItem.appendChild(roleSelect);
+
+        // 현재 설계 중인 부대 규모를 확인합니다.
+        const designingEchelon = document.getElementById('template-echelon-select').value;
+        // 대대급 이상 부대를 설계할 때만 역할 선택 메뉴를 추가합니다.
+        if (['DIVISION', 'BRIGADE', 'REGIMENT', 'BATTALION'].includes(designingEchelon)) {
+            const roleSelect = document.createElement('select');
+            roleSelect.className = 'battalion-role-select';
+            roleSelect.name = 'subunit-role'; // 브라우저 자동 완성 및 폼 필드 식별을 위한 name 속성 추가
+            roleSelect.innerHTML = `
+                <option value="FRONTLINE">전위</option>
+                <option value="MIDGUARD">중위</option>
+                <option value="REARGUARD">후위</option>
+            `;
+            // 드롭다운 클릭 시 부모의 드래그가 시작되지 않도록 이벤트 전파 중단
+            roleSelect.addEventListener('mousedown', (e) => e.stopPropagation());
+            battalionItem.appendChild(roleSelect);
+        }
 
         // 이름 부분을 클릭하면 삭제
         nameSpan.onclick = () => {
@@ -408,6 +525,7 @@ class GameUI {
 
         orgChart.appendChild(battalionItem);
         this.updateBattalionCountLimit(); // 추가 후 카운트 업데이트
+        return battalionItem;
     }
 
     /**
@@ -426,6 +544,12 @@ class GameUI {
 
         // 4. 대대 수 카운터 업데이트
         this.updateBattalionCountLimit();
+
+        // 5. 본부 부대 선택 초기화
+        const hqDisplay = document.getElementById('hq-unit-display');
+        hqDisplay.textContent = '본부를 선택하세요.';
+        delete hqDisplay.dataset.templateKey;
+        this.updateBattalionCountLimit(); // 카운터 재업데이트
 
         console.log('부대 설계 UI가 초기화되었습니다.');
     }
@@ -449,7 +573,7 @@ class GameUI {
         // 최상위 편제(DIVISION, BRIGADE, REGIMENT)만 필터링
         Object.keys(UNIT_TEMPLATES_JSON).forEach(key => {
             const template = UNIT_TEMPLATES_JSON[key];
-            if (['DIVISION', 'BRIGADE', 'REGIMENT'].includes(template.echelon)) {
+            if (['DIVISION', 'BRIGADE', 'REGIMENT', 'BATTALION', 'COMPANY', 'PLATOON'].includes(template.echelon)) {
                 const listItem = document.createElement('li');
                 listItem.textContent = template.name;
                 listItem.dataset.templateKey = key;
@@ -486,12 +610,20 @@ class GameUI {
 
         // 3. 템플릿의 하위 부대를 차트에 추가
         template.sub_units.forEach(subUnitInfo => {
-            const subUnitTemplate = UNIT_TEMPLATES_JSON[subUnitInfo.template_key];
-            const role = subUnitInfo.role || 'FRONTLINE'; // 역할 정보가 없으면 기본값 사용
-            // addBattalionToChart는 이제 DOM 요소를 반환하도록 수정합니다.
-            const battalionItem = this.addBattalionToChart(subUnitInfo.template_key, subUnitTemplate.name);
-            battalionItem.querySelector('.battalion-role-select').value = role;
+            for (let i = 0; i < subUnitInfo.count; i++) {
+                const subUnitTemplate = UNIT_TEMPLATES_JSON[subUnitInfo.template_key];
+                const role = subUnitInfo.role || 'FRONTLINE'; // 역할 정보가 없으면 기본값 사용
+                const battalionItem = this.addSubUnitToChart(subUnitInfo.template_key, subUnitTemplate.name);
+                const roleSelect = battalionItem?.querySelector('.battalion-role-select');
+                if (roleSelect) roleSelect.value = role;
+            }
         });
+
+        // 4. 본부 부대 정보 불러오기
+        if (template.hq_template_key) {
+            const hqTemplate = UNIT_TEMPLATES_JSON[template.hq_template_key];
+            if (hqTemplate) this.setHqUnit(template.hq_template_key, hqTemplate.name);
+        }
 
         // 4. 대대 수 제한 및 표시 업데이트
         this.updateBattalionCountLimit();
@@ -614,13 +746,28 @@ class GameUI {
         const minCount = parseInt(countDisplay.dataset.min, 10);
         const maxCount = parseInt(countDisplay.dataset.max, 10);
 
-        if (battalions.length < minCount) {
+        if (battalions.length > 0 && battalions.length < minCount) {
             alert(`편제에 최소 ${minCount}개의 하위 부대를 추가해주세요.`);
             return;
         }
 
         if (battalions.length > maxCount) {
             alert(`편제 가능한 최대 대대 수(${maxCount}개)를 초과했습니다.`);
+            return;
+        }
+
+        // 중대, 소대급 설계는 하위 부대가 없을 수 있습니다 (분대만으로 구성).
+        if (['DIVISION', 'BRIGADE', 'REGIMENT', 'BATTALION', 'COMPANY'].includes(echelonSelect.value) && battalions.length === 0) {
+            alert('편제에 하위 부대를 하나 이상 추가해주세요.');
+            return;
+        }
+
+        // 대대 이상 설계 시 본부 부대 선택 여부 확인
+        const hqDisplay = document.getElementById('hq-unit-display');
+        const hqTemplateKey = hqDisplay.dataset.templateKey;
+        const needsHq = ['DIVISION', 'BRIGADE', 'REGIMENT', 'BATTALION'].includes(echelonSelect.value);
+        if (needsHq && !hqTemplateKey) {
+            alert('본부 부대를 선택해주세요.');
             return;
         }
 
@@ -637,16 +784,21 @@ class GameUI {
             name: templateName,
             echelon: echelonSelect.value,
             sub_units: [], // 순서를 유지하기 위해 집계하지 않고 직접 추가
-            // 새로운 최상위 편제는 기본적으로 본부 중대를 갖도록 설정합니다.
-            hq_template_key: "Infantry_HQ_Company" 
         };
 
-        // 2. 편제 구조에 포함된 대대들을 집계하여 sub_units 배열에 추가
-        // 드래그 앤 드롭으로 정렬된 순서를 유지하기 위해, 동일한 유닛을 집계(count)하는 방식으로 변경합니다.
+        // 본부 부대가 필요한 경우에만 hq_template_key를 추가합니다.
+        if (needsHq) {
+            newTemplate.hq_template_key = hqTemplateKey;
+        }
+
+        // 2. 편제 구조에 포함된 하위 부대들을 집계하여 sub_units 배열에 추가
+        // 드래그 앤 드롭으로 정렬된 순서를 유지하기 위해, 동일한 유닛과 역할을 집계(count)하는 방식으로 변경합니다.
         const aggregatedSubUnits = [];
         battalions.forEach(item => {
             const key = item.dataset.templateKey;
-            const role = item.querySelector('.battalion-role-select').value;
+            // 역할 선택 메뉴가 있을 때만 값을 읽고, 없으면 기본값을 사용합니다.
+            const roleSelect = item.querySelector('.battalion-role-select');
+            const role = roleSelect ? roleSelect.value : 'FRONTLINE';
             const lastUnit = aggregatedSubUnits[aggregatedSubUnits.length - 1];
 
             // 바로 이전 유닛과 종류 및 역할이 모두 같으면 count를 늘리고, 아니면 새로 추가합니다.

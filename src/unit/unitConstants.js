@@ -20,7 +20,7 @@ const UNIT_TYPE_ICONS = {
     'RECON': '◇',   // 정찰 (기병)
     'ARMOR': '⬬',   // 기갑 (궤도)
     'ARTILLERY': '●', // 포병 (포탄)
-    'ENGINEER': 'E',   // 공병
+    'ENGINEER': 'E'   // 공병
 };
 
 // 유닛 타입별 색상
