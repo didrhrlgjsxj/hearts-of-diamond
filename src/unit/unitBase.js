@@ -56,7 +56,8 @@ class Unit {
         this.squadsData = []; // 중대에서 사용할 분대 데이터 배열 (생성자 순서 문제 해결)
 
         // 신규 능력치
-        this.firepower = 0;
+        this.directFirepower = 0;
+        this.indirectFirepower = 0;
         this.softAttack = 0;
         this.hardAttack = 0;
         this.reconnaissance = 0;
@@ -211,7 +212,8 @@ class Unit {
         }
 
         // UNIT_STAT_AGGREGATORS에 정의된 각 계산 함수를 실행하여 능력치를 할당합니다.
-        this.firepower = UNIT_STAT_AGGREGATORS.firepower(allSquads);
+        this.directFirepower = UNIT_STAT_AGGREGATORS.directFirepower(allSquads);
+        this.indirectFirepower = UNIT_STAT_AGGREGATORS.indirectFirepower(allSquads);
         this.softAttack = UNIT_STAT_AGGREGATORS.softAttack(allSquads);
         this.hardAttack = UNIT_STAT_AGGREGATORS.hardAttack(allSquads);
         this.reconnaissance = UNIT_STAT_AGGREGATORS.reconnaissance(allSquads);

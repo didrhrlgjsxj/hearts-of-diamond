@@ -287,30 +287,33 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     const effectiveAttack = companyBaseAttack * c.combatEffectiveness;
 
                     // 3. 대대의 현재 전술에 따른 공격력 보너스/페널티 적용
-                    const tacticAttackModifier = myBattalion.tactic ? myBattalion.tactic.attackModifier : 1.0;
-                    const finalAttack = effectiveAttack * tacticAttackModifier;
+                    const tactic = myBattalion.tactic || { attackModifier: 1.0, orgDamageModifier: 1.0 };
 
-                    // 4. 최종 공격력 계산 (관통 및 방어력에 의한 피해 '경감' 적용)
-                    // 4-1. 대물 공격력 vs 단위 방어력: 대물 공격이 얼마나 효과적으로 피해를 주는지 계산합니다.
-                    // 대물 공격력이 단위 방어력보다 낮을 경우, 비율에 따라 대물 피해량이 감소합니다.
-                    const hardAttackPenetrationRatio = target.unitDefense > 0 ? Math.min(1, c.hardAttack / target.unitDefense) : 1;
-                    
-                    // 4-2. 관통 결과를 적용한 유효 공격력 재계산
+                    // 4. 최종 피해량 계산 (직접/간접 화력 시스템 적용)
+
+                    // 4-1. 유효 대인/대물 공격력 계산 (기갑화율 적용)
                     const softPart = c.softAttack * (1 - defenderHardness);
-                    const hardPart = c.hardAttack * defenderHardness * hardAttackPenetrationRatio;
-                    const attackAfterArmor = (softPart + hardPart) * c.combatEffectiveness * tacticAttackModifier;
+                    const hardPart = c.hardAttack * defenderHardness;
+                    const baseDamage = (softPart + hardPart) * c.combatEffectiveness * tactic.attackModifier;
 
-                    // 4-3. 화력과 조직 방어력 비교를 통한 '공격 효율성' 계산
-                    // 화력이 조직 방어력보다 낮으면, 그 비율만큼 최종 피해량이 감소합니다.
-                    // 이는 공격이 얼마나 효과적으로 적의 방어망을 뚫는지를 나타냅니다.
-                    const attackEffectiveness = target.organizationDefense > 0 
-                        ? Math.min(1, c.firepower / target.organizationDefense) 
+                    // 4-2. 조직력 피해 계산: 간접 화력이 조직 방어력을 관통합니다.
+                    // 간접 화력이 조직 방어력보다 낮으면, 그 비율만큼 조직력에 가해지는 기본 피해량이 감소합니다.
+                    const orgPenetration = target.organizationDefense > 0
+                        ? Math.min(1, c.indirectFirepower / target.organizationDefense)
                         : 1;
+                    const totalOrgDamage = baseDamage * orgPenetration * tactic.orgDamageModifier;
 
-                    const totalAttackPower = attackAfterArmor * attackEffectiveness;
+                    // 4-3. 내구력 피해 계산: 직접 화력이 단위 방어력을 관통합니다.
+                    // 직접 화력이 단위 방어력보다 낮으면, 그 비율만큼 내구력에 가해지는 기본 피해량이 감소합니다.
+                    const strPenetration = target.unitDefense > 0
+                        ? Math.min(1, c.directFirepower / target.unitDefense)
+                        : 1;
+                    const totalStrDamage = baseDamage * strPenetration;
 
-                    // 5. 계산된 피해를 적 '중대'에 직접 적용합니다.
-                    // 단위 방어력에 의한 최종 피해 감소는 takeDamage 내부에서 처리됩니다.
+                    // 5. 계산된 피해를 적 '중대'에 적용합니다. takeDamage를 수정하여 두 종류의 피해를 받도록 합니다.
+                    // takeDamage 내부에서 조직력 흡수율에 따라 최종적으로 분배됩니다.
+                    // 여기서는 두 피해 유형을 합쳐서 하나의 값으로 전달합니다.
+                    const totalAttackPower = totalOrgDamage + totalStrDamage;
                     target.takeDamage(totalAttackPower, { x: c.x, y: c.y });
                 });
             }

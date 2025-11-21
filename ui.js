@@ -639,7 +639,8 @@ class GameUI {
         if (!stats) return;
 
         const statsToShow = {
-            '화력': stats.firepower.toFixed(1),
+            '직접 화력': stats.directFirepower.toFixed(1),
+            '간접 화력': stats.indirectFirepower.toFixed(1),
             '대인 공격': stats.softAttack.toFixed(1),
             '대물 공격': stats.hardAttack.toFixed(1),
             '장갑': stats.armor.toFixed(2),
@@ -670,7 +671,8 @@ class GameUI {
         if (!allSquads || allSquads.length === 0) return null;
 
         return {
-            firepower: UNIT_STAT_AGGREGATORS.firepower(allSquads),
+            directFirepower: UNIT_STAT_AGGREGATORS.directFirepower(allSquads),
+            indirectFirepower: UNIT_STAT_AGGREGATORS.indirectFirepower(allSquads),
             softAttack: UNIT_STAT_AGGREGATORS.softAttack(allSquads),
             hardAttack: UNIT_STAT_AGGREGATORS.hardAttack(allSquads),
             reconnaissance: UNIT_STAT_AGGREGATORS.reconnaissance(allSquads),
@@ -1036,7 +1038,8 @@ class GameUI {
         // SymbolUnit의 경우, 하위 부대의 능력치를 합산하여 보여줍니다.
         const statsToShow = {
             '이동 속도': unit.moveSpeed.toFixed(1),
-            '화력': unit.firepower.toFixed(1),
+            '직접 화력': unit.directFirepower.toFixed(1),
+            '간접 화력': unit.indirectFirepower.toFixed(1),
             '대인 공격': unit.softAttack.toFixed(1),
             '대물 공격': unit.hardAttack.toFixed(1),
             '장갑': unit.armor.toFixed(2),
