@@ -90,6 +90,43 @@
             ],
             "hq_template_key": "Infantry_HQ_Company"
         },
+        "Engineer_Regiment": {
+            "name": "공병 연대",
+            "echelon": "REGIMENT",
+            "sub_units": [
+                {
+                    "template_key": "Engineer_Battalion",
+                    "count": 2,
+                    "role": "FRONTLINE"
+                },
+                {
+                    "template_key": "Infantry_Battalion",
+                    "count": 1,
+                    "role": "FRONTLINE"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
+        "Engineer_Battalion": {
+            "name": "공병 대대",
+            "echelon": "BATTALION",
+            "sub_units": [
+                {
+                    "template_key": "Engineer_Company",
+                    "count": 4,
+                    "role": "FRONTLINE"
+                }
+            ],
+            "hq_template_key": "Infantry_HQ_Company"
+        },
+        "Engineer_Company": {
+            "name": "공병 중대",
+            "echelon": "COMPANY",
+            "role": "FRONTLINE",
+            "sub_units": [
+                { "template_key": "Engineer_Platoon", "count": 3 }
+            ]
+        },
         "Infantry_Battalion": {
             "name": "보병 대대",
             "echelon": "BATTALION",
