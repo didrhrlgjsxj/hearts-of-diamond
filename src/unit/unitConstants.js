@@ -36,8 +36,8 @@ const UNIT_TYPE_COLORS = {
 const UNIT_TYPE_STATS = {
     'INFANTRY': { directFirepower: 0.1, indirectFirepower: 0.1, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
     'RECON':    { directFirepower: 0.1, indirectFirepower: 0.1, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 4, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
-    'ARMOR':    { directFirepower: 0.25, indirectFirepower: 0.25, softAttack: 4, hardAttack: 4, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
-    'ARTILLERY':{ directFirepower: 0.2, indirectFirepower: 0.5, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
+    'ARMOR':    { directFirepower: 0.25, indirectFirepower: 0.25, softAttack: 3.5, hardAttack: 4, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
+    'ARTILLERY':{ directFirepower: 0.2, indirectFirepower: 0.4, softAttack: 4.5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
     'ENGINEER': { directFirepower: 0.2, indirectFirepower: 0.2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 4, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
 };
 
@@ -62,14 +62,6 @@ const FORMATION_OFFSETS = {
     [FORMATION_ROLES.FRONTLINE]: { distance: 100, spread: 80 },  // 전위: 주력 전투선
     [FORMATION_ROLES.MIDGUARD]: { distance: 40, spread: 100 }, // 중위: 중간 뒤, 넓게
     [FORMATION_ROLES.REARGUARD]: { distance: 0, spread: 70 },   // 후위: 본부와 같은 라인
-};
-
-// 역할과 병과에 따른 전투 효율성 계수
-const EFFECTIVENESS_MODIFIERS = {
-    // 전위: 보병, 기갑, 공병 유닛이 효율적
-    [FORMATION_ROLES.FRONTLINE]: { 'INFANTRY': 1.2, 'RECON': 0.7, 'ARMOR': 1.2, 'ARTILLERY': 0.6, 'ENGINEER': 1.1 },
-    // 후위: 포병 유닛이 매우 효율적
-    [FORMATION_ROLES.REARGUARD]: { 'INFANTRY': 1.0, 'RECON': 0.8, 'ARMOR': 0.8, 'ARTILLERY': 1.5, 'ENGINEER': 0.9 },
 };
 
 // 유닛 간 최소 이격 거리
