@@ -34,11 +34,11 @@ const UNIT_TYPE_COLORS = {
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    'INFANTRY': { directFirepower: 2.5, indirectFirepower: 1.5, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
-    'RECON':    { directFirepower: 3.0, indirectFirepower: 1.0, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 6, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
-    'ARMOR':    { directFirepower: 2.5, indirectFirepower: 2.0, softAttack: 4, hardAttack: 4, reconnaissance: 3, armor: 8, organizationBonus: 5, mobility: 20, tags: ['ARMOR'] },
-    'ARTILLERY':{ directFirepower: 1.0, indirectFirepower: 5.0, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 4, mobility: 8, tags: ['SUPPORT'] },
-    'ENGINEER': { directFirepower: 2.0, indirectFirepower: 1.0, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 6, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
+    'INFANTRY': { directFirepower: 1.0, indirectFirepower: 1.0, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
+    'RECON':    { directFirepower: 1.0, indirectFirepower: 1.0, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 6, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
+    'ARMOR':    { directFirepower: 2.5, indirectFirepower: 2.5, softAttack: 4, hardAttack: 4, reconnaissance: 3, armor: 8, organizationBonus: 5, mobility: 20, tags: ['ARMOR'] },
+    'ARTILLERY':{ directFirepower: 2.0, indirectFirepower: 5.0, softAttack: 5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 4, mobility: 8, tags: ['SUPPORT'] },
+    'ENGINEER': { directFirepower: 2.0, indirectFirepower: 2.0, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 6, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
@@ -172,7 +172,7 @@ const UNIT_STAT_AGGREGATORS = {
 
         // 1. 기본 생존성: 모든 분대의 훈련 수준(organizationBonus)을 기반으로 한 기본 방어력입니다.
         // 보병도 엄폐, 산개 등을 통해 생존하므로, 이를 반영합니다.
-        const baseSurvivalDefense = units.reduce((total, unit) => total + unit.organizationBonus, 0) * 0.1;
+        const baseSurvivalDefense = units.reduce((total, unit) => total + unit.organizationBonus, 0) * 0.05;
 
         // 2. 추가 방호력: 장갑과 기갑화율에 기반한 물리적 방호력입니다.
         const avgArmor = units.reduce((total, unit) => total + unit.armor, 0) / units.length;

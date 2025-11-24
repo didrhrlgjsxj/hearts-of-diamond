@@ -1104,13 +1104,32 @@ class GameUI {
             html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
             html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)}</div>`;
 
+            // 자원 수입량 및 비축량 표시
+            html += `<h4>자원 현황 (수입량/비축량)</h4>`;
+            const income = nation.economy.resourceIncome;
+            const stockpile = nation.economy.resourceStockpile;
+            const allResourceKeys = new Set([...Object.keys(income), ...Object.keys(stockpile)]);
+
+            if (allResourceKeys.size > 0) {
+                html += '<ul>';
+                allResourceKeys.forEach(key => {
+                    const resourceName = RESOURCE_TYPES[key]?.name || key;
+                    const incomeAmount = income[key] || 0;
+                    const stockpileAmount = Math.floor(stockpile[key] || 0);
+                    html += `<li>${resourceName}: +${incomeAmount}/h | ${stockpileAmount}</li>`;
+                });
+                html += '</ul>';
+            } else {
+                html += '<p>자원 수입 없음</p>';
+            }
+
             // 장비 비축량 표시
             html += `<h4>장비 비축량</h4>`;
-            const stockpile = nation.economy.equipmentStockpile;
-            if (Object.keys(stockpile).length > 0) {
+            const equipmentStockpile = nation.economy.equipmentStockpile;
+            if (Object.keys(equipmentStockpile).length > 0) {
                 html += '<ul>';
-                Object.keys(stockpile).forEach(key => {
-                    html += `<li>${EQUIPMENT_TYPES[key].name}: ${stockpile[key]}</li>`;
+                Object.keys(equipmentStockpile).forEach(key => {
+                    html += `<li>${EQUIPMENT_TYPES[key].name}: ${equipmentStockpile[key]}</li>`;
                 });
                 html += '</ul>';
             } else {

@@ -16,6 +16,7 @@ class Province {
         this.owner = null; // 이 프로빈스를 소유한 Nation 객체
         this.color = `hsl(${Math.random() * 360}, 50%, 70%)`; // 디버깅용 랜덤 색상
         this.center = { x: 0, y: 0 }; // 프로빈스의 중앙 좌표
+        this.resources = {}; // 이 프로빈스에서 생산되는 자원. 예: { 'IRON': 5, 'OIL': 2 }
     }
 
     /**

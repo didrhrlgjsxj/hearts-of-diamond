@@ -333,20 +333,21 @@
     <canvas id="gameCanvas" tabindex="0"></canvas>
     <!-- 게임 데이터 및 클래스 로드 순서가 중요합니다. -->
     <!-- 1. 의존성 없는 상수 및 기본 클래스 먼저 로드 -->
+    <script src="src/map/resource.js"></script>
     <script src="src/nation/equipment_types.js"></script>
     <script src="src/unit/unitConstants.js"></script>
     <script src="src/unit/unitBase.js"></script> 
     <!-- 2. 기본 클래스를 상속받는 클래스 로드 -->
     <script src="src/unit/unitEchelons.js"></script>
     <!-- 3. 위 클래스들을 사용하는 스크립트 로드 -->
-    <script src="src/unit/division_templates.js"></script>
+    <script src="src/unit/division_templates.js"></script> 
     <script src="src/unit/unitManager.js"></script>
     <script src="src/nation/economy.js"></script>
     <script src="src/map/province.js"></script>
     <script src="src/nation/nation.js"></script>
     <script src="src/map/map.js"></script>
     <script src="src/camera.js"></script>
-    <script src="ui.js"></script>
-    <script src="src/main.js" defer></script>
+    <script src="ui.js"></script> 
+    <script src="src/main.js"></script>
 </body>
 </html>

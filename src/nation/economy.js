@@ -30,6 +30,8 @@ class Economy {
 
         // --- 생산 ---
         this.equipmentStockpile = {}; // 장비 비축량. 예: { 'Rifle': 1500, 'Tank': 50 }
+        this.resourceIncome = {};     // 자원 수입량. 예: { 'IRON': 10, 'OIL': 5 }
+        this.resourceStockpile = {};  // 자원 비축량.
         this.productionLines = [];    // 생산 라인 목록
     }
 
@@ -85,6 +87,16 @@ class Economy {
         // 하루(24시간) 분량을 한 번에 계산합니다.
         this.economicUnits += (this.lightIndustry * 0.5 - this.heavyIndustry * 0.1) * 24;
         this.economicUnits = Math.max(0, this.economicUnits);
+
+        // 자원 수입량을 계산하고 비축량에 더합니다.
+        this.calculateResourceIncome();
+        Object.keys(this.resourceIncome).forEach(key => {
+            if (!this.resourceStockpile[key]) {
+                this.resourceStockpile[key] = 0;
+            }
+            // 하루(24시간) 생산량을 더합니다.
+            this.resourceStockpile[key] += this.resourceIncome[key] * 24;
+        });
     }
 
     /**
@@ -139,6 +151,31 @@ class Economy {
                 line.efficiency = Math.min(1.0, line.efficiency + 0.01 * completedUnits);
             }
         });
+    }
+
+    /**
+     * 매 시간, 해당 틱에 할당된 생산 라인만 업데이트합니다.
+     * @param {number} currentTick - 현재 계산해야 할 생산 주기 (0-4)
+     * @param {number} hoursPassed - 경과 시간 (시간 단위)
+     */
+    calculateResourceIncome() {
+        const income = {};
+
+        // 국가가 소유한 모든 영토를 순회합니다.
+        this.nation.territory.forEach(provinceId => {
+            const province = mapGrid.provinceManager.provinces.get(provinceId);
+            if (province && province.resources) {
+                // 해당 프로빈스에서 생산되는 모든 자원을 수입량에 합산합니다.
+                Object.keys(province.resources).forEach(resourceKey => {
+                    if (!income[resourceKey]) {
+                        income[resourceKey] = 0;
+                    }
+                    income[resourceKey] += province.resources[resourceKey];
+                });
+            }
+        });
+
+        this.resourceIncome = income;
     }
 
     /**
