@@ -295,20 +295,21 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     const softPart = c.softAttack * (1 - defenderHardness);
                     const hardPart = c.hardAttack * defenderHardness;
                     const baseDamage = (softPart + hardPart) * c.combatEffectiveness * tactic.attackModifier;
+                    
+                    // 4-2. 조직력 피해량 계수 계산
+                    // 간접 화력과 조직 방어력을 비교하여 피해량 계수를 계산합니다.
+                    // 화력이 방어력보다 높으면 피해가 증폭되고, 낮으면 감소합니다.
+                    const orgDamageMultiplier = target.organizationDefense > 0
+                        ? c.indirectFirepower / (c.indirectFirepower + target.organizationDefense) * 2
+                        : 2.0; // 방어력이 0이면 최대 피해
+                    const totalOrgDamage = baseDamage * orgDamageMultiplier * tactic.orgDamageModifier;
 
-                    // 4-2. 조직력 피해 계산: 간접 화력이 조직 방어력을 관통합니다.
-                    // 간접 화력이 조직 방어력보다 낮으면, 그 비율만큼 조직력에 가해지는 기본 피해량이 감소합니다.
-                    const orgPenetration = target.organizationDefense > 0
-                        ? Math.min(1, c.indirectFirepower / target.organizationDefense)
-                        : 1;
-                    const totalOrgDamage = baseDamage * orgPenetration * tactic.orgDamageModifier;
-
-                    // 4-3. 내구력 피해 계산: 직접 화력이 단위 방어력을 관통합니다.
-                    // 직접 화력이 단위 방어력보다 낮으면, 그 비율만큼 내구력에 가해지는 기본 피해량이 감소합니다.
-                    const strPenetration = target.unitDefense > 0
-                        ? Math.min(1, c.directFirepower / target.unitDefense)
-                        : 1;
-                    const totalStrDamage = baseDamage * strPenetration;
+                    // 4-3. 내구력 피해량 계수 계산
+                    // 직접 화력과 단위 방어력을 비교하여 피해량 계수를 계산합니다.
+                    const strDamageMultiplier = target.unitDefense > 0
+                        ? c.directFirepower / (c.directFirepower + target.unitDefense) * 2
+                        : 2.0; // 방어력이 0이면 최대 피해
+                    const totalStrDamage = baseDamage * strDamageMultiplier;
 
                     // 5. 계산된 피해를 적 '중대'에 적용합니다. takeDamage를 수정하여 두 종류의 피해를 받도록 합니다.
                     // takeDamage 내부에서 조직력 흡수율에 따라 최종적으로 분배됩니다.
