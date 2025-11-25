@@ -12,6 +12,7 @@ class MapGrid {
         this.tileSize = TILE_SIZE;
         this.nations = new Map(); // id를 키로 사용하여 Nation 객체를 저장
         this.provinceManager = new ProvinceManager(this.width, this.height); // 프로빈스 먼저 생성
+        this.regionManager = new RegionManager(this.provinceManager); // 프로빈스 생성 후 지역 및 자원 생성
     }
 
     /**

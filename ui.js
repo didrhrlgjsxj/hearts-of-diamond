@@ -1092,6 +1092,17 @@ class GameUI {
                     <span>소유</span>
                     <span style="color: ${ownerColor}; font-weight: bold;">${ownerName}</span>
                  </li>`;
+
+        // 프로빈스가 보유한 자원 정보를 표시합니다.
+        if (province.resources && Object.keys(province.resources).length > 0) {
+            html += `<li style="margin-top: 10px; border-top: 1px solid #ccc;"></li>`; // 구분선
+            html += `<h4>자원</h4>`;
+            Object.entries(province.resources).forEach(([key, amount]) => {
+                const resourceName = RESOURCE_TYPES[key]?.name || key;
+                html += `<li><span>${resourceName}</span><span>${amount}</span></li>`;
+            });
+        }
+
         html += '</ul>';
 
         this.provinceInfoPanel.innerHTML = html;
