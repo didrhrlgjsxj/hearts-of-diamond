@@ -1037,6 +1037,9 @@ class GameUI {
 
         // SymbolUnit의 경우, 하위 부대의 능력치를 합산하여 보여줍니다.
         const statsToShow = {
+            '조직력': `${Math.floor(unit.organization)} / ${Math.floor(unit.maxOrganization)}`,
+            '내구력': `${Math.floor(unit.currentStrength)} / ${Math.floor(unit.baseStrength)}`,
+            '---': '---', // 구분선
             '이동 속도': unit.moveSpeed.toFixed(1),
             '직접 화력': unit.directFirepower.toFixed(1),
             '간접 화력': unit.indirectFirepower.toFixed(1),
@@ -1052,10 +1055,14 @@ class GameUI {
         let html = `<h3>${unit.name} 능력치</h3>`;
         html += '<ul>';
         Object.entries(statsToShow).forEach(([name, value]) => {
-            html += `<li>
-                        <span>${name}</span>
-                        <span>${value}</span>
-                     </li>`;
+            if (name === '---') {
+                html += `<li style="margin: 5px 0; border-top: 1px solid #ccc;"></li>`; // 구분선 스타일
+            } else {
+                html += `<li>
+                            <span>${name}</span>
+                            <span>${value}</span>
+                         </li>`;
+            }
         });
         html += '</ul>';
 

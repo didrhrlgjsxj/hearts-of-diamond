@@ -34,11 +34,11 @@ const UNIT_TYPE_COLORS = {
 
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
-    'INFANTRY': { directFirepower: 1, indirectFirepower: 1, softAttack: 2, hardAttack: 1.5, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
-    'RECON':    { directFirepower: 1, indirectFirepower: 1, softAttack: 3, hardAttack: 1, reconnaissance: 20, armor: 0, organizationBonus: 4, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
-    'ARMOR':    { directFirepower: 2.5, indirectFirepower: 3, softAttack: 3.5, hardAttack: 4, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
-    'ARTILLERY':{ directFirepower: 2, indirectFirepower: 3.5, softAttack: 4.5, hardAttack: 3, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
-    'ENGINEER': { directFirepower: 2, indirectFirepower: 2, softAttack: 2, hardAttack: 3, reconnaissance: 2, armor: 3, organizationBonus: 4, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
+    'INFANTRY': { directFirepower: 1, indirectFirepower: 1, softAttack: 0.4, hardAttack: 0.3, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
+    'RECON':    { directFirepower: 1, indirectFirepower: 1.2, softAttack: 0.6, hardAttack: 0.25, reconnaissance: 20, armor: 0, organizationBonus: 4, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
+    'ARMOR':    { directFirepower: 2, indirectFirepower: 2, softAttack: 0.7, hardAttack: 0.7, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
+    'ARTILLERY':{ directFirepower: 1.5, indirectFirepower: 3, softAttack: 1.2, hardAttack: 0.6, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
+    'ENGINEER': { directFirepower: 2, indirectFirepower: 1, softAttack: 0.4, hardAttack: 0.6, reconnaissance: 2, armor: 3, organizationBonus: 4, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
@@ -147,7 +147,7 @@ const UNIT_STAT_AGGREGATORS = {
     organizationDefense: (units) => {
         if (units.length === 0) return 0;
         // 1. 편제에 의해 추가된 조직력(organizationBonus) 총합을 기본 방어력으로 설정합니다.
-        const baseOrgDefense = units.reduce((total, unit) => total + unit.organizationBonus / 2, 0);
+        const baseOrgDefense = units.reduce((total, unit) => total + unit.organizationBonus * 0.35, 0);
 
         // 2. 평균 기동력과 정찰력을 기반으로 배율을 계산합니다.
         const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
@@ -169,7 +169,7 @@ const UNIT_STAT_AGGREGATORS = {
         // 2. 추가 방호력: 장갑과 기갑화율에 기반한 물리적 방호력입니다.
         const avgArmor = units.reduce((total, unit) => total + unit.armor, 0) / units.length;
         const hardness = units.filter(unit => unit.armor > 0).length / units.length;
-        const armorBasedDefense = avgArmor * 5 * (1 + hardness);
+        const armorBasedDefense = avgArmor * 20 * (1 + hardness);
 
         // 3. 최종 단위 방어력은 기본 생존성과 추가 방호력의 합입니다.
         return baseSurvivalDefense + armorBasedDefense;
