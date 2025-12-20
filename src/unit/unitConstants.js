@@ -35,10 +35,10 @@ const UNIT_TYPE_COLORS = {
 // 유닛 타입별 기본 능력치 (분대 기준)
 const UNIT_TYPE_STATS = {
     'INFANTRY': { directFirepower: 1, indirectFirepower: 1, softAttack: 0.4, hardAttack: 0.3, reconnaissance: 2, armor: 0, organizationBonus: 8, mobility: 10, tags: ['INFANTRY'] },
-    'RECON':    { directFirepower: 1, indirectFirepower: 1.2, softAttack: 0.6, hardAttack: 0.25, reconnaissance: 20, armor: 0, organizationBonus: 4, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
-    'ARMOR':    { directFirepower: 2, indirectFirepower: 2, softAttack: 0.7, hardAttack: 0.7, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
-    'ARTILLERY':{ directFirepower: 1.5, indirectFirepower: 3, softAttack: 1.2, hardAttack: 0.6, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
-    'ENGINEER': { directFirepower: 2, indirectFirepower: 1, softAttack: 0.4, hardAttack: 0.6, reconnaissance: 2, armor: 3, organizationBonus: 4, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
+    'RECON':    { directFirepower: 1.5, indirectFirepower: 1, softAttack: 0.55, hardAttack: 0.25, reconnaissance: 20, armor: 0, organizationBonus: 4, mobility: 15, tags: ['INFANTRY', 'SUPPORT'] },
+    'ARMOR':    { directFirepower: 1.7, indirectFirepower: 1.5, softAttack: 0.65, hardAttack: 0.7, reconnaissance: 3, armor: 6, organizationBonus: 3, mobility: 25, tags: ['ARMOR'] },
+    'ARTILLERY':{ directFirepower: 0.7, indirectFirepower: 2, softAttack: 1.1, hardAttack: 0.6, reconnaissance: 2, armor: 0, organizationBonus: 2, mobility: 8, tags: ['SUPPORT'] },
+    'ENGINEER': { directFirepower: 2, indirectFirepower: 1, softAttack: 0.35, hardAttack: 0.6, reconnaissance: 2, armor: 3, organizationBonus: 4, mobility: 10, tags: ['INFANTRY', 'SUPPORT'] },
 };
 
 // 병과별 최적 교전 거리 및 최대 교전 거리 정의
