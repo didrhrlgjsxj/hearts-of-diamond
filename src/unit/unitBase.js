@@ -831,7 +831,7 @@ class Unit {
                 ctx.strokeRect(barX, orgBarY, barWidth, barHeight);
 
                 // 4. 반투명한 부대 아이콘 그리기
-                const markOpacity = this.isSelected ? 0.9 : 0.8; // 더 진하게 변경
+                const markOpacity = this.isSelected ? 0.6 : 0.3; // 상위 부대는 반투명하게 변경
                 const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
                 ctx.fillStyle = color;
                 ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
@@ -847,7 +847,7 @@ class Unit {
         // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
         // SymbolUnit 자체는 '부대 마크'로만 표현되므로 자신의 아이콘을 그리지 않습니다.
         if (!(this instanceof SymbolUnit)) {
-            this.drawOwnIcon(ctx);
+            this.drawOwnIcon(ctx, 0.9); // 중대는 뚜렷하게 변경
             this.drawStatBars(ctx); // 중대 개별 능력치 바 그리기
         }
 
