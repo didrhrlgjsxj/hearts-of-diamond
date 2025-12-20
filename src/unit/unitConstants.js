@@ -171,7 +171,11 @@ const UNIT_STAT_AGGREGATORS = {
         const hardness = units.filter(unit => unit.armor > 0).length / units.length;
         const armorBasedDefense = avgArmor * 20 * (1 + hardness);
 
-        // 3. 최종 단위 방어력은 기본 생존성과 추가 방호력의 합입니다.
-        return baseSurvivalDefense + armorBasedDefense;
+        // 3. 기동력에 따른 회피 보너스 (곱연산)
+        const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
+        const mobilityMultiplier = 1 + (avgMobility * 0.01); // 기동력 1당 1%의 추가 방어력 보너스
+
+        // 4. 최종 단위 방어력은 기본 생존성과 추가 방호력의 합에 기동력 보너스를 곱합니다.
+        return (baseSurvivalDefense + armorBasedDefense) * mobilityMultiplier;
     },
 };

@@ -1123,18 +1123,16 @@ class GameUI {
             html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)}</div>`;
 
             // 자원 수입량 및 비축량 표시
-            html += `<h4>자원 현황 (수입량/비축량)</h4>`;
+            html += `<h4>자원 생산량</h4>`;
             const income = nation.economy.resourceIncome;
-            const stockpile = nation.economy.resourceStockpile;
-            const allResourceKeys = new Set([...Object.keys(income), ...Object.keys(stockpile)]);
+            const allResourceKeys = Object.keys(income);
 
-            if (allResourceKeys.size > 0) {
+            if (allResourceKeys.length > 0) {
                 html += '<ul>';
                 allResourceKeys.forEach(key => {
                     const resourceName = RESOURCE_TYPES[key]?.name || key;
                     const incomeAmount = income[key] || 0;
-                    const stockpileAmount = Math.floor(stockpile[key] || 0);
-                    html += `<li>${resourceName}: +${incomeAmount}/h | ${stockpileAmount}</li>`;
+                    html += `<li>${resourceName}: ${incomeAmount}</li>`;
                 });
                 html += '</ul>';
             } else {
