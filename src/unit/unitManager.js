@@ -566,12 +566,12 @@ function updateCaptureProgress(unitManager, allBattalions, scaledDeltaTime) {
             // 경제 단위를 지불할 수 있는지 확인합니다.
             if (nation.economy.economicUnits >= captureCost) {
                 nation.economy.economicUnits -= captureCost;
-                console.log(`[${nation.name}] ${provinceId}번 프로빈스 점령 완료! (비용: ${captureCost} 경제 단위)`);
+                //console.log(`[${nation.name}] ${provinceId}번 프로빈스 점령 완료! (비용: ${captureCost} 경제 단위)`);
                 mapGrid.setProvinceOwner(provinceId, nation);
                 unitManager.captureProgress.delete(provinceId);
             } else {
                 // 비용이 부족하면 점령이 실패하고 타이머가 초기화됩니다.
-                console.log(`[${nation.name}] ${provinceId}번 프로빈스 점령 실패. (경제 단위 부족)`);
+                //console.log(`[${nation.name}] ${provinceId}번 프로빈스 점령 실패. (경제 단위 부족)`);
                 unitManager.captureProgress.delete(provinceId);
             }
         }

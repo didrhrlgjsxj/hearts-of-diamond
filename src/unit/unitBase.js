@@ -1,4 +1,69 @@
 /**
+ * 유닛 아이콘 캐싱을 위한 맵
+ */
+const UNIT_ICON_CACHE = new Map();
+
+/**
+ * 유닛의 아이콘(사각형 + 심볼)을 캐시된 캔버스로 반환하거나 생성합니다.
+ * 이를 통해 매 프레임마다 벡터 연산을 하는 대신 이미지를 찍어내듯 그려 성능을 최적화합니다.
+ * @param {Unit} unit 
+ * @param {number} opacity 
+ * @returns {HTMLCanvasElement}
+ */
+function getCachedUnitIcon(unit, opacity) {
+    const typeStr = unit.type || 'none';
+    const echelonStr = unit.echelon || 'none';
+    // 캐시 키: 팀_타입_규모_크기_투명도
+    const key = `${unit.team}_${typeStr}_${echelonStr}_${unit.size}_${opacity}`;
+
+    if (UNIT_ICON_CACHE.has(key)) {
+        return UNIT_ICON_CACHE.get(key);
+    }
+
+    const canvas = document.createElement('canvas');
+    const padding = 10; // 심볼(특히 중대 표시 |)이 박스 밖으로 나갈 수 있으므로 여유 공간 확보
+    const boxSize = unit.size * 2;
+    const canvasSize = boxSize + padding * 2;
+
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+    const ctx = canvas.getContext('2d');
+
+    const cx = canvasSize / 2;
+    const cy = canvasSize / 2;
+
+    // 1. 배경 사각형 그리기
+    const color = unit.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`;
+    ctx.fillStyle = color;
+    ctx.fillRect(cx - unit.size, cy - unit.size, boxSize, boxSize);
+
+    // 2. 유닛 타입 아이콘 그리기 (보병, 기갑 등)
+    if (unit.type && UNIT_TYPE_ICONS[unit.type]) {
+        ctx.font = `bold ${unit.size * 1.5}px "Segoe UI Symbol"`;
+        ctx.fillStyle = 'black';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(UNIT_TYPE_ICONS[unit.type], cx, cy);
+    }
+
+    // 3. 부대 규모 심볼 그리기 (XX, ||, | 등)
+    // drawEchelonSymbol은 unit.x, unit.y를 기준으로 그리므로,
+    // 컨텍스트를 변환하여 캔버스 중앙(cx, cy)이 유닛 위치(unit.x, unit.y)에 오도록 합니다.
+    ctx.save();
+    ctx.translate(cx - unit.x, cy - unit.y);
+    unit.drawEchelonSymbol(ctx);
+    ctx.restore();
+
+    // 4. 테두리 그리기 (기본 검정)
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'black';
+    ctx.strokeRect(cx - unit.size, cy - unit.size, boxSize, boxSize);
+
+    UNIT_ICON_CACHE.set(key, canvas);
+    return canvas;
+}
+
+/**
  * 모든 군사 유닛의 기본이 되는 클래스입니다.
  * 이름, 위치, 하위 유닛 목록을 가집니다.
  */
@@ -68,6 +133,11 @@ class Unit {
 
         // 조직력은 maxOrganization getter가 정의된 후에 초기화해야 합니다.
         this.organization = this.maxOrganization; // 현재 조직력
+
+        // 이동 목표 최적화 변수
+        this._goalEvaluationTimer = Math.random() * 0.2; // 초기값 랜덤 (부하 분산)
+        this._goalEvaluationCooldown = 0.2; // 0.2초마다 갱신
+        this._cachedMovementGoal = null;
     }
 
     // 정찰력에 기반한 탐지 범위 계산
@@ -364,6 +434,10 @@ class Unit {
         // 플레이어의 직접 이동 명령은 playerDestination에 저장합니다.
         this.playerDestination = { x, y };
         this.isRetreating = false; // 일반 이동 시 후퇴 상태 해제
+        
+        // 즉시 반응을 위해 캐시 초기화 및 타이머 만료
+        this._cachedMovementGoal = null;
+        this._goalEvaluationTimer = this._goalEvaluationCooldown;
 
         // destination은 현재 프레임의 최종 목표이므로, 여기서는 설정하지 않습니다.
         // updateMovement에서 우선순위에 따라 결정됩니다.
@@ -382,12 +456,22 @@ class Unit {
             // 재정비가 끝나면, 대대를 따라다니던 목표를 초기화하여
             // 다음 턴에 진형 위치로 복귀하도록 합니다.
             this.destination = null;
+            this._cachedMovementGoal = null; // 상태 변경으로 인한 캐시 초기화
+            this._goalEvaluationTimer = this._goalEvaluationCooldown;
             console.log(`${this.name} 재정비 완료, 전투 복귀 가능.`);
         }
 
-        // 1. 가능한 모든 이동 목표를 평가하고 가장 우선순위가 높은 목표를 선택합니다.
-        const movementGoals = this.evaluateMovementGoals();
-        const finalGoal = movementGoals.sort((a, b) => a.priority - b.priority)[0];
+        // 1. 일정 주기마다 이동 목표를 재평가합니다. (최적화)
+        this._goalEvaluationTimer += deltaTime;
+        if (this._goalEvaluationTimer >= this._goalEvaluationCooldown || !this._cachedMovementGoal) {
+            this._goalEvaluationTimer = 0;
+            this._goalEvaluationCooldown = 0.2 + Math.random() * 0.1; // 0.2 ~ 0.3초 주기
+
+            const movementGoals = this.evaluateMovementGoals();
+            this._cachedMovementGoal = movementGoals.length > 0 ? movementGoals.sort((a, b) => a.priority - b.priority)[0] : null;
+        }
+
+        const finalGoal = this._cachedMovementGoal;
 
         // 2. 최종 목표가 없으면 이동을 중단합니다.
         if (!finalGoal) return;
@@ -505,10 +589,11 @@ class Unit {
                 const closestPointOnLineX = lineOriginX + dotProduct * lineVectorX;
                 const closestPointOnLineY = lineOriginY + dotProduct * lineVectorY;
                 
-                const distanceFromLine = Math.hypot(this.x - closestPointOnLineX, this.y - closestPointOnLineY);
+                const distSqFromLine = (this.x - closestPointOnLineX) ** 2 + (this.y - closestPointOnLineY) ** 2;
 
                 // 선에서 너무 멀리 떨어졌다면, 선 위의 가장 가까운 점으로 복귀하는 목표를 추가합니다.
-                if (distanceFromLine > MAX_FORMATION_DEVIATION) {
+                // 최적화: 거리 제곱을 사용하여 제곱근 연산 제거
+                if (distSqFromLine > MAX_FORMATION_DEVIATION * MAX_FORMATION_DEVIATION) {
                     goals.push({
                         destination: { x: closestPointOnLineX, y: closestPointOnLineY },
                         priority: MOVEMENT_PRIORITIES.FORMATION_COHESION
@@ -554,6 +639,8 @@ class Unit {
         this.companyTarget = null;
         this.playerDestination = null; // 플레이어 명령 취소
         this.destination = null; // 진형 목표 취소
+        this._cachedMovementGoal = null;
+        this._goalEvaluationTimer = this._goalEvaluationCooldown;
     }
 
     /**
@@ -564,6 +651,8 @@ class Unit {
     retreatTo(x, y) {
         this.isRetreating = true;
         this.playerDestination = { x, y };
+        this._cachedMovementGoal = null;
+        this._goalEvaluationTimer = this._goalEvaluationCooldown;
     }
 
     /**
@@ -832,14 +921,10 @@ class Unit {
 
                 // 4. 반투명한 부대 아이콘 그리기
                 const markOpacity = this.isSelected ? 0.6 : 0.3; // 상위 부대는 반투명하게 변경
-                const color = this.team === 'blue' ? `rgba(100, 149, 237, ${markOpacity})` : `rgba(255, 99, 71, ${markOpacity})`;
-                ctx.fillStyle = color;
-                ctx.fillRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2); // this.size 사용
-                ctx.strokeStyle = 'black';
-                ctx.strokeRect(markCenterX - this.size, markCenterY - this.size, this.size * 2, this.size * 2);
-
-                // 부대 규모 기호(단대호)를 그립니다.
-                this.drawEchelonSymbol(ctx);
+                const cachedCanvas = getCachedUnitIcon(this, markOpacity);
+                const cx = cachedCanvas.width / 2;
+                const cy = cachedCanvas.height / 2;
+                ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy);
 
             }
         }
@@ -1016,24 +1101,16 @@ class Unit {
      * @param {number} [opacity=0.4] 아이콘의 불투명도
      */
     drawOwnIcon(ctx, opacity = 0.4) {
-        const color = this.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`; // CornflowerBlue / Tomato
-        ctx.fillStyle = color;
-        ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
-        // 유닛 타입 아이콘을 그립니다.
-        if (this.type && UNIT_TYPE_ICONS[this.type]) {
-            ctx.font = `bold ${this.size * 1.5}px "Segoe UI Symbol"`; // 아이콘 폰트 지정
-            ctx.fillStyle = 'black';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle'; // 텍스트를 수직 중앙에 정렬
-            ctx.fillText(UNIT_TYPE_ICONS[this.type], this.x, this.y);
+        const cachedCanvas = getCachedUnitIcon(this, opacity);
+        const cx = cachedCanvas.width / 2;
+        const cy = cachedCanvas.height / 2;
+        ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy);
+
+        if (this.isSelected) {
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'white';
+            ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
         }
-
-        // 아이콘 위에 부대 규모 심볼을 그립니다.
-        this.drawEchelonSymbol(ctx);
-
-        ctx.lineWidth = this.isSelected ? 2 : 1;
-        ctx.strokeStyle = this.isSelected ? 'white' : 'black';
-        ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
     }
 
     /**
