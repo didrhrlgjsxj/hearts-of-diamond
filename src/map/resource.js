@@ -9,6 +9,4 @@ const RESOURCE_TYPES = {
     'TITANIUM': { name: '티타늄' },
     'ALUMINUM': { name: '알루미늄' },
     'GOLD': { name: '금' },
-    'MAGIC_STONE_ALPHA': { name: '마정석(알파)' },
-    'MAGIC_STONE_BETA': { name: '마정석(베타)' },
 };

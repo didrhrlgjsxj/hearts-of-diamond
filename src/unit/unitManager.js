@@ -165,14 +165,19 @@ function updateUnits(unitManager, scaledDeltaTime) {
     // --- 2. 대대 단위 목표 탐색 ---
     for (const myBattalion of allBattalions) {
         let closestEnemyBattalion = null;
-        let minDistance = myBattalion.engagementRange;
+        // 최적화: 거리 제곱을 사용하여 제곱근 연산 제거
+        let minDistanceSq = myBattalion.engagementRange * myBattalion.engagementRange;
 
         for (const enemyBattalion of allBattalions) {
             // 외교 관계를 확인하여 적인지 판단합니다.
             if (!myBattalion.nation.isEnemyWith(enemyBattalion.nation.id)) continue;
-            const distance = Math.hypot(myBattalion.x - enemyBattalion.x, myBattalion.y - enemyBattalion.y);
-            if (distance < minDistance) {
-                minDistance = distance;
+            
+            const dx = myBattalion.x - enemyBattalion.x;
+            const dy = myBattalion.y - enemyBattalion.y;
+            const distSq = dx * dx + dy * dy;
+
+            if (distSq < minDistanceSq) {
+                minDistanceSq = distSq;
                 closestEnemyBattalion = enemyBattalion;
             }
         }
@@ -180,18 +185,49 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
         // 3. 중대 단위 목표 할당
         if (myBattalion.battalionTarget) {
+            myBattalion.targetSelectionTimer += scaledDeltaTime;
+            const shouldRetarget = myBattalion.targetSelectionTimer >= myBattalion.targetSelectionCooldown;
+
+            if (shouldRetarget) {
+                myBattalion.targetSelectionTimer = 0;
+                // 다음 주기를 약간 랜덤하게 설정 (1.0 ~ 2.0초)
+                myBattalion.targetSelectionCooldown = 1.0 + Math.random();
+            }
+
             // 전투 가능한 아군 중대만 필터링합니다. (파괴, 후퇴, 재정비 중인 중대 제외)
             const myCombatReadyCompanies = myBattalion.getAllCompanies().filter(c => !c.isDestroyed && !c.isRetreating && !c.isRefitting);
             const enemyCompanies = myBattalion.battalionTarget.getAllCompanies().filter(c => !c.isDestroyed);
 
             if (myCombatReadyCompanies.length === 0 || enemyCompanies.length === 0) continue;
 
-            // 각 중대에 공격할 적 중대를 할당합니다. (1대1 매칭)
+            // 각 중대에 공격할 적 중대를 할당합니다.
             // 이제 재정비 중인 중대는 companyTarget을 할당받지 않습니다.
-            myCombatReadyCompanies.forEach((myCompany, index) => {
-                // 적 중대가 더 적을 경우, 마지막 적 중대를 여러 아군 중대가 공격합니다.
-                const targetIndex = Math.min(index, enemyCompanies.length - 1);
-                myCompany.companyTarget = enemyCompanies[targetIndex];
+            myCombatReadyCompanies.forEach((myCompany) => {
+                // 타겟이 파괴되었으면 즉시 초기화
+                if (myCompany.companyTarget && myCompany.companyTarget.isDestroyed) {
+                    myCompany.companyTarget = null;
+                }
+
+                // 주기적 재할당(shouldRetarget)이거나 타겟이 없을 경우에만 탐색 수행
+                if (shouldRetarget || !myCompany.companyTarget) {
+                    // 2순위: 상성 우위 (추후 구현 예정)
+
+                    // 3순위: 가장 가까운 적 중대 (최적화: 거리 제곱 사용)
+                    let bestTarget = null;
+                    let minDistanceSq = Infinity;
+
+                    for (const enemyCompany of enemyCompanies) {
+                        const dx = myCompany.x - enemyCompany.x;
+                        const dy = myCompany.y - enemyCompany.y;
+                        const distSq = dx * dx + dy * dy;
+
+                        if (distSq < minDistanceSq) {
+                            minDistanceSq = distSq;
+                            bestTarget = enemyCompany;
+                        }
+                    }
+                    myCompany.companyTarget = bestTarget;
+                }
             });
         }
     }

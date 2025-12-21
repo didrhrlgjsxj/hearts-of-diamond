@@ -83,8 +83,7 @@ class RegionManager {
         const DENSE_RESOURCE_CHANCE = 0.05; // 자원 밀집 구역이 될 확률 (5%)
 
         // 1. 지역의 주 자원과 보조 자원 '종류'를 결정합니다.
-        // 주 자원은 마정석을 제외하고 가중치에 따라 선택됩니다.
-        const mainResourceKey = getWeightedRandomResource({ excludeMagicStones: true });
+        const mainResourceKey = getWeightedRandomResource();
         region.mainResource = { key: mainResourceKey }; // 양은 프로빈스별로 결정되므로 여기서는 키만 저장
 
         const secondaryResourceKeys = [];
@@ -139,7 +138,6 @@ class RegionManager {
 /**
  * 설정된 가중치에 따라 자원을 무작위로 선택하는 헬퍼 함수입니다.
  * @param {object} [options]
- * @param {boolean} [options.excludeMagicStones=false] - 마정석을 선택에서 제외할지 여부
  * @returns {string} 선택된 자원의 키
  */
 function getWeightedRandomResource(options = {}) {
@@ -149,16 +147,10 @@ function getWeightedRandomResource(options = {}) {
         'OIL': 3,
         'TITANIUM': 4,
         'TUNGSTEN': 6,
-        'ALUMINUM': 4,
-        'MAGIC_STONE_ALPHA': 3,
-        'MAGIC_STONE_BETA': 1
+        'ALUMINUM': 4
     };
 
     let availableResources = Object.keys(weights);
-
-    if (options.excludeMagicStones) {
-        availableResources = availableResources.filter(key => !key.includes('MAGIC_STONE'));
-    }
 
     const totalWeight = availableResources.reduce((sum, key) => sum + weights[key], 0);
     let random = Math.random() * totalWeight;

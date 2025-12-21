@@ -186,6 +186,10 @@ class Battalion extends SymbolUnit {
         // Battalion은 이제 스스로 이동하고, 자신의 하위 중대들을 관리합니다.
         this.engagementRange = 280; // 대대의 교전 범위는 70 * 4 = 280으로 설정
         // Battalion은 SymbolUnit이므로, x, y, direction getter/setter는 SymbolUnit의 것을 사용합니다.
+
+        // 타겟 선정 최적화를 위한 타이머
+        this.targetSelectionTimer = Math.random(); // 초기값을 랜덤하게 주어 부하 분산
+        this.targetSelectionCooldown = 1.5; // 1.5초마다 타겟 재설정
     }
 }
 /** 중대 (Company) */
