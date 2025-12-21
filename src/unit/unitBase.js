@@ -880,10 +880,25 @@ class Unit {
         // 파괴된 유닛은 그리지 않습니다.
         if (this.isDestroyed) return;
 
+        // --- 뷰 컬링 (View Culling) ---
+        // 화면(뷰포트) 밖에 있는 유닛은 그리지 않아 성능을 최적화합니다.
+        let isVisible = true;
+        if (ctx.viewport) {
+            const view = ctx.viewport;
+            const margin = 100; // 예광탄이나 텍스트 등을 고려한 여유 공간
+            if (this.x + margin < view.left || 
+                this.x - margin > view.right || 
+                this.y + margin < view.top || 
+                this.y - margin > view.bottom) {
+                isVisible = false;
+            }
+        }
+
         // '부대 마크' 그리기: SymbolUnit이고 하위 유닛이 있을 때만 실행됩니다.
         if (this instanceof SymbolUnit && this.subUnits.length > 0) {
             const visibleSubUnits = this.subUnits.filter(u => !u.isDestroyed);
-            if (visibleSubUnits.length > 0) {
+            // 상위 부대 마크는 화면에 보일 때만 그립니다.
+            if (visibleSubUnits.length > 0 && isVisible) {
                 // 1. '부대 마크'의 위치는 SymbolUnit의 실제 위치(this.x, this.y)입니다.
                 const markCenterX = this.x;
                 const markCenterY = this.y; // 오프셋 제거
@@ -931,13 +946,13 @@ class Unit {
         
         // 모든 개별 유닛(중대, 독립 대대 등)은 자신의 아이콘을 그립니다.
         // SymbolUnit 자체는 '부대 마크'로만 표현되므로 자신의 아이콘을 그리지 않습니다.
-        if (!(this instanceof SymbolUnit)) {
+        if (!(this instanceof SymbolUnit) && isVisible) {
             this.drawOwnIcon(ctx, 0.9); // 중대는 뚜렷하게 변경
             this.drawStatBars(ctx); // 중대 개별 능력치 바 그리기
         }
 
         // 전투 중일 때 아이콘을 깜빡이게 표시
-        if (this.isInCombat) {
+        if (this.isInCombat && isVisible) {
             // 1초에 두 번 깜빡이는 효과
             if (Math.floor(Date.now() / 500) % 2 === 0) {
                 ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // 노란색 하이라이트
@@ -946,7 +961,7 @@ class Unit {
         }
         // 부대 종류별 심볼을 그립니다.
         // 적 발견 상태일 때 초록색으로 빛나게 표시 (테두리)
-        if (this.isEnemyDetected) {
+        if (this.isEnemyDetected && isVisible) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // 초록색 테두리
@@ -955,19 +970,21 @@ class Unit {
         }
 
         // 부대 방향을 나타내는 선을 그립니다.
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.direction);
-        ctx.beginPath();
-        ctx.moveTo(0, 0); // 부대 중심에서
-        ctx.lineTo(this.size, 0);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
+        if (isVisible) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.direction);
+            ctx.beginPath();
+            ctx.moveTo(0, 0); // 부대 중심에서
+            ctx.lineTo(this.size, 0);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+        }
 
         // 선택된 유닛의 교전 범위를 표시합니다.
-        if (this.isSelected) {
+        if (this.isSelected && isVisible) {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.engagementRange, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // 반투명 노란색
@@ -976,7 +993,7 @@ class Unit {
         }
 
         // SymbolUnit(대대 이상)만 자신의 이름을 그립니다.
-        if (this instanceof SymbolUnit) {
+        if (this instanceof SymbolUnit && isVisible) {
             ctx.fillStyle = 'black';
             ctx.textAlign = 'center';
             ctx.font = '11px sans-serif';
@@ -984,16 +1001,19 @@ class Unit {
         }
 
         // 피해량 텍스트 그리기
-        ctx.font = 'bold 12px sans-serif';
-        this.floatingTexts.forEach(t => {
-            ctx.fillStyle = `rgba(255, 100, 100, ${t.alpha})`;
-            ctx.strokeStyle = `rgba(0, 0, 0, ${t.alpha})`;
-            ctx.strokeText(t.text, t.x, t.y);
-            ctx.fillText(t.text, t.x, t.y);
-        });
+        if (isVisible) {
+            ctx.font = 'bold 12px sans-serif';
+            this.floatingTexts.forEach(t => {
+                ctx.fillStyle = `rgba(255, 100, 100, ${t.alpha})`;
+                ctx.strokeStyle = `rgba(0, 0, 0, ${t.alpha})`;
+                ctx.strokeText(t.text, t.x, t.y);
+                ctx.fillText(t.text, t.x, t.y);
+            });
+        }
 
         // 예광탄 그리기부
-        this.tracers.forEach(t => {
+        if (isVisible) { // 예광탄은 시작점이 화면 내에 있을 때만 그리는 것으로 단순화
+            this.tracers.forEach(t => {
             ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
             ctx.moveTo(t.from.x, t.from.y);
@@ -1012,6 +1032,7 @@ class Unit {
             ctx.stroke();
             ctx.restore(); // 저장했던 캔버스 상태 복원
         });
+        }
 
         // 중대(Company)보다 상위 부대일 경우, 하위 부대를 재귀적으로 그립니다.
         // 이렇게 하면 소대(Platoon)와 분대(Squad)는 화면에 그려지지 않습니다.

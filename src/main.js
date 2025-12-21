@@ -1,6 +1,9 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
+const mapCanvas = document.getElementById('mapCanvas');
+const mapCtx = mapCanvas.getContext('2d');
+
 // --- 게임 월드 설정 ---
 let mapGrid; // 맵 데이터 관리 인스턴스
 const nations = new Map(); // 국가 인스턴스 관리
@@ -35,6 +38,8 @@ timeText.id = 'time-text';
 // UI 인스턴스를 저장할 변수 및 초기화
 let gameUI;
 let selectedProvince = null; // 현재 선택된 프로빈스를 저장할 변수
+
+let lastCameraState = { x: 0, y: 0, zoom: 1, width: 0, height: 0 }; // 맵 재그리기 판단용
 
 
 /**
@@ -98,6 +103,8 @@ initializeGame();
 function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    mapCanvas.width = window.innerWidth;
+    mapCanvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -199,84 +206,41 @@ function update(currentTime) {
 
 function draw() {
     ctx.save();
+    mapCtx.save();
+
     ctx.canvas.deltaTime = (performance.now() - lastTime) / 1000; // draw에서도 deltaTime 사용 가능하도록
     ctx.clearRect(0, 0, canvas.width, canvas.height); // 잔상 문제를 해결하기 위해 캔버스 전체를 지웁니다.
     camera.applyTransform(ctx); // 카메라 변환 적용
+
+    // --- 맵 렌더링 최적화 (레이어링) ---
+    // 카메라 상태가 변경되었을 때만 맵 캔버스를 다시 그립니다.
+    const currentCameraState = { x: camera.x, y: camera.y, zoom: camera.zoom, width: canvas.width, height: canvas.height };
+    const cameraChanged = JSON.stringify(currentCameraState) !== JSON.stringify(lastCameraState);
+
+    if (cameraChanged) {
+        drawMapLayer();
+        lastCameraState = currentCameraState;
+    }
 
     // --- 시간 UI 업데이트 ---
     const days = Math.floor(gameTime.totalHours / 24);
     timeText.textContent = `Day ${days + 1}, ${gameTime.totalHours % 24}:00`;
 
-    // --- 맵 렌더링 최적화 ---
-    // 카메라에 보이는 영역의 타일만 그리도록 계산합니다.
+    // --- 선택된 프로빈스 강조 및 동적 요소 그리기 ---
+    // 맵 타일은 mapCanvas에 그려지지만, 선택 효과(깜빡임)는 gameCanvas에 매 프레임 그립니다.
     const view = camera.getViewport();
-    const startCol = Math.floor(view.left / mapGrid.tileSize);
-    const endCol = Math.ceil(view.right / mapGrid.tileSize);
-    const startRow = Math.floor(view.top / mapGrid.tileSize);
-    const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
-
-    for (let y = startRow; y < endRow; y++) {
-        for (let x = startCol; x < endCol; x++) {
-            if (x < 0 || x >= mapGrid.width || y < 0 || y >= mapGrid.height) continue;
-
-            const tileX = x * mapGrid.tileSize;
-            const tileY = y * mapGrid.tileSize;
-
-            // 기본 타일 색상 설정
-            ctx.fillStyle = '#ccc';
-            ctx.strokeStyle = '#999';
-
-            // 기본 타일 그리기
-            ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
-
-            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
-            const province = mapGrid.provinceManager.provinces.get(provinceId);
-
-            // 국가 영토 색상 칠하기
-            if (province && province.owner) {
-                ctx.fillStyle = province.owner.color;
-                ctx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
-
-                // 수도 타일인지 확인하고 별 아이콘 그리기
-                if (province.owner.capitalProvinceId === provinceId) {
-                    const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
-                    const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
-                    drawStar(ctx, centerX, centerY, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
-                }
-            }
-
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 2;
-
-            // 위쪽 타일과 프로빈스가 다른 경우, 위쪽 경계선을 굵게 그립니다.
-            if (y === 0 || mapGrid.provinceManager.provinceGrid[x][y-1] !== provinceId) {
-                ctx.beginPath();
-                ctx.moveTo(tileX, tileY);
-                ctx.lineTo(tileX + mapGrid.tileSize, tileY);
-                ctx.stroke();
-            }
-            // 왼쪽 타일과 프로빈스가 다른 경우, 왼쪽 경계선을 굵게 그립니다.
-            if (x === 0 || mapGrid.provinceManager.provinceGrid[x-1][y] !== provinceId) {
-                ctx.beginPath();
-                ctx.moveTo(tileX, tileY);
-                ctx.lineTo(tileX, tileY + mapGrid.tileSize);
-                ctx.stroke();
-            }
-        }
-    }
-
+    
+    /* 맵 타일 그리기 로직은 drawMapLayer로 이동됨 */
+    
     // --- 프로빈스 ID 번호 그리기 (디버깅용) ---
-    // 모든 프로빈스를 순회하며, 중심점이 화면에 보이는 프로빈스의 ID만 그립니다.
+    // ID 텍스트는 맵과 함께 움직이므로 mapCanvas에 그릴 수도 있지만, 
+    // 디버깅 정보는 보통 최상위에 그리는 것이 좋으므로 gameCanvas에 유지합니다.
+    /* (생략 가능: 성능을 위해 주석 처리하거나 필요시 유지) */
+    /*
     mapGrid.provinceManager.provinces.forEach(province => {
-        const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
-        const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
-        // 월드 좌표인 프로빈스 중심이 화면에 보이는지 확인합니다.
-        if (centerX > view.left && centerX < view.right && centerY > view.top && centerY < view.bottom) {
-            ctx.fillStyle = 'black';
-            ctx.font = '14px sans-serif';
-            ctx.fillText(province.id, centerX, centerY);
-        }
+        // ... 기존 ID 그리기 로직 ...
     });
+    */
 
     // --- 선택된 프로빈스 강조 표시 ---
     if (selectedProvince) {
@@ -286,6 +250,12 @@ function draw() {
         ctx.lineWidth = 4; // 강조를 위해 두꺼운 선 사용
 
         // 선택된 프로빈스의 모든 타일을 순회하며 외곽선을 그립니다.
+        // 화면에 보이는 범위 내에서만 그리기 위해 view 정보를 활용할 수 있습니다.
+        const startCol = Math.floor(view.left / mapGrid.tileSize);
+        const endCol = Math.ceil(view.right / mapGrid.tileSize);
+        const startRow = Math.floor(view.top / mapGrid.tileSize);
+        const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
+
         selectedProvince.tiles.forEach(tile => {
             // 화면 밖 타일은 그리지 않습니다.
             if (tile.x < startCol -1 || tile.x > endCol + 1 || tile.y < startRow -1 || tile.y > endRow + 1) return;
@@ -294,22 +264,24 @@ function draw() {
             const tileY = tile.y * mapGrid.tileSize;
 
             // 각 방향의 인접 타일이 다른 프로빈스에 속하는 경우에만 해당 방향의 테두리를 그립니다.
-            // 위쪽 테두리
+            ctx.beginPath();
+            // 위쪽
             if (tile.y === 0 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y - 1] !== selectedProvince.id) {
-                ctx.beginPath(); ctx.moveTo(tileX, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY); ctx.stroke();
+                ctx.moveTo(tileX, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY);
             }
-            // 아래쪽 테두리
+            // 아래쪽
             if (tile.y === mapGrid.height - 1 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y + 1] !== selectedProvince.id) {
-                ctx.beginPath(); ctx.moveTo(tileX, tileY + mapGrid.tileSize); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize); ctx.stroke();
+                ctx.moveTo(tileX, tileY + mapGrid.tileSize); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize);
             }
-            // 왼쪽 테두리
+            // 왼쪽
             if (tile.x === 0 || mapGrid.provinceManager.provinceGrid[tile.x - 1][tile.y] !== selectedProvince.id) {
-                ctx.beginPath(); ctx.moveTo(tileX, tileY); ctx.lineTo(tileX, tileY + mapGrid.tileSize); ctx.stroke();
+                ctx.moveTo(tileX, tileY); ctx.lineTo(tileX, tileY + mapGrid.tileSize);
             }
-            // 오른쪽 테두리
+            // 오른쪽
             if (tile.x === mapGrid.width - 1 || mapGrid.provinceManager.provinceGrid[tile.x + 1][tile.y] !== selectedProvince.id) {
-                ctx.beginPath(); ctx.moveTo(tileX + mapGrid.tileSize, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize); ctx.stroke();
+                ctx.moveTo(tileX + mapGrid.tileSize, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize);
             }
+            ctx.stroke();
         });
     }
 
@@ -342,9 +314,78 @@ function draw() {
     });
 
     // 모든 최상위 부대를 그립니다.
+    // 뷰포트 정보를 컨텍스트에 추가하여 유닛 그리기 시 컬링에 사용합니다.
+    ctx.viewport = view;
     unitManager.draw(ctx);
 
     ctx.restore();
+    mapCtx.restore();
+}
+
+/**
+ * 맵(타일, 국경)을 mapCanvas에 그립니다.
+ * 이 함수는 카메라가 이동할 때만 호출됩니다.
+ */
+function drawMapLayer() {
+    mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+    mapCtx.save();
+    camera.applyTransform(mapCtx);
+
+    const view = camera.getViewport();
+    const startCol = Math.floor(view.left / mapGrid.tileSize);
+    const endCol = Math.ceil(view.right / mapGrid.tileSize);
+    const startRow = Math.floor(view.top / mapGrid.tileSize);
+    const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
+
+    for (let y = startRow; y < endRow; y++) {
+        for (let x = startCol; x < endCol; x++) {
+            if (x < 0 || x >= mapGrid.width || y < 0 || y >= mapGrid.height) continue;
+
+            const tileX = x * mapGrid.tileSize;
+            const tileY = y * mapGrid.tileSize;
+
+            // 기본 타일 색상 설정
+            mapCtx.fillStyle = '#ccc';
+
+            // 기본 타일 그리기
+            mapCtx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
+
+            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
+            const province = mapGrid.provinceManager.provinces.get(provinceId);
+
+            // 국가 영토 색상 칠하기
+            if (province && province.owner) {
+                mapCtx.fillStyle = province.owner.color;
+                mapCtx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
+
+                // 수도 타일인지 확인하고 별 아이콘 그리기
+                if (province.owner.capitalProvinceId === provinceId) {
+                    const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
+                    const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
+                    drawStar(mapCtx, centerX, centerY, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
+                }
+            }
+
+            mapCtx.strokeStyle = 'black';
+            mapCtx.lineWidth = 2;
+
+            // 위쪽 타일과 프로빈스가 다른 경우, 위쪽 경계선을 굵게 그립니다.
+            if (y === 0 || mapGrid.provinceManager.provinceGrid[x][y-1] !== provinceId) {
+                mapCtx.beginPath();
+                mapCtx.moveTo(tileX, tileY);
+                mapCtx.lineTo(tileX + mapGrid.tileSize, tileY);
+                mapCtx.stroke();
+            }
+            // 왼쪽 타일과 프로빈스가 다른 경우, 왼쪽 경계선을 굵게 그립니다.
+            if (x === 0 || mapGrid.provinceManager.provinceGrid[x-1][y] !== provinceId) {
+                mapCtx.beginPath();
+                mapCtx.moveTo(tileX, tileY);
+                mapCtx.lineTo(tileX, tileY + mapGrid.tileSize);
+                mapCtx.stroke();
+            }
+        }
+    }
+    mapCtx.restore();
 }
 
 /**
