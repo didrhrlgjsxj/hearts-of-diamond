@@ -4,6 +4,19 @@
 const UNIT_ICON_CACHE = new Map();
 const ICON_RESOLUTION_SCALE = 3; // 아이콘 해상도 배율 (고해상도 렌더링용)
 
+function toRoman(num) {
+    if (!num || num <= 0) return '';
+    const lookup = {M:1000,CM:900,D:500,CD:400,C:100,XC:90,L:50,XL:40,X:10,IX:9,V:5,IV:4,I:1};
+    let roman = '';
+    for (let i in lookup) {
+        while (num >= lookup[i]) {
+            roman += i;
+            num -= lookup[i];
+        }
+    }
+    return roman;
+}
+
 /**
  * 유닛의 아이콘(사각형 + 심볼)을 캐시된 캔버스로 반환하거나 생성합니다.
  * 이를 통해 매 프레임마다 벡터 연산을 하는 대신 이미지를 찍어내듯 그려 성능을 최적화합니다.
@@ -155,6 +168,7 @@ class Unit {
         this._goalEvaluationTimer = Math.random() * 0.2; // 초기값 랜덤 (부하 분산)
         this._goalEvaluationCooldown = 0.2; // 0.2초마다 갱신
         this._cachedMovementGoal = null;
+        this.accumulatedMoveDistance = 0; // 그리드 단위 이동을 위한 누적 거리
     }
 
     // 정찰력에 기반한 탐지 범위 계산
@@ -198,6 +212,14 @@ class Unit {
             return Math.floor(this._y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
         }
         return this._y;
+    }
+
+    /**
+     * 화면에 표시될 때 8방향으로 스냅된 방향을 반환합니다.
+     */
+    get snappedDirection() {
+        const step = Math.PI / 4; // 45도 (8방향)
+        return Math.round(this._direction / step) * step;
     }
 
     get direction() {
@@ -387,6 +409,40 @@ class Unit {
     }
 
     /**
+     * 중대 유닛의 소속 정보를 로마 숫자로 반환합니다. (예: IIID-II-V)
+     */
+    getHierarchyLabel() {
+        if (this.echelon !== 'COMPANY') return '';
+
+        const parts = [];
+        
+        // 1. 최상위 부대
+        const topUnit = this.getTopLevelParent();
+        if (topUnit) {
+            const num = parseInt(topUnit.name.match(/\d+/)?.[0] || '0');
+            if (num > 0) {
+                let suffix = '';
+                if (topUnit.echelon === 'DIVISION') suffix = 'D';
+                else if (topUnit.echelon === 'BRIGADE') suffix = 'B';
+                else if (topUnit.echelon === 'REGIMENT') suffix = 'R';
+                parts.push(toRoman(num) + suffix);
+            }
+        }
+
+        // 2. 대대 (중간 부모)
+        if (this.parent && this.parent !== topUnit && this.parent.echelon === 'BATTALION') {
+            const num = parseInt(this.parent.name.match(/\d+/)?.[0] || '0');
+            if (num > 0) parts.push(toRoman(num));
+        }
+
+        // 3. 자기 자신 (중대)
+        const myNum = parseInt(this.name.match(/\d+/)?.[0] || '0');
+        if (myNum > 0) parts.push(toRoman(myNum));
+
+        return parts.join('-');
+    }
+
+    /**
      * 자신 및 모든 하위 유닛에 포함된 모든 분대(Squad)를 재귀적으로 찾습니다.
      * @returns {Squad[]}
      */
@@ -525,37 +581,59 @@ class Unit {
             currentMoveSpeed *= 0.5; // 50% 속도 감소
         }
 
-        const moveDistance = currentMoveSpeed * deltaTime;
+        // 그리드 단위 이동 로직 적용
+        // 이동 거리를 누적합니다.
+        this.accumulatedMoveDistance += currentMoveSpeed * deltaTime;
 
-        if (distance < moveDistance) {
-            // 목표에 도달함
-            this.x = finalDestination.x;
-            this.y = finalDestination.y;
+        // 세부 그리드 크기 (기본값 35)
+        const gridSize = (typeof mapGrid !== 'undefined' && mapGrid) ? mapGrid.subTileSize : 35;
 
-            // 후퇴 목표에 도달하면, 재정비 상태로 전환합니다.
-            if (this.isRetreating) {
-                this.isRetreating = false;
-                this.isRefitting = true;
+        // 누적 거리가 그리드 크기 이상이 되면 한 칸 이동합니다.
+        if (this.accumulatedMoveDistance >= gridSize) {
+            this.accumulatedMoveDistance -= gridSize; // 누적 거리 차감
+
+            // 목표에 거의 도달했으면(한 칸 이내) 목표로 강제 이동 및 도착 처리
+            if (distance <= gridSize) {
+                this.x = finalDestination.x;
+                this.y = finalDestination.y;
+                this.accumulatedMoveDistance = 0; // 도착 시 누적 거리 초기화
+
+                // 후퇴 목표에 도달하면, 재정비 상태로 전환합니다.
+                if (this.isRetreating) {
+                    this.isRetreating = false;
+                    this.isRefitting = true;
+                }
+
+                // 플레이어 명령(최종 목표)에 도달했을 때만 상태를 초기화합니다.
+                if (this.playerDestination) {
+                    this.playerDestination = null;
+                    this.isRetreating = false;
+                    this.destination = null; // 상위 부대가 주는 기본 진형 위치도 초기화
+                }
+
+                // 플레이어의 직접 명령이 아닌, 진형 이동에 의해 목표에 도달한 경우,
+                // 상위 부대의 방향으로 자신의 방향을 정렬합니다.
+                if (!this.playerDestination && this.parent && this.parent instanceof SymbolUnit) {
+                    this.direction = this.parent.direction;
+                }
+            } else {
+                // 목표 방향으로 한 칸(그리드 크기만큼) 이동
+                // 현재 위치에서 방향 벡터를 따라 gridSize만큼 이동한 후, 그리드 중앙으로 스냅합니다.
+                const moveX = (dx / distance) * gridSize;
+                const moveY = (dy / distance) * gridSize;
+                
+                let nextX = this.x + moveX;
+                let nextY = this.y + moveY;
+
+                // 다음 위치를 그리드 중앙으로 강제 스냅하여 "딱딱 끊어지는" 효과를 극대화합니다.
+                if (typeof mapGrid !== 'undefined' && mapGrid) {
+                    nextX = Math.floor(nextX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+                    nextY = Math.floor(nextY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+                }
+
+                this.x = nextX;
+                this.y = nextY;
             }
-
-            // 플레이어 명령(최종 목표)에 도달했을 때만 상태를 초기화합니다.
-            if (this.playerDestination && Math.hypot(this.x - this.playerDestination.x, this.y - this.playerDestination.y) < 1) {
-                this.playerDestination = null;
-                this.isRetreating = false;
-                this.destination = null; // 상위 부대가 주는 기본 진형 위치도 초기화
-            }
-
-            // 플레이어의 직접 명령이 아닌, 진형 이동에 의해 목표에 도달한 경우,
-            // 상위 부대의 방향으로 자신의 방향을 정렬합니다.
-            if (!this.playerDestination && this.parent && this.parent instanceof SymbolUnit) {
-                this.direction = this.parent.direction;
-            }
-        } else {
-            // 목표를 향해 이동
-            const moveX = (dx / distance) * moveDistance;
-            const moveY = (dy / distance) * moveDistance;
-            this.x += moveX;
-            this.y += moveY;
         }
     }
 
@@ -1015,7 +1093,7 @@ class Unit {
         if (isVisible) {
             ctx.save();
             ctx.translate(this.snappedX, this.snappedY);
-            ctx.rotate(this.direction);
+            ctx.rotate(this.snappedDirection);
             ctx.beginPath();
             ctx.moveTo(0, 0); // 부대 중심에서
             ctx.lineTo(this.size, 0);
@@ -1089,6 +1167,21 @@ class Unit {
                 ctx.stroke();
                 subUnit.draw(ctx);
             });
+        }
+
+        // 중대 계층 정보 텍스트 그리기
+        if (this.echelon === 'COMPANY' && isVisible) {
+            const label = this.getHierarchyLabel();
+            if (label) {
+                ctx.save();
+                ctx.fillStyle = 'black';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.font = 'bold 10px sans-serif';
+                // 부대 규모 심볼(|) 위쪽에 표시
+                ctx.fillText(label, this.snappedX, this.snappedY - this.size - 18);
+                ctx.restore();
+            }
         }
     }
 
