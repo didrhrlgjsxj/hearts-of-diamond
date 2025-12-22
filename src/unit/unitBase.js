@@ -2,6 +2,7 @@
  * 유닛 아이콘 캐싱을 위한 맵
  */
 const UNIT_ICON_CACHE = new Map();
+const ICON_RESOLUTION_SCALE = 3; // 아이콘 해상도 배율 (고해상도 렌더링용)
 
 /**
  * 유닛의 아이콘(사각형 + 심볼)을 캐시된 캔버스로 반환하거나 생성합니다.
@@ -29,15 +30,17 @@ function getCachedUnitIcon(unit, opacity) {
     
     const boxWidth = unit.size * 2 * widthRatio;
     const boxHeight = unit.size * 2;
-    const canvasWidth = boxWidth + padding * 2;
-    const canvasHeight = boxHeight + padding * 2;
+    const logicalCanvasWidth = boxWidth + padding * 2;
+    const logicalCanvasHeight = boxHeight + padding * 2;
 
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    canvas.width = logicalCanvasWidth * ICON_RESOLUTION_SCALE;
+    canvas.height = logicalCanvasHeight * ICON_RESOLUTION_SCALE;
     const ctx = canvas.getContext('2d');
+    // 고해상도 처리를 위해 스케일 확대
+    ctx.scale(ICON_RESOLUTION_SCALE, ICON_RESOLUTION_SCALE);
 
-    const cx = canvasWidth / 2;
-    const cy = canvasHeight / 2;
+    const cx = logicalCanvasWidth / 2;
+    const cy = logicalCanvasHeight / 2;
 
     // 1. 배경 사각형 그리기
     const color = unit.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`;
@@ -951,9 +954,11 @@ class Unit {
                 // 4. 반투명한 부대 아이콘 그리기
                 const markOpacity = this.isSelected ? 0.6 : 0.3; // 상위 부대는 반투명하게 변경
                 const cachedCanvas = getCachedUnitIcon(this, markOpacity);
-                const cx = cachedCanvas.width / 2;
-                const cy = cachedCanvas.height / 2;
-                ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy);
+                const logicalWidth = cachedCanvas.width / ICON_RESOLUTION_SCALE;
+                const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
+                const cx = logicalWidth / 2;
+                const cy = logicalHeight / 2;
+                ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy, logicalWidth, logicalHeight);
 
             }
         }
@@ -1145,9 +1150,11 @@ class Unit {
      */
     drawOwnIcon(ctx, opacity = 0.4) {
         const cachedCanvas = getCachedUnitIcon(this, opacity);
-        const cx = cachedCanvas.width / 2;
-        const cy = cachedCanvas.height / 2;
-        ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy);
+        const logicalWidth = cachedCanvas.width / ICON_RESOLUTION_SCALE;
+        const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
+        const cx = logicalWidth / 2;
+        const cy = logicalHeight / 2;
+        ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy, logicalWidth, logicalHeight);
 
         if (this.isSelected) {
             ctx.lineWidth = 2;
