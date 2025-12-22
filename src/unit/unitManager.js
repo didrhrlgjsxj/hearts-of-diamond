@@ -92,6 +92,9 @@ class UnitManager {
         // updateUnits는 이제 이 클래스의 인스턴스를 받아 내부 상태를 직접 변경합니다.
         updateUnits(this, scaledDeltaTime);
 
+        // 유닛들의 시각적 오프셋을 업데이트하여 겹침을 방지합니다.
+        this.updateUnitVisualOffsets();
+
         // 파괴된 유닛을 제거합니다.
         this.cleanupDestroyedUnits();
     }
@@ -126,6 +129,49 @@ class UnitManager {
         if (this.selectedUnit && this.selectedUnit.isDestroyed) {
             this.selectedUnit = null;
         }
+    }
+
+    /**
+     * 같은 그리드에 있는 유닛들을 시각적으로 분산시켜 겹침을 방지합니다.
+     */
+    updateUnitVisualOffsets() {
+        const gridMap = new Map();
+
+        // 재귀적으로 모든 유닛 수집
+        const collect = (units) => {
+            for (const unit of units) {
+                if (unit.isDestroyed) continue;
+                
+                const key = `${unit.snappedX},${unit.snappedY}`;
+                if (!gridMap.has(key)) gridMap.set(key, []);
+                gridMap.get(key).push(unit);
+
+                if (unit.subUnits && unit.subUnits.length > 0) {
+                    collect(unit.subUnits);
+                }
+            }
+        };
+        collect(this.topLevelUnits);
+
+        // 오프셋 계산
+        gridMap.forEach(units => {
+            const count = units.length;
+            if (count <= 1) {
+                units[0].visualOffsetX = 0;
+                units[0].visualOffsetY = 0;
+                return;
+            }
+
+            // 원형 배치: 유닛 개수에 따라 반지름 조절 (최대 10px로 제한하여 인접 그리드 침범 방지)
+            const radius = Math.min(10, 4 + count); 
+            const angleStep = (Math.PI * 2) / count;
+            
+            units.forEach((u, i) => {
+                const angle = i * angleStep;
+                u.visualOffsetX = Math.cos(angle) * radius;
+                u.visualOffsetY = Math.sin(angle) * radius;
+            });
+        });
     }
 }
 
@@ -383,7 +429,11 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
         // 전투 중 방향 전환
         if (!myBattalion.playerDestination) {
-            myBattalion.direction = Math.atan2(enemyBattalion.snappedY - myBattalion.snappedY, enemyBattalion.snappedX - myBattalion.snappedX);
+            const angle = Math.atan2(enemyBattalion.snappedY - myBattalion.snappedY, enemyBattalion.snappedX - myBattalion.snappedX);
+            myBattalion.direction = angle;
+            // 전투 중에도 진형 방향을 45도 단위로 업데이트
+            const step = Math.PI / 4;
+            myBattalion.formationDirection = Math.round(angle / step) * step;
         }
     }
 

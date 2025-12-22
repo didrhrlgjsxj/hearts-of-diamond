@@ -80,7 +80,7 @@ function getCachedUnitIcon(unit, opacity) {
     // drawEchelonSymbol은 unit.x, unit.y를 기준으로 그리므로,
     // 컨텍스트를 변환하여 캔버스 중앙(cx, cy)이 유닛 위치(unit.x, unit.y)에 오도록 합니다.
     ctx.save();
-    ctx.translate(cx - unit.snappedX, cy - unit.snappedY);
+    ctx.translate(cx - unit.visualX, cy - unit.visualY);
     unit.drawEchelonSymbol(ctx);
     ctx.restore();
 
@@ -169,6 +169,11 @@ class Unit {
         this._goalEvaluationCooldown = 0.2; // 0.2초마다 갱신
         this._cachedMovementGoal = null;
         this.accumulatedMoveDistance = 0; // 그리드 단위 이동을 위한 누적 거리
+        this.visualOffsetX = 0; // 시각적 오프셋 X (겹침 방지용)
+        this.visualOffsetY = 0; // 시각적 오프셋 Y (겹침 방지용)
+        this.formationDirection = -Math.PI / 2; // 진형 및 시각적 표시를 위한 스냅된 방향
+        this._displayX = this.snappedX; // 화면 표시용 X 좌표 (보간됨)
+        this._displayY = this.snappedY; // 화면 표시용 Y 좌표 (보간됨)
     }
 
     // 정찰력에 기반한 탐지 범위 계산
@@ -215,11 +220,24 @@ class Unit {
     }
 
     /**
+     * 화면 렌더링용 X 좌표 (스냅 좌표 + 시각적 오프셋)
+     */
+    get visualX() {
+        return this._displayX + this.visualOffsetX;
+    }
+
+    /**
+     * 화면 렌더링용 Y 좌표 (스냅 좌표 + 시각적 오프셋)
+     */
+    get visualY() {
+        return this._displayY + this.visualOffsetY;
+    }
+
+    /**
      * 화면에 표시될 때 8방향으로 스냅된 방향을 반환합니다.
      */
     get snappedDirection() {
-        const step = Math.PI / 4; // 45도 (8방향)
-        return Math.round(this._direction / step) * step;
+        return this.formationDirection;
     }
 
     get direction() {
@@ -633,6 +651,11 @@ class Unit {
 
                 this.x = nextX;
                 this.y = nextY;
+
+                // 이동 시에만 진형 방향을 업데이트 (45도 스냅)
+                const moveAngle = Math.atan2(dy, dx);
+                const step = Math.PI / 4;
+                this.formationDirection = Math.round(moveAngle / step) * step;
             }
         }
     }
@@ -888,6 +911,13 @@ class Unit {
      * @param {number} deltaTime
      */
     updateVisuals(deltaTime) {
+        // 위치 보간 (부드러운 이동)
+        // 목표 위치(snappedX/Y)로 부드럽게 이동합니다.
+        const lerpSpeed = 10.0; // 보간 속도 (높을수록 빠름)
+        const t = Math.min(1, lerpSpeed * deltaTime);
+        this._displayX += (this.snappedX - this._displayX) * t;
+        this._displayY += (this.snappedY - this._displayY) * t;
+
         // 떠다니는 텍스트 업데이트
         this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
         this.floatingTexts.forEach(t => {
@@ -949,8 +979,8 @@ class Unit {
     getUnitAt(x, y) {
         // 1. SymbolUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
         if (this instanceof SymbolUnit) {
-            const markCenterX = this.snappedX; // 부대 마크의 X 좌표 (스냅됨)
-            const markCenterY = this.snappedY; // 부대 마크의 Y 좌표 (스냅됨)
+            const markCenterX = this.visualX; // 부대 마크의 X 좌표 (시각적 위치)
+            const markCenterY = this.visualY; // 부대 마크의 Y 좌표 (시각적 위치)
             const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
             if (distanceToMark < this.size) {
                 return this; // 부대 마크가 클릭되면 CommandUnit 자신을 반환
@@ -964,7 +994,7 @@ class Unit {
         }
 
         // 3. 마지막으로 자기 자신의 아이콘을 확인합니다.
-        const distance = Math.hypot(x - this.snappedX, y - this.snappedY);
+        const distance = Math.hypot(x - this.visualX, y - this.visualY);
         if (distance < this.size) return this;
 
         return null;
@@ -999,10 +1029,10 @@ class Unit {
         if (ctx.viewport) {
             const view = ctx.viewport;
             const margin = 100; // 예광탄이나 텍스트 등을 고려한 여유 공간
-            if (this.snappedX + margin < view.left || 
-                this.snappedX - margin > view.right || 
-                this.snappedY + margin < view.top || 
-                this.snappedY - margin > view.bottom) {
+            if (this.visualX + margin < view.left || 
+                this.visualX - margin > view.right || 
+                this.visualY + margin < view.top || 
+                this.visualY - margin > view.bottom) {
                 isVisible = false;
             }
         }
@@ -1013,8 +1043,8 @@ class Unit {
             // 상위 부대 마크는 화면에 보일 때만 그립니다.
             if (visibleSubUnits.length > 0 && isVisible) {
                 // 1. '부대 마크'의 위치는 SymbolUnit의 실제 위치(this.x, this.y)입니다.
-                const markCenterX = this.snappedX;
-                const markCenterY = this.snappedY; // 오프셋 제거
+                const markCenterX = this.visualX;
+                const markCenterY = this.visualY; // 오프셋 제거
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
                 const totalCurrentStrength = this.currentStrength;
@@ -1054,7 +1084,7 @@ class Unit {
                 const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
                 const cx = logicalWidth / 2;
                 const cy = logicalHeight / 2;
-                ctx.drawImage(cachedCanvas, this.snappedX - cx, this.snappedY - cy, logicalWidth, logicalHeight);
+                ctx.drawImage(cachedCanvas, this.visualX - cx, this.visualY - cy, logicalWidth, logicalHeight);
 
             }
         }
@@ -1076,14 +1106,14 @@ class Unit {
                 const widthRatio = isCompany ? 2 : 1;
                 const width = this.size * 2 * widthRatio;
                 const height = this.size * 2;
-                ctx.fillRect(this.snappedX - width / 2, this.snappedY - height / 2, width, height);
+                ctx.fillRect(this.visualX - width / 2, this.visualY - height / 2, width, height);
             }
         }
         // 부대 종류별 심볼을 그립니다.
         // 적 발견 상태일 때 초록색으로 빛나게 표시 (테두리)
         if (this.isEnemyDetected && isVisible) {
             ctx.beginPath();
-            ctx.arc(this.snappedX, this.snappedY, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
+            ctx.arc(this.visualX, this.visualY, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // 초록색 테두리
             ctx.lineWidth = 3;
             ctx.stroke();
@@ -1092,7 +1122,7 @@ class Unit {
         // 부대 방향을 나타내는 선을 그립니다.
         if (isVisible) {
             ctx.save();
-            ctx.translate(this.snappedX, this.snappedY);
+            ctx.translate(this.visualX, this.visualY);
             ctx.rotate(this.snappedDirection);
             ctx.beginPath();
             ctx.moveTo(0, 0); // 부대 중심에서
@@ -1106,7 +1136,7 @@ class Unit {
         // 선택된 유닛의 교전 범위를 표시합니다.
         if (this.isSelected && isVisible) {
             ctx.beginPath();
-            ctx.arc(this.snappedX, this.snappedY, this.engagementRange, 0, Math.PI * 2);
+            ctx.arc(this.visualX, this.visualY, this.engagementRange, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // 반투명 노란색
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -1117,7 +1147,7 @@ class Unit {
             ctx.fillStyle = 'black';
             ctx.textAlign = 'center';
             ctx.font = '11px sans-serif';
-            ctx.fillText(`${this.name}`, this.snappedX, this.snappedY + this.size + 15);
+            ctx.fillText(`${this.name}`, this.visualX, this.visualY + this.size + 15);
         }
 
         // 피해량 텍스트 그리기
@@ -1136,8 +1166,8 @@ class Unit {
             this.tracers.forEach(t => {
             ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
-            ctx.moveTo(t.from.snappedX, t.from.snappedY);
-            ctx.lineTo(t.to.snappedX, t.to.snappedY);
+            ctx.moveTo(t.from.visualX, t.from.visualY);
+            ctx.lineTo(t.to.visualX, t.to.visualY);
             if (t.type === 'company') {
                 ctx.strokeStyle = `rgba(255, 255, 150, ${t.alpha * 0.7})`; // 중대 교전: 밝은 노란색
                 ctx.lineWidth = 1.0;
@@ -1161,8 +1191,8 @@ class Unit {
                 if (subUnit.isDestroyed) return;
                 // 본부 위치에서 다른 하위 부대로 연결선을 그립니다.
                 ctx.beginPath();
-                ctx.moveTo(this.snappedX, this.snappedY); // 선의 시작점을 오프셋이 없는 SymbolUnit의 기준 위치(본부 중대 위치)로 변경
-                ctx.lineTo(subUnit.snappedX, subUnit.snappedY);
+                ctx.moveTo(this.visualX, this.visualY); // 선의 시작점을 오프셋이 없는 SymbolUnit의 기준 위치(본부 중대 위치)로 변경
+                ctx.lineTo(subUnit.visualX, subUnit.visualY);
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.stroke();
                 subUnit.draw(ctx);
@@ -1179,7 +1209,7 @@ class Unit {
                 ctx.textBaseline = 'bottom';
                 ctx.font = 'bold 8px sans-serif';
                 // 유닛 아이콘 바로 위에 표시
-                ctx.fillText(label, this.snappedX, this.snappedY - this.size - 2);
+                ctx.fillText(label, this.visualX, this.visualY - this.size - 2);
                 ctx.restore();
             }
         }
@@ -1194,8 +1224,8 @@ class Unit {
         if (!(this instanceof Company)) {
             const barWidth = 30;
             const barHeight = 4;
-            const barX = this.snappedX - barWidth / 2;
-            const strengthBarY = this.snappedY - this.size - 15; // 아이콘 위로
+            const barX = this.visualX - barWidth / 2;
+            const strengthBarY = this.visualY - this.size - 15; // 아이콘 위로
             const orgBarY = strengthBarY + barHeight + 2;
 
             // 내구력 바
@@ -1228,8 +1258,8 @@ class Unit {
             
             const widthRatio = 2; // Company 비율
             const halfWidth = this.size * widthRatio;
-            const barX = this.snappedX + halfWidth + 4;
-            const barY = this.snappedY - barHeight / 2;
+            const barX = this.visualX + halfWidth + 4;
+            const barY = this.visualY - barHeight / 2;
             const numBlocks = 5; // 조직력을 5개의 블록으로 나눔
             const blockHeight = barHeight / numBlocks;
 
@@ -1265,7 +1295,7 @@ class Unit {
         const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
         const cx = logicalWidth / 2;
         const cy = logicalHeight / 2;
-        ctx.drawImage(cachedCanvas, this.snappedX - cx, this.snappedY - cy, logicalWidth, logicalHeight);
+        ctx.drawImage(cachedCanvas, this.visualX - cx, this.visualY - cy, logicalWidth, logicalHeight);
 
         if (this.isSelected) {
             ctx.lineWidth = 2;
@@ -1275,7 +1305,7 @@ class Unit {
             const widthRatio = isCompany ? 2 : 1;
             const width = this.size * 2 * widthRatio;
             const height = this.size * 2;
-            ctx.strokeRect(this.snappedX - width / 2, this.snappedY - height / 2, width, height);
+            ctx.strokeRect(this.visualX - width / 2, this.visualY - height / 2, width, height);
         }
     }
 
