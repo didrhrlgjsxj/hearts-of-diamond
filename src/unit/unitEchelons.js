@@ -203,9 +203,7 @@ class Company extends Unit {
     }
 
     drawEchelonSymbol(ctx) {
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('|', this.snappedX, this.snappedY - this.size - 5);
+        // 중대 기호(|)를 그리지 않음
     }
 }
 // 소대(Platoon)와 분대(Squad) 클래스는 더 이상 실제 유닛으로 생성되지 않으므로 제거합니다.

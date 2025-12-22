@@ -1177,9 +1177,9 @@ class Unit {
                 ctx.fillStyle = 'black';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'bottom';
-                ctx.font = 'bold 10px sans-serif';
-                // 부대 규모 심볼(|) 위쪽에 표시
-                ctx.fillText(label, this.snappedX, this.snappedY - this.size - 18);
+                ctx.font = 'bold 8px sans-serif';
+                // 유닛 아이콘 바로 위에 표시
+                ctx.fillText(label, this.snappedX, this.snappedY - this.size - 2);
                 ctx.restore();
             }
         }
