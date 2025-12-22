@@ -731,7 +731,7 @@ class Unit {
                 // 최적화: 거리 제곱을 사용하여 제곱근 연산 제거
                 if (distSqFromLine > MAX_FORMATION_DEVIATION * MAX_FORMATION_DEVIATION) {
                     goals.push({
-                        destination: { x: closestPointOnLineX, y: closestPointOnLineY },
+                        destination: this._snapToGrid(closestPointOnLineX, closestPointOnLineY),
                         priority: MOVEMENT_PRIORITIES.FORMATION_COHESION
                     });
                 }
@@ -752,7 +752,7 @@ class Unit {
                     const idealX = enemyCompany.x + (vecX / currentDist) * optimalDistance;
                     const idealY = enemyCompany.y + (vecY / currentDist) * optimalDistance;
                     goals.push({
-                        destination: { x: idealX, y: idealY },
+                        destination: this._snapToGrid(idealX, idealY),
                         priority: MOVEMENT_PRIORITIES.COMBAT_EFFECTIVENESS
                     });
                 }
@@ -760,6 +760,23 @@ class Unit {
         }
 
         return goals;
+    }
+
+    /**
+     * 주어진 좌표를 가장 가까운 세부 그리드 중앙으로 스냅합니다.
+     * @param {number} x 
+     * @param {number} y 
+     * @returns {{x: number, y: number}}
+     * @private
+     */
+    _snapToGrid(x, y) {
+        if (typeof mapGrid !== 'undefined' && mapGrid) {
+            return {
+                x: Math.floor(x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2,
+                y: Math.floor(y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2
+            };
+        }
+        return { x, y };
     }
 
     /**

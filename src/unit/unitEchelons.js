@@ -129,7 +129,13 @@ class SymbolUnit extends Unit {
 
                     const destX = this.x + (offsetInfo.distance * Math.cos(this.formationDirection)) + (sideOffset * Math.cos(sideOffsetAngle));
                     const destY = this.y + (offsetInfo.distance * Math.sin(this.formationDirection)) + (sideOffset * Math.sin(sideOffsetAngle));
+                    
+                    // 목표 지점을 그리드 중앙으로 스냅하여 위치 불안정(진동) 해결
+                    if (typeof mapGrid !== 'undefined' && mapGrid) {
+                        unit.destination = { x: Math.floor(destX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(destY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
+                    } else {
                     unit.destination = { x: destX, y: destY };
+                    }
                 });
             } else {
                 // 후위가 아닌 다른 역할의 부대들을 배치합니다.
@@ -161,7 +167,13 @@ class SymbolUnit extends Unit {
 
             const destX = baseX + (offsetInfo.distance * Math.cos(this.formationDirection)) + (sideOffset * Math.cos(sideOffsetAngle));
             const destY = baseY + (offsetInfo.distance * Math.sin(this.formationDirection)) + (sideOffset * Math.sin(sideOffsetAngle));
+            
+            // 목표 지점을 그리드 중앙으로 스냅
+            if (typeof mapGrid !== 'undefined' && mapGrid) {
+                unit.destination = { x: Math.floor(destX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(destY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
+            } else {
             unit.destination = { x: destX, y: destY };
+            }
         });
     }
 
