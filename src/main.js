@@ -350,6 +350,18 @@ function drawMapLayer() {
             // 기본 타일 그리기
             mapCtx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
 
+            // 세부 그리드 그리기 (4등분)
+            mapCtx.beginPath();
+            mapCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+            mapCtx.lineWidth = 1;
+            // 수직선
+            mapCtx.moveTo(tileX + mapGrid.subTileSize, tileY);
+            mapCtx.lineTo(tileX + mapGrid.subTileSize, tileY + mapGrid.tileSize);
+            // 수평선
+            mapCtx.moveTo(tileX, tileY + mapGrid.subTileSize);
+            mapCtx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.subTileSize);
+            mapCtx.stroke();
+
             const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
             const province = mapGrid.provinceManager.provinces.get(provinceId);
 

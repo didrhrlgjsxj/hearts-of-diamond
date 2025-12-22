@@ -1,6 +1,7 @@
 const MAP_WIDTH = 200;
 const MAP_HEIGHT = 200;
 const TILE_SIZE = 70;
+const SUB_TILE_SIZE = TILE_SIZE / 2;
 
 /**
  * 게임 맵의 그리드와 국가 소유권을 관리하는 클래스입니다.
@@ -10,6 +11,7 @@ class MapGrid {
         this.width = MAP_WIDTH;
         this.height = MAP_HEIGHT;
         this.tileSize = TILE_SIZE;
+        this.subTileSize = SUB_TILE_SIZE;
         this.nations = new Map(); // id를 키로 사용하여 Nation 객체를 저장
         this.provinceManager = new ProvinceManager(this.width, this.height); // 프로빈스 먼저 생성
         this.regionManager = new RegionManager(this.provinceManager); // 프로빈스 생성 후 지역 및 자원 생성
