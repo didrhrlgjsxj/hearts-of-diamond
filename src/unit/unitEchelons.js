@@ -196,6 +196,7 @@ class Battalion extends SymbolUnit {
 class Company extends Unit {
     constructor(name, x, y, team) {
         super(name, x, y, 0, 7, team, 'INFANTRY');
+        this.echelon = 'COMPANY';
         this.role = 'REARGUARD'; // 기본 역할은 '후위'
         this.combatEffectiveness = 1.0; // 전투 효율성 계수
         this.companyTarget = null; // 중대가 조준하는 적 중대

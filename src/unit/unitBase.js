@@ -22,28 +22,42 @@ function getCachedUnitIcon(unit, opacity) {
 
     const canvas = document.createElement('canvas');
     const padding = 10; // 심볼(특히 중대 표시 |)이 박스 밖으로 나갈 수 있으므로 여유 공간 확보
-    const boxSize = unit.size * 2;
-    const canvasSize = boxSize + padding * 2;
+    
+    // 중대급은 가로로 긴 직사각형 (1.6:1 비율)
+    const isCompany = unit.echelon === 'COMPANY';
+    const widthRatio = isCompany ? 2 : 1;
+    
+    const boxWidth = unit.size * 2 * widthRatio;
+    const boxHeight = unit.size * 2;
+    const canvasWidth = boxWidth + padding * 2;
+    const canvasHeight = boxHeight + padding * 2;
 
-    canvas.width = canvasSize;
-    canvas.height = canvasSize;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
 
-    const cx = canvasSize / 2;
-    const cy = canvasSize / 2;
+    const cx = canvasWidth / 2;
+    const cy = canvasHeight / 2;
 
     // 1. 배경 사각형 그리기
     const color = unit.team === 'blue' ? `rgba(100, 149, 237, ${opacity})` : `rgba(255, 99, 71, ${opacity})`;
     ctx.fillStyle = color;
-    ctx.fillRect(cx - unit.size, cy - unit.size, boxSize, boxSize);
+    ctx.fillRect(cx - boxWidth / 2, cy - boxHeight / 2, boxWidth, boxHeight);
 
     // 2. 유닛 타입 아이콘 그리기 (보병, 기갑 등)
     if (unit.type && UNIT_TYPE_ICONS[unit.type]) {
+        ctx.save();
+        if (isCompany) {
+            ctx.translate(cx, cy);
+            ctx.scale(widthRatio, 1);
+            ctx.translate(-cx, -cy);
+        }
         ctx.font = `bold ${unit.size * 1.5}px "Segoe UI Symbol"`;
         ctx.fillStyle = 'black';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(UNIT_TYPE_ICONS[unit.type], cx, cy);
+        ctx.restore();
     }
 
     // 3. 부대 규모 심볼 그리기 (XX, ||, | 등)
@@ -57,7 +71,7 @@ function getCachedUnitIcon(unit, opacity) {
     // 4. 테두리 그리기 (기본 검정)
     ctx.lineWidth = 1;
     ctx.strokeStyle = 'black';
-    ctx.strokeRect(cx - unit.size, cy - unit.size, boxSize, boxSize);
+    ctx.strokeRect(cx - boxWidth / 2, cy - boxHeight / 2, boxWidth, boxHeight);
 
     UNIT_ICON_CACHE.set(key, canvas);
     return canvas;
@@ -956,7 +970,12 @@ class Unit {
             // 1초에 두 번 깜빡이는 효과
             if (Math.floor(Date.now() / 500) % 2 === 0) {
                 ctx.fillStyle = 'rgba(255, 255, 0, 0.5)'; // 노란색 하이라이트
-                ctx.fillRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+                
+                const isCompany = this.echelon === 'COMPANY';
+                const widthRatio = isCompany ? 2 : 1;
+                const width = this.size * 2 * widthRatio;
+                const height = this.size * 2;
+                ctx.fillRect(this.x - width / 2, this.y - height / 2, width, height);
             }
         }
         // 부대 종류별 심볼을 그립니다.
@@ -1090,7 +1109,10 @@ class Unit {
             // 중대일 경우, 오른쪽에 세로 조직력 바를 그립니다.
             const barWidth = 5;
             const barHeight = 20; // 세로 막대의 총 높이 (5의 배수로 설정)
-            const barX = this.x + this.size + 4;
+            
+            const widthRatio = 2; // Company 비율
+            const halfWidth = this.size * widthRatio;
+            const barX = this.x + halfWidth + 4;
             const barY = this.y - barHeight / 2;
             const numBlocks = 5; // 조직력을 5개의 블록으로 나눔
             const blockHeight = barHeight / numBlocks;
@@ -1130,7 +1152,12 @@ class Unit {
         if (this.isSelected) {
             ctx.lineWidth = 2;
             ctx.strokeStyle = 'white';
-            ctx.strokeRect(this.x - this.size, this.y - this.size, this.size * 2, this.size * 2);
+            
+            const isCompany = this.echelon === 'COMPANY';
+            const widthRatio = isCompany ? 2 : 1;
+            const width = this.size * 2 * widthRatio;
+            const height = this.size * 2;
+            ctx.strokeRect(this.x - width / 2, this.y - height / 2, width, height);
         }
     }
 
