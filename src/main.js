@@ -41,6 +41,11 @@ let selectedProvince = null; // 현재 선택된 프로빈스를 저장할 변�
 
 let lastCameraState = { x: 0, y: 0, zoom: 1, width: 0, height: 0 }; // 맵 재그리기 판단용
 
+// 드래그 이동 명령을 위한 변수
+let isRightDragging = false;
+let rightDragStart = null; // {x, y} 월드 좌표
+let currentMouseWorld = { x: 0, y: 0 }; // 드래그 중 현재 마우스 월드 좌표
+
 
 /**
  * 게임 속도를 설정합니다.
@@ -113,6 +118,7 @@ canvas.addEventListener('mousemove', (e) => {
     const rect = canvas.getBoundingClientRect();
     mouseX = e.clientX - rect.left;
     mouseY = e.clientY - rect.top;
+    currentMouseWorld = camera.screenToWorld(mouseX, mouseY); // 마우스 월드 좌표 갱신
 });
 
 canvas.addEventListener('click', (e) => {
@@ -147,11 +153,39 @@ canvas.addEventListener('click', (e) => {
     }
 });
 
+canvas.addEventListener('mousedown', (e) => {
+    if (e.button === 2) { // 우클릭
+        const worldCoords = camera.screenToWorld(mouseX, mouseY);
+        // 유닛이 선택된 상태일 때만 드래그 로직 시작
+        if (unitManager.selectedUnit) {
+            isRightDragging = true;
+            rightDragStart = worldCoords;
+        }
+    }
+});
+
+canvas.addEventListener('mouseup', (e) => {
+    if (e.button === 2 && isRightDragging) { // 우클릭 해제
+        const worldCoords = camera.screenToWorld(mouseX, mouseY);
+        const dx = worldCoords.x - rightDragStart.x;
+        const dy = worldCoords.y - rightDragStart.y;
+        const dist = Math.hypot(dx, dy);
+        
+        let targetDirection = null;
+        if (dist > 20) { // 일정 거리 이상 드래그했을 때만 방향 설정
+            targetDirection = Math.atan2(dy, dx);
+        }
+
+        // 드래그 시작 지점으로 이동 명령 (클릭 지점이 이동 목표, 드래그는 방향 지시)
+        unitManager.orderSelectedUnitTo(rightDragStart.x, rightDragStart.y, e.shiftKey, targetDirection);
+        
+        isRightDragging = false;
+        rightDragStart = null;
+    }
+});
+
 canvas.addEventListener('contextmenu', (e) => {
     e.preventDefault(); // 오른쪽 클릭 메뉴가 뜨는 것을 방지
-
-    const worldCoords = camera.screenToWorld(mouseX, mouseY);
-    unitManager.orderSelectedUnitTo(worldCoords.x, worldCoords.y, e.shiftKey);
 });
 
 function update(currentTime) {
@@ -317,6 +351,37 @@ function draw() {
     // 뷰포트 정보를 컨텍스트에 추가하여 유닛 그리기 시 컬링에 사용합니다.
     ctx.viewport = view;
     unitManager.draw(ctx);
+
+    // --- 이동 명령 드래그 화살표 그리기 ---
+    if (isRightDragging && rightDragStart && unitManager.selectedUnit) {
+        const screenStart = camera.worldToScreen(rightDragStart.x, rightDragStart.y);
+        const screenEnd = camera.worldToScreen(currentMouseWorld.x, currentMouseWorld.y);
+        
+        ctx.save();
+        // 중요: 화살표는 스크린 좌표계로 계산되었으므로, 
+        // 현재 적용된 카메라 변환(월드 좌표계)을 잠시 초기화하고 그려야 합니다.
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        ctx.beginPath();
+        ctx.moveTo(screenStart.x, screenStart.y);
+        ctx.lineTo(screenEnd.x, screenEnd.y);
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        
+        // 화살표 머리
+        const angle = Math.atan2(screenEnd.y - screenStart.y, screenEnd.x - screenStart.x);
+        const headLen = 10;
+        ctx.beginPath();
+        ctx.moveTo(screenEnd.x, screenEnd.y);
+        ctx.lineTo(screenEnd.x - headLen * Math.cos(angle - Math.PI / 6), screenEnd.y - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(screenEnd.x - headLen * Math.cos(angle + Math.PI / 6), screenEnd.y - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(screenEnd.x, screenEnd.y);
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        ctx.fill();
+        ctx.restore();
+    }
 
     ctx.restore();
     mapCtx.restore();

@@ -556,6 +556,10 @@ class Unit {
      * @param {number} deltaTime 프레임 간 시간 간격 (초)
      */
     updateMovement(deltaTime) {
+        // 유닛이 파괴되었거나 맵 그리드가 없으면 이동하지 않음
+        if (this.isDestroyed || typeof mapGrid === 'undefined' || !mapGrid) return;
+
+        // 1. 재정비 상태 해제 로직
         if (this.isDestroyed) return;
 
         // 재정비 상태 로직: 조직력이 90% 이상 회복되면 재정비 상태를 해제합니다.
@@ -569,7 +573,7 @@ class Unit {
             console.log(`${this.name} 재정비 완료, 전투 복귀 가능.`);
         }
 
-        // 1. 일정 주기마다 이동 목표를 재평가합니다. (최적화)
+        // 2. 일정 주기마다 이동 목표를 재평가합니다. (최적화)
         this._goalEvaluationTimer += deltaTime;
         if (this._goalEvaluationTimer >= this._goalEvaluationCooldown || !this._cachedMovementGoal) {
             this._goalEvaluationTimer = 0;
@@ -581,16 +585,27 @@ class Unit {
 
         const finalGoal = this._cachedMovementGoal;
 
-        // 2. 최종 목표가 없으면 이동을 중단합니다.
+        // 3. 최종 목표가 없으면 이동을 중단합니다.
         if (!finalGoal) return;
         const finalDestination = finalGoal.destination;
 
+        // 목표까지의 거리 계산
         const dx = finalDestination.x - this.x;
         const dy = finalDestination.y - this.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const distanceSq = dx * dx + dy * dy;
+        const distance = Math.sqrt(distanceSq);
 
-        // 목표 지점까지의 거리가 1픽셀 이상일 때만 이동 방향을 업데이트합니다.
-        if (distance > 1) this._direction = Math.atan2(dy, dx);
+        // 4. 목표에 거의 도달했으면(1픽셀 미만) 즉시 도착 처리
+        if (distance < 1) {
+            this.x = finalDestination.x;
+            this.y = finalDestination.y;
+            this.accumulatedMoveDistance = 0;
+            this._handleArrival();
+            return;
+        }
+
+        // 이동 방향 업데이트
+        this._direction = Math.atan2(dy, dx);
 
         // 현재 이동 속도를 결정합니다. 전투 중일 경우 10% 페널티를 적용합니다.
         let currentMoveSpeed = this.moveSpeed;
@@ -598,59 +613,57 @@ class Unit {
             currentMoveSpeed *= 0.5; // 50% 속도 감소
         }
 
-        // 그리드 단위 이동 로직 적용
+        // 5. 그리드 단위 이동 로직
         // 이동 거리를 누적합니다.
         this.accumulatedMoveDistance += currentMoveSpeed * deltaTime;
 
         // 세부 그리드 크기 (기본값 35)
-        const gridSize = (typeof mapGrid !== 'undefined' && mapGrid) ? mapGrid.subTileSize : 35;
+        const gridSize = mapGrid.subTileSize;
 
         // 누적 거리가 그리드 크기 이상이 되면 한 칸 이동합니다.
         if (this.accumulatedMoveDistance >= gridSize) {
             this.accumulatedMoveDistance -= gridSize; // 누적 거리 차감
 
-            // 목표에 거의 도달했으면(한 칸 이내) 목표로 강제 이동 및 도착 처리
+            // 남은 거리가 한 칸 이내라면 바로 도착 처리
             if (distance <= gridSize) {
                 this.x = finalDestination.x;
                 this.y = finalDestination.y;
                 this.accumulatedMoveDistance = 0; // 도착 시 누적 거리 초기화
-
-                // 후퇴 목표에 도달하면, 재정비 상태로 전환합니다.
-                if (this.isRetreating) {
-                    this.isRetreating = false;
-                    this.isRefitting = true;
-                }
-
-                // 플레이어 명령(최종 목표)에 도달했을 때만 상태를 초기화합니다.
-                if (this.playerDestination) {
-                    this.playerDestination = null;
-                    this.isRetreating = false;
-                    this.destination = null; // 상위 부대가 주는 기본 진형 위치도 초기화
-                }
-
-                // 플레이어의 직접 명령이 아닌, 진형 이동에 의해 목표에 도달한 경우,
-                // 상위 부대의 방향으로 자신의 방향을 정렬합니다.
-                if (!this.playerDestination && this.parent && this.parent instanceof SymbolUnit) {
-                    this.direction = this.parent.direction;
-                }
+                this._handleArrival();
             } else {
-                // 목표 방향으로 한 칸(그리드 크기만큼) 이동
-                // 현재 위치에서 방향 벡터를 따라 gridSize만큼 이동한 후, 그리드 중앙으로 스냅합니다.
+                // 목표 방향으로 한 칸(gridSize)만큼 이동
+                // 좌표 계산 시 NaN 방지를 위해 distance가 0보다 클 때만 계산
+                if (distance <= 0) return;
+
+                // 현재 위치에서 방향 벡터를 따라 gridSize만큼 이동
                 const moveX = (dx / distance) * gridSize;
                 const moveY = (dy / distance) * gridSize;
                 
                 let nextX = this.x + moveX;
                 let nextY = this.y + moveY;
 
-                // 다음 위치를 그리드 중앙으로 강제 스냅하여 "딱딱 끊어지는" 효과를 극대화합니다.
-                if (typeof mapGrid !== 'undefined' && mapGrid) {
-                    nextX = Math.floor(nextX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
-                    nextY = Math.floor(nextY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
-                }
-
                 this.x = nextX;
                 this.y = nextY;
             }
+        }
+    }
+
+    /**
+     * 목적지 도착 시 상태 처리를 담당하는 내부 메서드
+     * @private
+     */
+    _handleArrival() {
+        // 후퇴 목표에 도달하면, 재정비 상태로 전환합니다.
+        if (this.isRetreating) {
+            this.isRetreating = false;
+            this.isRefitting = true;
+        }
+
+        // 플레이어 명령(최종 목표)에 도달했을 때만 상태를 초기화합니다.
+        if (this.playerDestination) {
+            this.playerDestination = null;
+            this.isRetreating = false;
+            this.destination = null; // 상위 부대가 주는 기본 진형 위치도 초기화
         }
     }
 

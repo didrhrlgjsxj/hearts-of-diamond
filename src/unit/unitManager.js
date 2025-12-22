@@ -70,9 +70,13 @@ class UnitManager {
      * @param {number} worldX 
      * @param {number} worldY 
      * @param {boolean} isShiftKey - Shift 키가 눌렸는지 여부 (후퇴 명령)
+     * @param {number|null} targetDirection - 설정할 진형 방향 (라디안), null이면 기존 방향 유지
      */
-    orderSelectedUnitTo(worldX, worldY, isShiftKey) {
+    orderSelectedUnitTo(worldX, worldY, isShiftKey, targetDirection = null) {
         if (this.selectedUnit) {
+            if (targetDirection !== null) {
+                this.selectedUnit.direction = targetDirection;
+            }
             if (isShiftKey) {
                 this.selectedUnit.retreatTo(worldX, worldY);
             } else {

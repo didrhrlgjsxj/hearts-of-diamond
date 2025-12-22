@@ -130,12 +130,9 @@ class SymbolUnit extends Unit {
                     const destX = this.x + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
                     const destY = this.y + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
                     
-                    // 목표 지점을 그리드 중앙으로 스냅하여 위치 불안정(진동) 해결
-                    if (typeof mapGrid !== 'undefined' && mapGrid) {
-                        unit.destination = { x: Math.floor(destX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(destY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
-                    } else {
-                    unit.destination = { x: destX, y: destY };
-                    }
+                    // 목표 지점을 그리드 중앙으로 스냅 (Unit 클래스의 헬퍼 메서드 활용 가능하지만, 여기선 직접 계산하거나 Unit의 메서드 사용)
+                    // Unit 클래스의 _snapToGrid는 private이므로 직접 계산 로직 사용
+                    unit.destination = this._calculateSnappedPosition(destX, destY);
                 });
             } else {
                 // 후위가 아닌 다른 역할의 부대들을 배치합니다.
@@ -169,12 +166,18 @@ class SymbolUnit extends Unit {
             const destY = baseY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
             
             // 목표 지점을 그리드 중앙으로 스냅
-            if (typeof mapGrid !== 'undefined' && mapGrid) {
-                unit.destination = { x: Math.floor(destX / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(destY / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
-            } else {
-            unit.destination = { x: destX, y: destY };
-            }
+            unit.destination = this._calculateSnappedPosition(destX, destY);
         });
+    }
+
+    /**
+     * 좌표를 그리드 중앙으로 스냅하는 헬퍼 메서드
+     */
+    _calculateSnappedPosition(x, y) {
+        if (typeof mapGrid !== 'undefined' && mapGrid) {
+            return { x: Math.floor(x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
+        }
+        return { x, y };
     }
 
     drawEchelonSymbol(ctx) {
