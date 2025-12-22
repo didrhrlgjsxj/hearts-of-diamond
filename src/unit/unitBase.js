@@ -24,9 +24,9 @@ function getCachedUnitIcon(unit, opacity) {
     const canvas = document.createElement('canvas');
     const padding = 10; // 심볼(특히 중대 표시 |)이 박스 밖으로 나갈 수 있으므로 여유 공간 확보
     
-    // 중대급은 가로로 긴 직사각형 (2:1 비율)
+    // 중대급은 가로로 긴 직사각형 (1.8:1 비율)
     const isCompany = unit.echelon === 'COMPANY';
-    const widthRatio = isCompany ? 2 : 1;
+    const widthRatio = isCompany ? 1.8 : 1;
     
     const boxWidth = unit.size * 2 * widthRatio;
     const boxHeight = unit.size * 2;
@@ -67,7 +67,7 @@ function getCachedUnitIcon(unit, opacity) {
     // drawEchelonSymbol은 unit.x, unit.y를 기준으로 그리므로,
     // 컨텍스트를 변환하여 캔버스 중앙(cx, cy)이 유닛 위치(unit.x, unit.y)에 오도록 합니다.
     ctx.save();
-    ctx.translate(cx - unit.x, cy - unit.y);
+    ctx.translate(cx - unit.snappedX, cy - unit.snappedY);
     unit.drawEchelonSymbol(ctx);
     ctx.restore();
 
@@ -180,6 +180,24 @@ class Unit {
 
     set y(value) {
         this._y = value;
+    }
+
+    /**
+     * 유닛이 속한 그리드(타일)의 중앙 X 좌표를 반환합니다.
+     * 화면 렌더링 및 게임 로직(거리 계산 등)에서 사용됩니다.
+     */
+    get snappedX() {
+        if (typeof mapGrid !== 'undefined' && mapGrid) {
+            return Math.floor(this._x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+        }
+        return this._x;
+    }
+
+    get snappedY() {
+        if (typeof mapGrid !== 'undefined' && mapGrid) {
+            return Math.floor(this._y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+        }
+        return this._y;
     }
 
     get direction() {
@@ -853,8 +871,8 @@ class Unit {
     getUnitAt(x, y) {
         // 1. SymbolUnit의 경우, '부대 마크' 영역 클릭을 먼저 확인합니다.
         if (this instanceof SymbolUnit) {
-            const markCenterX = this.x; // 부대 마크의 X 좌표
-            const markCenterY = this.y; // 부대 마크의 Y 좌표 (오프셋 제거)
+            const markCenterX = this.snappedX; // 부대 마크의 X 좌표 (스냅됨)
+            const markCenterY = this.snappedY; // 부대 마크의 Y 좌표 (스냅됨)
             const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
             if (distanceToMark < this.size) {
                 return this; // 부대 마크가 클릭되면 CommandUnit 자신을 반환
@@ -868,7 +886,7 @@ class Unit {
         }
 
         // 3. 마지막으로 자기 자신의 아이콘을 확인합니다.
-        const distance = Math.hypot(x - this.x, y - this.y);
+        const distance = Math.hypot(x - this.snappedX, y - this.snappedY);
         if (distance < this.size) return this;
 
         return null;
@@ -903,10 +921,10 @@ class Unit {
         if (ctx.viewport) {
             const view = ctx.viewport;
             const margin = 100; // 예광탄이나 텍스트 등을 고려한 여유 공간
-            if (this.x + margin < view.left || 
-                this.x - margin > view.right || 
-                this.y + margin < view.top || 
-                this.y - margin > view.bottom) {
+            if (this.snappedX + margin < view.left || 
+                this.snappedX - margin > view.right || 
+                this.snappedY + margin < view.top || 
+                this.snappedY - margin > view.bottom) {
                 isVisible = false;
             }
         }
@@ -917,8 +935,8 @@ class Unit {
             // 상위 부대 마크는 화면에 보일 때만 그립니다.
             if (visibleSubUnits.length > 0 && isVisible) {
                 // 1. '부대 마크'의 위치는 SymbolUnit의 실제 위치(this.x, this.y)입니다.
-                const markCenterX = this.x;
-                const markCenterY = this.y; // 오프셋 제거
+                const markCenterX = this.snappedX;
+                const markCenterY = this.snappedY; // 오프셋 제거
 
                 // 2. '부대 마크'에 표시할 총 능력치 계산 (모든 하위 부대의 합산)
                 const totalCurrentStrength = this.currentStrength;
@@ -958,7 +976,7 @@ class Unit {
                 const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
                 const cx = logicalWidth / 2;
                 const cy = logicalHeight / 2;
-                ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy, logicalWidth, logicalHeight);
+                ctx.drawImage(cachedCanvas, this.snappedX - cx, this.snappedY - cy, logicalWidth, logicalHeight);
 
             }
         }
@@ -980,14 +998,14 @@ class Unit {
                 const widthRatio = isCompany ? 2 : 1;
                 const width = this.size * 2 * widthRatio;
                 const height = this.size * 2;
-                ctx.fillRect(this.x - width / 2, this.y - height / 2, width, height);
+                ctx.fillRect(this.snappedX - width / 2, this.snappedY - height / 2, width, height);
             }
         }
         // 부대 종류별 심볼을 그립니다.
         // 적 발견 상태일 때 초록색으로 빛나게 표시 (테두리)
         if (this.isEnemyDetected && isVisible) {
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
+            ctx.arc(this.snappedX, this.snappedY, this.size + 5, 0, Math.PI * 2); // 유닛 크기보다 약간 크게
             ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)'; // 초록색 테두리
             ctx.lineWidth = 3;
             ctx.stroke();
@@ -996,7 +1014,7 @@ class Unit {
         // 부대 방향을 나타내는 선을 그립니다.
         if (isVisible) {
             ctx.save();
-            ctx.translate(this.x, this.y);
+            ctx.translate(this.snappedX, this.snappedY);
             ctx.rotate(this.direction);
             ctx.beginPath();
             ctx.moveTo(0, 0); // 부대 중심에서
@@ -1010,7 +1028,7 @@ class Unit {
         // 선택된 유닛의 교전 범위를 표시합니다.
         if (this.isSelected && isVisible) {
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.engagementRange, 0, Math.PI * 2);
+            ctx.arc(this.snappedX, this.snappedY, this.engagementRange, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)'; // 반투명 노란색
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -1021,7 +1039,7 @@ class Unit {
             ctx.fillStyle = 'black';
             ctx.textAlign = 'center';
             ctx.font = '11px sans-serif';
-            ctx.fillText(`${this.name}`, this.x, this.y + this.size + 15);
+            ctx.fillText(`${this.name}`, this.snappedX, this.snappedY + this.size + 15);
         }
 
         // 피해량 텍스트 그리기
@@ -1040,8 +1058,8 @@ class Unit {
             this.tracers.forEach(t => {
             ctx.save(); // 현재 캔버스 상태 저장
             ctx.beginPath();
-            ctx.moveTo(t.from.x, t.from.y);
-            ctx.lineTo(t.to.x, t.to.y);
+            ctx.moveTo(t.from.snappedX, t.from.snappedY);
+            ctx.lineTo(t.to.snappedX, t.to.snappedY);
             if (t.type === 'company') {
                 ctx.strokeStyle = `rgba(255, 255, 150, ${t.alpha * 0.7})`; // 중대 교전: 밝은 노란색
                 ctx.lineWidth = 1.0;
@@ -1065,8 +1083,8 @@ class Unit {
                 if (subUnit.isDestroyed) return;
                 // 본부 위치에서 다른 하위 부대로 연결선을 그립니다.
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y); // 선의 시작점을 오프셋이 없는 SymbolUnit의 기준 위치(본부 중대 위치)로 변경
-                ctx.lineTo(subUnit.x, subUnit.y);
+                ctx.moveTo(this.snappedX, this.snappedY); // 선의 시작점을 오프셋이 없는 SymbolUnit의 기준 위치(본부 중대 위치)로 변경
+                ctx.lineTo(subUnit.snappedX, subUnit.snappedY);
                 ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
                 ctx.stroke();
                 subUnit.draw(ctx);
@@ -1083,8 +1101,8 @@ class Unit {
         if (!(this instanceof Company)) {
             const barWidth = 30;
             const barHeight = 4;
-            const barX = this.x - barWidth / 2;
-            const strengthBarY = this.y - this.size - 15; // 아이콘 위로
+            const barX = this.snappedX - barWidth / 2;
+            const strengthBarY = this.snappedY - this.size - 15; // 아이콘 위로
             const orgBarY = strengthBarY + barHeight + 2;
 
             // 내구력 바
@@ -1117,8 +1135,8 @@ class Unit {
             
             const widthRatio = 2; // Company 비율
             const halfWidth = this.size * widthRatio;
-            const barX = this.x + halfWidth + 4;
-            const barY = this.y - barHeight / 2;
+            const barX = this.snappedX + halfWidth + 4;
+            const barY = this.snappedY - barHeight / 2;
             const numBlocks = 5; // 조직력을 5개의 블록으로 나눔
             const blockHeight = barHeight / numBlocks;
 
@@ -1154,7 +1172,7 @@ class Unit {
         const logicalHeight = cachedCanvas.height / ICON_RESOLUTION_SCALE;
         const cx = logicalWidth / 2;
         const cy = logicalHeight / 2;
-        ctx.drawImage(cachedCanvas, this.x - cx, this.y - cy, logicalWidth, logicalHeight);
+        ctx.drawImage(cachedCanvas, this.snappedX - cx, this.snappedY - cy, logicalWidth, logicalHeight);
 
         if (this.isSelected) {
             ctx.lineWidth = 2;
@@ -1164,7 +1182,7 @@ class Unit {
             const widthRatio = isCompany ? 2 : 1;
             const width = this.size * 2 * widthRatio;
             const height = this.size * 2;
-            ctx.strokeRect(this.x - width / 2, this.y - height / 2, width, height);
+            ctx.strokeRect(this.snappedX - width / 2, this.snappedY - height / 2, width, height);
         }
     }
 

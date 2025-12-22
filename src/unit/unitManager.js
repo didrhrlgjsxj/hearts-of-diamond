@@ -172,8 +172,8 @@ function updateUnits(unitManager, scaledDeltaTime) {
             // 외교 관계를 확인하여 적인지 판단합니다.
             if (!myBattalion.nation.isEnemyWith(enemyBattalion.nation.id)) continue;
             
-            const dx = myBattalion.x - enemyBattalion.x;
-            const dy = myBattalion.y - enemyBattalion.y;
+            const dx = myBattalion.snappedX - enemyBattalion.snappedX;
+            const dy = myBattalion.snappedY - enemyBattalion.snappedY;
             const distSq = dx * dx + dy * dy;
 
             if (distSq < minDistanceSq) {
@@ -217,8 +217,8 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     let minDistanceSq = Infinity;
 
                     for (const enemyCompany of enemyCompanies) {
-                        const dx = myCompany.x - enemyCompany.x;
-                        const dy = myCompany.y - enemyCompany.y;
+                        const dx = myCompany.snappedX - enemyCompany.snappedX;
+                        const dy = myCompany.snappedY - enemyCompany.snappedY;
                         const distSq = dx * dx + dy * dy;
 
                         if (distSq < minDistanceSq) {
@@ -298,7 +298,7 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     if (!c.companyTarget) return;
 
                     const target = c.companyTarget;
-                    const distToTarget = Math.hypot(c.x - target.x, c.y - target.y);
+                    const distToTarget = Math.hypot(c.snappedX - target.snappedX, c.snappedY - target.snappedY);
 
                     // 1. 전투 효율성 계산 (거리에 따라 0~1)
                     // 최적 거리에서 100%, 거리가 0일 때 70%의 효율을 가집니다.
@@ -351,7 +351,7 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     // takeDamage 내부에서 조직력 흡수율에 따라 최종적으로 분배됩니다.
                     // 여기서는 두 피해 유형을 합쳐서 하나의 값으로 전달합니다.
                     const totalAttackPower = totalOrgDamage + totalStrDamage;
-                    target.takeDamage(totalAttackPower, { x: c.x, y: c.y });
+                    target.takeDamage(totalAttackPower, { x: c.snappedX, y: c.snappedY });
                 });
             }
             engagedBattalions.add(myBattalion);
@@ -383,7 +383,7 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
         // 전투 중 방향 전환
         if (!myBattalion.playerDestination) {
-            myBattalion.direction = Math.atan2(enemyBattalion.y - myBattalion.y, enemyBattalion.x - myBattalion.x);
+            myBattalion.direction = Math.atan2(enemyBattalion.snappedY - myBattalion.snappedY, enemyBattalion.snappedX - myBattalion.snappedX);
         }
     }
 
@@ -466,8 +466,8 @@ function processFormationUpdate(unit) {
     if (unit.isDestroyed) return;
 
     // 유닛의 현재 프로빈스 ID 업데이트
-    const tileX = Math.floor(unit.x / TILE_SIZE);
-    const tileY = Math.floor(unit.y / TILE_SIZE);
+    const tileX = Math.floor(unit.snappedX / TILE_SIZE);
+    const tileY = Math.floor(unit.snappedY / TILE_SIZE);
     unit.currentProvinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY] || null;
 
     if (unit instanceof SymbolUnit) {

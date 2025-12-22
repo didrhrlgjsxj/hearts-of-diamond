@@ -175,7 +175,7 @@ class SymbolUnit extends Unit {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = 'black';
-        ctx.fillText(this.echelonSymbol, this.x, this.y + size * 0.1);
+        ctx.fillText(this.echelonSymbol, this.snappedX, this.snappedY + size * 0.1);
     }
 }
 /** 대대 (Battalion) */
@@ -195,7 +195,7 @@ class Battalion extends SymbolUnit {
 /** 중대 (Company) */
 class Company extends Unit {
     constructor(name, x, y, team) {
-        super(name, x, y, 0, 7, team, 'INFANTRY');
+        super(name, x, y, 0, 5, team, 'INFANTRY');
         this.echelon = 'COMPANY';
         this.role = 'REARGUARD'; // 기본 역할은 '후위'
         this.combatEffectiveness = 1.0; // 전투 효율성 계수
@@ -205,7 +205,7 @@ class Company extends Unit {
     drawEchelonSymbol(ctx) {
         ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('|', this.x, this.y - this.size - 5);
+        ctx.fillText('|', this.snappedX, this.snappedY - this.size - 5);
     }
 }
 // 소대(Platoon)와 분대(Squad) 클래스는 더 이상 실제 유닛으로 생성되지 않으므로 제거합니다.
