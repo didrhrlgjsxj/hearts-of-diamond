@@ -24,7 +24,7 @@ function getCachedUnitIcon(unit, opacity) {
     const canvas = document.createElement('canvas');
     const padding = 10; // 심볼(특히 중대 표시 |)이 박스 밖으로 나갈 수 있으므로 여유 공간 확보
     
-    // 중대급은 가로로 긴 직사각형 (1.6:1 비율)
+    // 중대급은 가로로 긴 직사각형 (2:1 비율)
     const isCompany = unit.echelon === 'COMPANY';
     const widthRatio = isCompany ? 2 : 1;
     

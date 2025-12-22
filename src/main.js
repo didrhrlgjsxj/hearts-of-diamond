@@ -337,31 +337,48 @@ function drawMapLayer() {
     const startRow = Math.floor(view.top / mapGrid.tileSize);
     const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
 
+    // --- 1. 배경 및 그리드 일괄 그리기 (최적화) ---
+    const mapPixelWidth = mapGrid.width * mapGrid.tileSize;
+    const mapPixelHeight = mapGrid.height * mapGrid.tileSize;
+    
+    const drawStartX = Math.max(0, startCol * mapGrid.tileSize);
+    const drawStartY = Math.max(0, startRow * mapGrid.tileSize);
+    const drawEndX = Math.min(mapPixelWidth, endCol * mapGrid.tileSize);
+    const drawEndY = Math.min(mapPixelHeight, endRow * mapGrid.tileSize);
+
+    // 기본 배경색 한 번에 채우기
+    mapCtx.fillStyle = '#ccc';
+    mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
+
+    // 그리드 선 그리기 (긴 선으로 한 번에)
+    mapCtx.beginPath();
+    mapCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    mapCtx.lineWidth = 1;
+
+    // 수직선
+    const startGridX = Math.floor(drawStartX / mapGrid.subTileSize) * mapGrid.subTileSize;
+    for (let x = startGridX; x <= drawEndX; x += mapGrid.subTileSize) {
+        mapCtx.moveTo(x, drawStartY);
+        mapCtx.lineTo(x, drawEndY);
+    }
+
+    // 수평선
+    const startGridY = Math.floor(drawStartY / mapGrid.subTileSize) * mapGrid.subTileSize;
+    for (let y = startGridY; y <= drawEndY; y += mapGrid.subTileSize) {
+        mapCtx.moveTo(drawStartX, y);
+        mapCtx.lineTo(drawEndX, y);
+    }
+    mapCtx.stroke();
+
+    // --- 2. 프로빈스별 정보 그리기 (색상, 국경) ---
+    mapCtx.lineWidth = 2;
+
     for (let y = startRow; y < endRow; y++) {
         for (let x = startCol; x < endCol; x++) {
             if (x < 0 || x >= mapGrid.width || y < 0 || y >= mapGrid.height) continue;
 
             const tileX = x * mapGrid.tileSize;
             const tileY = y * mapGrid.tileSize;
-
-            // 기본 타일 색상 설정
-            mapCtx.fillStyle = '#ccc';
-
-            // 기본 타일 그리기
-            mapCtx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
-
-            // 세부 그리드 그리기 (4등분)
-            mapCtx.beginPath();
-            mapCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-            mapCtx.lineWidth = 1;
-            // 수직선
-            mapCtx.moveTo(tileX + mapGrid.subTileSize, tileY);
-            mapCtx.lineTo(tileX + mapGrid.subTileSize, tileY + mapGrid.tileSize);
-            // 수평선
-            mapCtx.moveTo(tileX, tileY + mapGrid.subTileSize);
-            mapCtx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.subTileSize);
-            mapCtx.stroke();
-
             const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
             const province = mapGrid.provinceManager.provinces.get(provinceId);
 
@@ -378,8 +395,8 @@ function drawMapLayer() {
                 }
             }
 
+            // 국경 그리기 (drawStar가 strokeStyle을 변경했을 수 있으므로 재설정)
             mapCtx.strokeStyle = 'black';
-            mapCtx.lineWidth = 2;
 
             // 위쪽 타일과 프로빈스가 다른 경우, 위쪽 경계선을 굵게 그립니다.
             if (y === 0 || mapGrid.provinceManager.provinceGrid[x][y-1] !== provinceId) {
