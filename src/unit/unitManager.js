@@ -431,9 +431,6 @@ function updateUnits(unitManager, scaledDeltaTime) {
         if (!myBattalion.playerDestination) {
             const angle = Math.atan2(enemyBattalion.snappedY - myBattalion.snappedY, enemyBattalion.snappedX - myBattalion.snappedX);
             myBattalion.direction = angle;
-            // 전투 중에도 진형 방향을 45도 단위로 업데이트
-            const step = Math.PI / 4;
-            myBattalion.formationDirection = Math.round(angle / step) * step;
         }
     }
 

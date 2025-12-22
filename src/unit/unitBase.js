@@ -171,7 +171,6 @@ class Unit {
         this.accumulatedMoveDistance = 0; // 그리드 단위 이동을 위한 누적 거리
         this.visualOffsetX = 0; // 시각적 오프셋 X (겹침 방지용)
         this.visualOffsetY = 0; // 시각적 오프셋 Y (겹침 방지용)
-        this.formationDirection = -Math.PI / 2; // 진형 및 시각적 표시를 위한 스냅된 방향
         this._displayX = this.snappedX; // 화면 표시용 X 좌표 (보간됨)
         this._displayY = this.snappedY; // 화면 표시용 Y 좌표 (보간됨)
     }
@@ -237,7 +236,7 @@ class Unit {
      * 화면에 표시될 때 8방향으로 스냅된 방향을 반환합니다.
      */
     get snappedDirection() {
-        return this.formationDirection;
+        return this._direction;
     }
 
     get direction() {
@@ -651,11 +650,6 @@ class Unit {
 
                 this.x = nextX;
                 this.y = nextY;
-
-                // 이동 시에만 진형 방향을 업데이트 (45도 스냅)
-                const moveAngle = Math.atan2(dy, dx);
-                const step = Math.PI / 4;
-                this.formationDirection = Math.round(moveAngle / step) * step;
             }
         }
     }

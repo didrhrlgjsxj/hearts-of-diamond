@@ -124,11 +124,11 @@ class SymbolUnit extends Unit {
                 // 후위 부대들은 심볼 부대(this.x, this.y)를 중심으로 좌우로 배치됩니다.
                 unitsInRole.forEach((unit, i) => {
                     const positionIndex = i - (unitsInRole.length - 1) / 2;
-                    const sideOffsetAngle = this.formationDirection + Math.PI / 2;
+                    const sideOffsetAngle = this.direction + Math.PI / 2;
                     const sideOffset = positionIndex * offsetInfo.spread;
 
-                    const destX = this.x + (offsetInfo.distance * Math.cos(this.formationDirection)) + (sideOffset * Math.cos(sideOffsetAngle));
-                    const destY = this.y + (offsetInfo.distance * Math.sin(this.formationDirection)) + (sideOffset * Math.sin(sideOffsetAngle));
+                    const destX = this.x + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
+                    const destY = this.y + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
                     
                     // 목표 지점을 그리드 중앙으로 스냅하여 위치 불안정(진동) 해결
                     if (typeof mapGrid !== 'undefined' && mapGrid) {
@@ -162,11 +162,11 @@ class SymbolUnit extends Unit {
         // 각 중대에 진형 목표 위치(destination)를 할당합니다.
         // 실제 이동은 updateMovement에서 처리됩니다.
         companies.forEach((unit, i) => {
-            const sideOffsetAngle = this.formationDirection + Math.PI / 2;
+            const sideOffsetAngle = this.direction + Math.PI / 2;
             const sideOffset = (i - (count - 1) / 2) * offsetInfo.spread;
 
-            const destX = baseX + (offsetInfo.distance * Math.cos(this.formationDirection)) + (sideOffset * Math.cos(sideOffsetAngle));
-            const destY = baseY + (offsetInfo.distance * Math.sin(this.formationDirection)) + (sideOffset * Math.sin(sideOffsetAngle));
+            const destX = baseX + (offsetInfo.distance * Math.cos(this.direction)) + (sideOffset * Math.cos(sideOffsetAngle));
+            const destY = baseY + (offsetInfo.distance * Math.sin(this.direction)) + (sideOffset * Math.sin(sideOffsetAngle));
             
             // 목표 지점을 그리드 중앙으로 스냅
             if (typeof mapGrid !== 'undefined' && mapGrid) {
