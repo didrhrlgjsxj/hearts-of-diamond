@@ -18,6 +18,7 @@ class SymbolUnit extends Unit {
     moveTo(x, y, allUnits = []) {
         // SymbolUnit의 moveTo는 하위 유닛의 진형 목표를 설정하므로, 충돌 방지 로직을 여기에 직접 적용하지 않고
         // 각 하위 유닛이 자신의 moveTo에서 처리하도록 위임합니다.
+        super.moveTo(x, y, allUnits);
         this.destination = { x, y }; // 상위 부대의 최종 목표만 설정
         this.isMoving = true; // 이동 시작
 

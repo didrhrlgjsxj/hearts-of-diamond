@@ -77,6 +77,7 @@ class UnitManager {
             if (targetDirection !== null) {
                 this.selectedUnit.direction = targetDirection;
             }
+            this.selectedUnit.arrivalDirection = targetDirection;
             if (isShiftKey) {
                 this.selectedUnit.retreatTo(worldX, worldY);
             } else {

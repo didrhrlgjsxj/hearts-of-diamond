@@ -173,6 +173,7 @@ class Unit {
         this.visualOffsetY = 0; // 시각적 오프셋 Y (겹침 방지용)
         this._displayX = this.snappedX; // 화면 표시용 X 좌표 (보간됨)
         this._displayY = this.snappedY; // 화면 표시용 Y 좌표 (보간됨)
+        this.arrivalDirection = null; // 도착 후 바라볼 방향
     }
 
     // 정찰력에 기반한 탐지 범위 계산
@@ -600,6 +601,11 @@ class Unit {
             this.x = finalDestination.x;
             this.y = finalDestination.y;
             this.accumulatedMoveDistance = 0;
+
+            if (this.playerDestination && this.arrivalDirection !== null) {
+                this._direction = this.arrivalDirection;
+            }
+
             this._handleArrival();
             return;
         }
@@ -629,6 +635,11 @@ class Unit {
                 this.x = finalDestination.x;
                 this.y = finalDestination.y;
                 this.accumulatedMoveDistance = 0; // 도착 시 누적 거리 초기화
+
+                if (this.playerDestination && this.arrivalDirection !== null) {
+                    this._direction = this.arrivalDirection;
+                }
+
                 this._handleArrival();
             } else {
                 // 목표 방향으로 한 칸(gridSize)만큼 이동
