@@ -260,13 +260,32 @@ function updateUnits(unitManager, scaledDeltaTime) {
     // --- 점령 진행 상황 업데이트 ---
     updateCaptureProgress(unitManager, allBattalions, scaledDeltaTime);
 
+    // --- 쿼드트리 구성 (공간 분할 최적화) ---
+    // 맵 전체 크기를 커버하는 경계 생성 (중심 좌표, 반너비, 반높이)
+    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
+    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const boundary = new Rectangle(mapPixelWidth / 2, mapPixelHeight / 2, mapPixelWidth / 2, mapPixelHeight / 2);
+    const battalionQuadtree = new Quadtree(boundary, 4); // 노드당 4개 유닛 수용
+
+    // 모든 대대를 쿼드트리에 삽입
+    for (const b of allBattalions) {
+        battalionQuadtree.insert(new Point(b.snappedX, b.snappedY, b));
+    }
+
     // --- 2. 대대 단위 목표 탐색 ---
     for (const myBattalion of allBattalions) {
         let closestEnemyBattalion = null;
         // 최적화: 거리 제곱을 사용하여 제곱근 연산 제거
         let minDistanceSq = myBattalion.engagementRange * myBattalion.engagementRange;
 
-        for (const enemyBattalion of allBattalions) {
+        // 쿼드트리를 사용하여 사거리 내에 있을 법한 후보군만 조회
+        const rangeRect = new Rectangle(myBattalion.snappedX, myBattalion.snappedY, myBattalion.engagementRange, myBattalion.engagementRange);
+        const candidates = battalionQuadtree.query(rangeRect);
+
+        for (const enemyBattalion of candidates) {
+            // 자기 자신은 제외
+            if (myBattalion === enemyBattalion) continue;
+
             // 외교 관계를 확인하여 적인지 판단합니다.
             if (!myBattalion.nation.isEnemyWith(enemyBattalion.nation.id)) continue;
             
