@@ -191,24 +191,40 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
     // --- 1. 상태 초기화 및 모든 전투 부대 목록 생성 ---
     const allBattalions = [];
+    const tempCompanies = []; // 재사용 가능한 임시 배열
+
     topLevelUnits.forEach(unit => {
         unit.isInCombat = false;
         unit.isEnemyDetected = false; // 적 발견 상태도 매 프레임 초기화
         unit.tracers = []; // 예광탄 효과 초기화
         unit.updateVisuals(scaledDeltaTime); // 데미지 텍스트 등 시각 효과 업데이트
 
-        const battalions = unit.getAllBattalions();
-        battalions.forEach(b => {
-            if (b.isDestroyed) return;
-            b.isBeingTargeted = false;
-            b.battalionTarget = null; // 매 턴 목표 초기화
-            b.getAllCompanies().forEach(c => {
-                c.isBeingTargeted = false;
-                c.companyTarget = null; // 중대 목표도 초기화
-            });
-            allBattalions.push(b);
-        })
+        unit.getAllBattalions(allBattalions);
     });
+
+    // 수집된 대대들에 대해 상태 초기화 수행 (파괴된 대대 필터링 및 상태 리셋)
+    let activeCount = 0;
+    for (let i = 0; i < allBattalions.length; i++) {
+        const b = allBattalions[i];
+        if (b.isDestroyed) continue;
+
+        b.isBeingTargeted = false;
+        b.battalionTarget = null; // 매 턴 목표 초기화
+
+        tempCompanies.length = 0;
+        b.getAllCompanies(tempCompanies);
+        for (const c of tempCompanies) {
+            c.isBeingTargeted = false;
+            c.companyTarget = null; // 중대 목표도 초기화
+        }
+        
+        // 유효한 대대만 앞쪽으로 모음 (In-place filtering)
+        if (i !== activeCount) {
+            allBattalions[activeCount] = b;
+        }
+        activeCount++;
+    }
+    allBattalions.length = activeCount; // 배열 길이 조정
 
     // --- 점령 진행 상황 업데이트 ---
     updateCaptureProgress(unitManager, allBattalions, scaledDeltaTime);
@@ -349,7 +365,9 @@ function updateUnits(unitManager, scaledDeltaTime) {
                     if (!c.companyTarget) return;
 
                     const target = c.companyTarget;
-                    const distToTarget = Math.hypot(c.snappedX - target.snappedX, c.snappedY - target.snappedY);
+                    const dx = c.snappedX - target.snappedX;
+                    const dy = c.snappedY - target.snappedY;
+                    const distToTarget = Math.sqrt(dx * dx + dy * dy);
 
                     // 1. 전투 효율성 계산 (거리에 따라 0~1)
                     // 최적 거리에서 100%, 거리가 0일 때 70%의 효율을 가집니다.

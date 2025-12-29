@@ -464,53 +464,53 @@ class Unit {
      * 자신 및 모든 하위 유닛에 포함된 모든 분대(Squad)를 재귀적으로 찾습니다.
      * @returns {Squad[]}
      */
-    getAllSquads() {
+    getAllSquads(result = []) {
         // 중대는 더 이상 하위 유닛을 갖지 않고, 분대 데이터를 직접 가집니다.
-        if (this instanceof Company) {
-            return this.squadsData;
+        if (this.echelon === 'COMPANY') {
+            if (this.squadsData) {
+                for (const squad of this.squadsData) {
+                    result.push(squad);
+                }
+            }
+            return result;
         }
  
-        let squads = [];
         for (const subUnit of this.subUnits) {
-            squads = squads.concat(subUnit.getAllSquads());
+            subUnit.getAllSquads(result);
         }
-        return squads;
+        return result;
     }
 
     /**
      * 자신 및 모든 하위 유닛에 포함된 모든 중대(Company)를 재귀적으로 찾습니다.
      * @returns {Company[]}
      */
-    getAllCompanies() {
-        if (this instanceof Company) {
-            return [this];
+    getAllCompanies(result = []) {
+        if (this.echelon === 'COMPANY') {
+            result.push(this);
+            return result;
         }
 
-        let companies = [];
-        if (this.subUnits.length > 0) {
-            for (const subUnit of this.subUnits) {
-                companies = companies.concat(subUnit.getAllCompanies());
-            }
+        for (const subUnit of this.subUnits) {
+            subUnit.getAllCompanies(result);
         }
-        return companies;
+        return result;
     }
     /**
      * 자신 및 모든 하위 유닛에 포함된 모든 대대(Battalion)를 재귀적으로 찾습니다.
      * @returns {Battalion[]}
      */
-    getAllBattalions() {
+    getAllBattalions(result = []) {
         // Battalion 클래스이거나, echelon이 'BATTALION'인 SymbolUnit을 대대로 인식합니다.
-        if (this instanceof Battalion || (this instanceof SymbolUnit && this.echelon === 'BATTALION')) {
-            return [this];
+        if (this.echelon === 'BATTALION') {
+            result.push(this);
+            return result;
         }
 
-        let battalions = [];
-        if (this.subUnits.length > 0) {
-            for (const subUnit of this.subUnits) {
-                battalions = battalions.concat(subUnit.getAllBattalions());
-            }
+        for (const subUnit of this.subUnits) {
+            subUnit.getAllBattalions(result);
         }
-        return battalions;
+        return result;
     }
     /**
      * 하위 유닛을 추가합니다.
@@ -763,7 +763,7 @@ class Unit {
 
                 const vecX = this.x - enemyCompany.x;
                 const vecY = this.y - enemyCompany.y;
-                const currentDist = Math.hypot(vecX, vecY);
+                const currentDist = Math.sqrt(vecX * vecX + vecY * vecY);
 
                 if (currentDist > 1) {
                     // 최적 거리를 유지하려는 위치를 목표로 설정합니다.
@@ -834,13 +834,15 @@ class Unit {
      */
     findUnitToTakeDamage(fromX, fromY) {
         let closestUnit = null;
-        let minDistance = Infinity;
+        let minDistanceSq = Infinity;
 
         for (const unit of this.combatSubUnits) {
             if (unit.currentStrength <= 0) continue; // 이미 파괴된 유닛은 제외
-            const distance = Math.hypot(unit.x - fromX, unit.y - fromY);
-            if (distance < minDistance) {
-                minDistance = distance;
+            const dx = unit.x - fromX;
+            const dy = unit.y - fromY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < minDistanceSq) {
+                minDistanceSq = distSq;
                 closestUnit = unit;
             }
         }
@@ -992,9 +994,11 @@ class Unit {
      */
     getClosestCombatSubUnit(x, y) {
         return this.combatSubUnits.reduce((closest, unit) => {
-            const dist = Math.hypot(unit.x - x, unit.y - y);
-            return dist < closest.dist ? { unit, dist } : closest;
-        }, { unit: null, dist: Infinity }).unit;
+            const dx = unit.x - x;
+            const dy = unit.y - y;
+            const distSq = dx * dx + dy * dy;
+            return distSq < closest.distSq ? { unit, distSq } : closest;
+        }, { unit: null, distSq: Infinity }).unit;
     }
 
     /**
@@ -1016,8 +1020,10 @@ class Unit {
         if (this instanceof SymbolUnit) {
             const markCenterX = this.visualX; // 부대 마크의 X 좌표 (시각적 위치)
             const markCenterY = this.visualY; // 부대 마크의 Y 좌표 (시각적 위치)
-            const distanceToMark = Math.hypot(x - markCenterX, y - markCenterY);
-            if (distanceToMark < this.size) {
+            const dx = x - markCenterX;
+            const dy = y - markCenterY;
+            const distSq = dx * dx + dy * dy;
+            if (distSq < this.size * this.size) {
                 return this; // 부대 마크가 클릭되면 CommandUnit 자신을 반환
             }
         }
@@ -1029,8 +1035,10 @@ class Unit {
         }
 
         // 3. 마지막으로 자기 자신의 아이콘을 확인합니다.
-        const distance = Math.hypot(x - this.visualX, y - this.visualY);
-        if (distance < this.size) return this;
+        const dx = x - this.visualX;
+        const dy = y - this.visualY;
+        const distSq = dx * dx + dy * dy;
+        if (distSq < this.size * this.size) return this;
 
         return null;
     }
