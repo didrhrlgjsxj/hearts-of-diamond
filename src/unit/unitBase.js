@@ -174,6 +174,7 @@ class Unit {
         this._displayX = this.snappedX; // 화면 표시용 X 좌표 (보간됨)
         this._displayY = this.snappedY; // 화면 표시용 Y 좌표 (보간됨)
         this.arrivalDirection = null; // 도착 후 바라볼 방향
+        this.isVisuallyActive = false; // 시각적 활동 상태 (이동 보간, 효과 등)
     }
 
     // 정찰력에 기반한 탐지 범위 계산
@@ -952,11 +953,20 @@ class Unit {
         // 목표 위치(snappedX/Y)로 부드럽게 이동합니다.
         const lerpSpeed = 10.0; // 보간 속도 (높을수록 빠름)
         const t = Math.min(1, lerpSpeed * deltaTime);
-        this._displayX += (this.snappedX - this._displayX) * t;
-        this._displayY += (this.snappedY - this._displayY) * t;
+        
+        const diffX = this.snappedX - this._displayX;
+        const diffY = this.snappedY - this._displayY;
+        
+        this._displayX += diffX * t;
+        this._displayY += diffY * t;
+
+        // 시각적 활동 상태 확인 (0.1 픽셀 이상 움직임이 남았거나 효과가 있을 때)
+        let isActive = (Math.abs(diffX) > 0.1 || Math.abs(diffY) > 0.1);
 
         // 떠다니는 텍스트 업데이트
         this.floatingTexts = this.floatingTexts.filter(t => t.life > 0);
+        if (this.floatingTexts.length > 0) isActive = true;
+
         this.floatingTexts.forEach(t => {
             t.life -= deltaTime;
             t.y -= 10 * deltaTime; // 위로 떠오르는 효과
@@ -965,14 +975,20 @@ class Unit {
 
         // 예광탄 효과 업데이트
         this.tracers = this.tracers.filter(t => t.life > 0);
+        if (this.tracers.length > 0) isActive = true;
+
         this.tracers.forEach(t => {
             t.life -= deltaTime;
             t.alpha = Math.max(0, t.life / 0.5);
         });
 
-        // 모든 하위 유닛의 시각 효과도 재귀적으로 업데이트합니다.
-        this.subUnits.forEach(subUnit => subUnit.updateVisuals(deltaTime));
-
+        // 모든 하위 유닛의 시각 효과도 재귀적으로 업데이트하고 상태를 합칩니다.
+        this.subUnits.forEach(subUnit => {
+            subUnit.updateVisuals(deltaTime);
+            if (subUnit.isVisuallyActive) isActive = true;
+        });
+        
+        this.isVisuallyActive = isActive;
     }
 
     /**

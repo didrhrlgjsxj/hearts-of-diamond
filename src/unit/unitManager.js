@@ -17,6 +17,11 @@ class UnitManager {
             'Battalion': 1,
             'Company': 1,
         };
+
+        // 렌더링 최적화를 위한 변수
+        this.lastDrawTime = 0;
+        this.drawInterval = 0.03; // 약 30 FPS로 제한 (초 단위)
+        this.lastCameraState = null;
     }
 
     /**
@@ -106,11 +111,37 @@ class UnitManager {
 
     /**
      * 모든 유닛을 캔버스에 그립니다.
+     * 렌더링 부하를 줄이기 위해 카메라가 정지해 있을 때는 프레임 레이트를 제한합니다.
      * @param {CanvasRenderingContext2D} ctx 
+     * @param {Camera} camera
      */
-    draw(ctx) {
-        for (const unit of this.topLevelUnits) {
-            unit.draw(ctx);
+    draw(ctx, camera) {
+        const currentTime = performance.now() / 1000;
+        
+        // 카메라 상태 확인 (이동/줌 여부)
+        const currentCameraState = { x: camera.x, y: camera.y, zoom: camera.zoom };
+        const isCameraChanged = !this.lastCameraState || 
+            this.lastCameraState.x !== currentCameraState.x || 
+            this.lastCameraState.y !== currentCameraState.y || 
+            this.lastCameraState.zoom !== currentCameraState.zoom;
+
+        // 유닛들이 시각적으로 활동 중인지 확인 (보간 이동, 효과 등)
+        const isAnyUnitActive = this.topLevelUnits.some(unit => unit.isVisuallyActive);
+
+        // 카메라가 움직였거나, 유닛이 활동 중이거나, 설정된 렌더링 간격이 지났을 때만 다시 그립니다.
+        if (isCameraChanged || isAnyUnitActive || currentTime - this.lastDrawTime >= this.drawInterval) {
+            this.lastDrawTime = currentTime;
+            this.lastCameraState = currentCameraState;
+
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.save();
+            camera.applyTransform(ctx);
+            ctx.viewport = camera.getViewport(); // 뷰포트 정보 갱신 (컬링용)
+
+            for (const unit of this.topLevelUnits) {
+                unit.draw(ctx);
+            }
+            ctx.restore();
         }
     }
 

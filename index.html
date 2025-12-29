@@ -22,8 +22,12 @@
         #mapCanvas {
             z-index: 1;
         }
-        #gameCanvas {
+        #unitCanvas {
             z-index: 2;
+            pointer-events: none;
+        }
+        #gameCanvas {
+            z-index: 3;
             pointer-events: auto; /* 입력을 받음 */
         }
         #main-ui-container {
@@ -346,6 +350,7 @@
 </head>
 <body>
     <canvas id="mapCanvas"></canvas>
+    <canvas id="unitCanvas"></canvas>
     <canvas id="gameCanvas" tabindex="0"></canvas>
     <!-- 게임 데이터 및 클래스 로드 순서가 중요합니다. -->
     <!-- 1. 의존성 없는 상수 및 기본 클래스 먼저 로드 -->

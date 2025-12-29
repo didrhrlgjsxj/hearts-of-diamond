@@ -4,6 +4,9 @@ const ctx = canvas.getContext('2d');
 const mapCanvas = document.getElementById('mapCanvas');
 const mapCtx = mapCanvas.getContext('2d');
 
+const unitCanvas = document.getElementById('unitCanvas');
+const unitCtx = unitCanvas.getContext('2d');
+
 // --- 게임 월드 설정 ---
 let mapGrid; // 맵 데이터 관리 인스턴스
 const nations = new Map(); // 국가 인스턴스 관리
@@ -110,6 +113,8 @@ function resize() {
     canvas.height = window.innerHeight;
     mapCanvas.width = window.innerWidth;
     mapCanvas.height = window.innerHeight;
+    unitCanvas.width = window.innerWidth;
+    unitCanvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resize);
 resize();
@@ -347,10 +352,8 @@ function draw() {
         }
     });
 
-    // 모든 최상위 부대를 그립니다.
-    // 뷰포트 정보를 컨텍스트에 추가하여 유닛 그리기 시 컬링에 사용합니다.
-    ctx.viewport = view;
-    unitManager.draw(ctx);
+    // 유닛 렌더링 (별도 캔버스 사용 및 스로틀링 적용)
+    unitManager.draw(unitCtx, camera);
 
     // --- 이동 명령 드래그 화살표 그리기 ---
     if (isRightDragging && rightDragStart && unitManager.selectedUnit) {
