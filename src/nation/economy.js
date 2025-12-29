@@ -24,7 +24,7 @@ class Economy {
         // --- 산업 ---
         this.lightIndustry = 10; // 경공업 공장 수
         this.heavyIndustry = 5;  // 중공업 공장 수
-        this.consumerGoodsIndustry = 0; // 소비재 공장 수
+        this.consumerGoodsIndustry = 10; // 소비재 공장 수
 
         // --- 자원 ---
         this.economicUnits = 5000; // 경제 단위
@@ -33,6 +33,18 @@ class Economy {
         this.equipmentStockpile = {}; // 장비 비축량. 예: { 'Rifle': 1500, 'Tank': 50 }
         this.resourceIncome = {};     // 자원 수입량. 예: { 'IRON': 10, 'OIL': 5 }
         this.productionLines = [];    // 생산 라인 목록
+
+        // --- 건설 ---
+        this.factoryCosts = {
+            'light': 500,
+            'heavy': 800,
+            'consumer': 300
+        };
+        this.construction = {
+            level: 5, // 건설 산업 활성화 정도 (0 ~ 10 블록)
+            allocation: { light: 7, heavy: 7, consumer: 6 }, // 투자 비중 (총 20블록)
+            progress: { light: 0, heavy: 0, consumer: 0 } // 현재 진행도
+        };
     }
 
     /**
@@ -107,6 +119,9 @@ class Economy {
      * @param {number} hoursPassed - 경과 시간 (시간 단위)
      */
     updateHourlyProduction(currentTick, hoursPassed) {
+        // 건설 프로세스 업데이트 (매 시간 진행)
+        this.updateConstruction(hoursPassed);
+
         if (this.productionLines.length === 0) {
             return;
         }
@@ -156,6 +171,72 @@ class Economy {
     }
 
     /**
+     * 현재 설정된 건설 활성화 레벨에 따른 시간당 건설 비용과 진행량을 계산합니다.
+     * 레벨이 높을수록 비효율적(비용 증가)이 됩니다.
+     * @returns {{cost: number, progress: number}}
+     */
+    getHourlyConstructionStats() {
+        const totalFactories = this.lightIndustry + this.heavyIndustry + this.consumerGoodsIndustry;
+        const baseCapacity = totalFactories * 10; // 공장당 시간당 10의 기본 건설력
+        const utilization = this.construction.level / 10; // 0 ~ 10 블록 -> 0.0 ~ 1.0
+
+        // 진행량은 활성화 레벨에 정비례
+        const progress = baseCapacity * utilization;
+
+        // 비용은 활성화 레벨이 높을수록 할증 (과부하 비용)
+        // 예: 0% 가동 -> 효율 100%, 100% 가동 -> 효율 66% (비용 1.5배)
+        const costMultiplier = 1.0 + (utilization * 0.5); 
+        const cost = progress * costMultiplier;
+
+        return { cost, progress };
+    }
+
+    /**
+     * 건설 진행 상황을 업데이트합니다.
+     * 경제 단위를 소모하여 공장 건설 진행도를 높입니다.
+     * @param {number} hoursPassed 
+     */
+    updateConstruction(hoursPassed) {
+        const stats = this.getHourlyConstructionStats();
+        const targetSpend = stats.cost * hoursPassed;
+        const targetProgress = stats.progress * hoursPassed;
+
+        // 2. 실제 소모 가능한 경제 단위 확인
+        const actualSpend = Math.min(targetSpend, this.economicUnits);
+
+        if (actualSpend <= 0) return;
+
+        // 실제 비용 대비 진행 효율 계산 (자원이 부족할 경우 진행도도 비례해서 줄어듦)
+        const efficiencyRatio = actualSpend / targetSpend;
+        const actualProgress = targetProgress * efficiencyRatio;
+
+        // 3. 경제 단위 소모
+        this.economicUnits -= actualSpend;
+
+        // 4. 비중(Allocation)에 따라 진행도 분배
+        const totalBlocks = 20; // 전체 블록 수 고정
+
+        ['light', 'heavy', 'consumer'].forEach(type => {
+            const blocks = this.construction.allocation[type];
+            if (blocks <= 0) return;
+            
+            // 진행도는 비용이 아니라 계산된 progress를 기준으로 분배
+            const progressToAdd = actualProgress * (blocks / totalBlocks);
+            
+            this.construction.progress[type] += progressToAdd;
+
+            // 5. 건설 완료 확인
+            if (this.construction.progress[type] >= this.factoryCosts[type]) {
+                this.construction.progress[type] -= this.factoryCosts[type];
+                if (type === 'light') this.lightIndustry++;
+                else if (type === 'heavy') this.heavyIndustry++;
+                else if (type === 'consumer') this.consumerGoodsIndustry++;
+                console.log(`${this.nation.name}: ${type} 공장 건설 완료!`);
+            }
+        });
+    }
+
+    /**
      * 매 시간, 해당 틱에 할당된 생산 라인만 업데이트합니다.
      * @param {number} currentTick - 현재 계산해야 할 생산 주기 (0-4)
      * @param {number} hoursPassed - 경과 시간 (시간 단위)
@@ -192,30 +273,5 @@ class Economy {
             light: this.lightIndustry - totalAssignedLight,
             heavy: this.heavyIndustry - totalAssignedHeavy,
         };
-    }
-
-    /**
-     * 공장을 건설합니다.
-     * @param {'light' | 'heavy' | 'consumer'} type 
-     * @returns {boolean} 성공 여부
-     */
-    constructFactory(type) {
-        const costs = {
-            'light': 500,
-            'heavy': 800,
-            'consumer': 300
-        };
-
-        const cost = costs[type];
-        if (!cost) return false;
-
-        if (this.economicUnits >= cost) {
-            this.economicUnits -= cost;
-            if (type === 'light') this.lightIndustry++;
-            else if (type === 'heavy') this.heavyIndustry++;
-            else if (type === 'consumer') this.consumerGoodsIndustry++;
-            return true;
-        }
-        return false;
     }
 }

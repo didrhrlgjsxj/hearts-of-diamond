@@ -117,10 +117,21 @@ class GameUI {
         const productionHeader = document.createElement('h3');
         productionHeader.textContent = '생산 관리';
 
+        // 팀 선택 드롭다운
         const teamSelect = this.createSelect('team-select', '국가 선택:', {
             blue: '블루 공화국',
             red: '레드 왕국'
         });
+        
+        // 팀 변경 시 슬라이더 값을 해당 국가의 값으로 업데이트하는 리스너 추가
+        teamSelect.select.onchange = () => {
+            const team = teamSelect.select.value;
+            const nation = this.nations.get(team);
+            if (nation) {
+                this.updateConstructionUI(nation);
+            }
+            this.updateProductionPanel();
+        };
 
         const equipmentOptions = {};
         Object.keys(EQUIPMENT_TYPES).forEach(key => {
@@ -153,22 +164,226 @@ class GameUI {
         const constructionHeader = document.createElement('h3');
         constructionHeader.textContent = '공장 건설';
 
-        const buildLightButton = document.createElement('button');
-        buildLightButton.textContent = '경공업 건설 (500)';
-        buildLightButton.onclick = () => this.constructFactory('light');
+        // --- 건설 활성화 레벨 (블록 UI) ---
+        this.levelBlockRow = {};
+        const createLevelControl = () => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.marginBottom = '15px';
 
-        const buildHeavyButton = document.createElement('button');
-        buildHeavyButton.textContent = '중공업 건설 (800)';
-        buildHeavyButton.onclick = () => this.constructFactory('heavy');
+            const label = document.createElement('span');
+            label.textContent = '건설 활성화';
+            label.style.width = '70px';
+            label.style.fontSize = '12px';
 
-        const buildConsumerButton = document.createElement('button');
-        buildConsumerButton.textContent = '소비재 공장 건설 (300)';
-        buildConsumerButton.onclick = () => this.constructFactory('consumer');
+            const decreaseBtn = document.createElement('button');
+            decreaseBtn.textContent = '-';
+            decreaseBtn.style.width = '20px';
+            decreaseBtn.style.height = '20px';
+            decreaseBtn.style.padding = '0';
+            decreaseBtn.onclick = () => this.modifyConstructionLevel(-1);
 
-        panel.append(productionHeader, teamSelect.label, teamSelect.select, equipmentSelect.label, equipmentSelect.select, 
-                     lightFactoryLabel, lightFactoryInput, heavyFactoryLabel, heavyFactoryInput, 
-                     addLineButton, constructionHeader, buildLightButton, buildHeavyButton, buildConsumerButton);
+            const visualContainer = document.createElement('div');
+            visualContainer.style.flexGrow = '1';
+            visualContainer.style.margin = '0 5px';
+            visualContainer.style.display = 'flex';
+            visualContainer.style.gap = '1px';
+            visualContainer.style.height = '15px';
+            visualContainer.style.backgroundColor = '#eee';
+
+            const increaseBtn = document.createElement('button');
+            increaseBtn.textContent = '+';
+            increaseBtn.style.width = '20px';
+            increaseBtn.style.height = '20px';
+            increaseBtn.style.padding = '0';
+            increaseBtn.onclick = () => this.modifyConstructionLevel(1);
+
+            const countDisplay = document.createElement('span');
+            countDisplay.style.width = '20px';
+            countDisplay.style.textAlign = 'center';
+            countDisplay.style.fontSize = '12px';
+
+            row.append(label, decreaseBtn, visualContainer, increaseBtn, countDisplay);
+            this.levelBlockRow = { container: visualContainer, count: countDisplay, color: '#9c27b0' };
+            return row;
+        };
+
+        // --- 블록 할당 UI 생성 ---
+        this.blockRows = {};
+        const createBlockRow = (type, labelText, color) => {
+            const row = document.createElement('div');
+            row.style.display = 'flex';
+            row.style.alignItems = 'center';
+            row.style.marginBottom = '5px';
+
+            const label = document.createElement('span');
+            label.textContent = labelText;
+            label.style.width = '70px';
+            label.style.fontSize = '12px';
+
+            const decreaseBtn = document.createElement('button');
+            decreaseBtn.textContent = '-';
+            decreaseBtn.style.width = '20px';
+            decreaseBtn.style.height = '20px';
+            decreaseBtn.style.padding = '0';
+            decreaseBtn.onclick = () => this.modifyBlockAllocation(type, -1);
+
+            const visualContainer = document.createElement('div');
+            visualContainer.style.flexGrow = '1';
+            visualContainer.style.margin = '0 5px';
+            visualContainer.style.display = 'flex';
+            visualContainer.style.gap = '1px';
+            visualContainer.style.height = '15px';
+            visualContainer.style.backgroundColor = '#eee';
+
+            const increaseBtn = document.createElement('button');
+            increaseBtn.textContent = '+';
+            increaseBtn.style.width = '20px';
+            increaseBtn.style.height = '20px';
+            increaseBtn.style.padding = '0';
+            increaseBtn.onclick = () => this.modifyBlockAllocation(type, 1);
+
+            const countDisplay = document.createElement('span');
+            countDisplay.style.width = '20px';
+            countDisplay.style.textAlign = 'center';
+            countDisplay.style.fontSize = '12px';
+
+            row.append(label, decreaseBtn, visualContainer, increaseBtn, countDisplay);
+            this.blockRows[type] = { container: visualContainer, count: countDisplay, color: color };
+            return row;
+        };
+
+        // 남은 블록 표시용 요소
+        this.remainingBlocksDisplay = document.createElement('div');
+        this.remainingBlocksDisplay.style.fontSize = '12px';
+        this.remainingBlocksDisplay.style.marginBottom = '5px';
+        this.remainingBlocksDisplay.style.textAlign = 'right';
+
+        panel.append(
+            teamSelect.label, teamSelect.select,
+            constructionHeader,
+            createLevelControl(),
+            this.remainingBlocksDisplay,
+            createBlockRow('light', '경공업', '#4caf50'),
+            createBlockRow('heavy', '중공업', '#f44336'),
+            createBlockRow('consumer', '소비재', '#2196f3'),
+            productionHeader, 
+            equipmentSelect.label, equipmentSelect.select, 
+            lightFactoryLabel, lightFactoryInput, heavyFactoryLabel, heavyFactoryInput, 
+            addLineButton
+        );
+        
+        // 초기 UI 값 설정
+        setTimeout(() => this.updateConstructionUI(this.nations.get('blue')), 0);
+
         return panel;
+    }
+
+    /**
+     * 건설 활성화 레벨을 변경합니다.
+     * @param {number} change 1 또는 -1
+     */
+    modifyConstructionLevel(change) {
+        const teamSelect = document.getElementById('team-select');
+        const nation = this.nations.get(teamSelect.value);
+        if (!nation) return;
+
+        let newLevel = nation.economy.construction.level + change;
+        if (newLevel < 0) newLevel = 0;
+        if (newLevel > 10) newLevel = 10;
+        
+        nation.economy.construction.level = newLevel;
+        this.updateConstructionUI(nation);
+        this.updateProductionPanel();
+    }
+
+    /**
+     * 블록 할당을 변경합니다.
+     * @param {string} type 'light', 'heavy', 'consumer'
+     * @param {number} change 1 또는 -1
+     */
+    modifyBlockAllocation(type, change) {
+        const teamSelect = document.getElementById('team-select');
+        const nation = this.nations.get(teamSelect.value);
+        if (!nation) return;
+
+        const alloc = nation.economy.construction.allocation;
+        const currentBlocks = alloc[type];
+        const totalBlocks = alloc.light + alloc.heavy + alloc.consumer;
+
+        if (change === -1) {
+            if (currentBlocks > 0) {
+                alloc[type]--;
+            }
+        } else if (change === 1) {
+            if (totalBlocks < 20) {
+                alloc[type]++;
+            }
+        }
+        this.updateConstructionUI(nation);
+    }
+
+    /**
+     * 선택된 국가의 데이터로 건설 관련 UI(슬라이더, 블록)를 동기화합니다.
+     * @param {Nation} nation 
+     */
+    updateConstructionUI(nation) {
+        if (!nation) return;
+        const constr = nation.economy.construction;
+        
+        // 레벨 UI 업데이트
+        const levelRow = this.levelBlockRow;
+        levelRow.count.textContent = constr.level;
+        levelRow.container.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            const block = document.createElement('div');
+            block.style.flex = '1';
+            block.style.height = '100%';
+            if (i < constr.level) {
+                block.style.backgroundColor = levelRow.color;
+                block.style.border = '1px solid rgba(0,0,0,0.2)';
+            } else {
+                block.style.backgroundColor = 'transparent';
+                block.style.borderRight = '1px solid #ddd';
+            }
+            levelRow.container.appendChild(block);
+        }
+
+        // 블록 UI 업데이트
+        const totalBlocks = 20;
+        const usedBlocks = constr.allocation.light + constr.allocation.heavy + constr.allocation.consumer;
+        const remainingBlocks = totalBlocks - usedBlocks;
+
+        if (this.remainingBlocksDisplay) {
+            this.remainingBlocksDisplay.textContent = `남은 할당 가능 블록: ${remainingBlocks}`;
+            this.remainingBlocksDisplay.style.color = remainingBlocks > 0 ? 'green' : 'red';
+        }
+
+        ['light', 'heavy', 'consumer'].forEach(type => {
+            const row = this.blockRows[type];
+            const count = constr.allocation[type];
+            
+            // 숫자 업데이트
+            row.count.textContent = count;
+
+            // 시각적 블록 업데이트
+            row.container.innerHTML = '';
+            for (let i = 0; i < totalBlocks; i++) {
+                const block = document.createElement('div');
+                block.style.flex = '1';
+                block.style.height = '100%';
+                // 할당된 개수만큼 색칠, 나머지는 투명(또는 회색)
+                if (i < count) {
+                    block.style.backgroundColor = row.color;
+                    block.style.border = '1px solid rgba(0,0,0,0.2)';
+                } else {
+                    block.style.backgroundColor = 'transparent';
+                    block.style.borderRight = '1px solid #ddd'; // 빈 칸 구분선
+                }
+                row.container.appendChild(block);
+            }
+        });
     }
 
     /**
@@ -977,18 +1192,6 @@ class GameUI {
         }
     }
 
-    constructFactory(type) {
-        const team = document.getElementById('team-select').value;
-        const nation = this.nations.get(team);
-        if (nation) {
-            if (nation.economy.constructFactory(type)) {
-                this.updateProductionPanel();
-            } else {
-                alert('경제 단위가 부족합니다.');
-            }
-        }
-    }
-
     /**
      * 선택된 유닛의 분대 구성 정보를 UI에 업데이트합니다.
      * @param {Unit | null} unit 선택된 유닛 또는 null
@@ -1141,13 +1344,20 @@ class GameUI {
      * 모든 국가의 생산 현황과 장비 비축량을 UI에 업데이트합니다.
      */
     updateProductionPanel() {
+        if (!this.productionPanel) return;
+
         let html = ``;
         this.nations.forEach(nation => {
             const availableFactories = nation.economy.getAvailableFactories();
             
             // 경제 단위 변화량 계산 및 표시 준비
-            const hourlyChange = nation.economy.calculateHourlyEconomicChange();
-            const dailyChange = hourlyChange * 24;
+            const hourlyBaseChange = nation.economy.calculateHourlyEconomicChange();
+            const constructionStats = nation.economy.getHourlyConstructionStats();
+            
+            // 순수익 = 기본 수입/지출 - 건설 비용
+            const netHourlyChange = hourlyBaseChange - constructionStats.cost;
+            const dailyChange = netHourlyChange * 24;
+            
             const changeSign = dailyChange >= 0 ? '+' : '';
             const changeColor = dailyChange >= 0 ? 'green' : 'red';
 
@@ -1155,6 +1365,23 @@ class GameUI {
             html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry} / 소: ${nation.economy.consumerGoodsIndustry})</div>`;
             html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
             html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: ${changeColor}">(${changeSign}${Math.floor(dailyChange)}/일)</span></div>`;
+
+            // 건설 진행 상황 표시
+            html += `<h4>건설 진행</h4>`;
+            const constr = nation.economy.construction;
+            const costs = nation.economy.factoryCosts;
+            
+            const renderBuildProgress = (type, name) => {
+                const progress = constr.progress[type];
+                const cost = costs[type];
+                const percent = Math.min(100, (progress / cost * 100)).toFixed(1);
+                return `<div>${name}: <progress value="${percent}" max="100"></progress> ${percent}% (${Math.floor(progress)}/${cost})</div>`;
+            };
+
+            html += renderBuildProgress('light', '경공업');
+            html += renderBuildProgress('heavy', '중공업');
+            html += renderBuildProgress('consumer', '소비재');
+
 
             // 자원 수입량 및 비축량 표시
             html += `<h4>자원 생산량</h4>`;
