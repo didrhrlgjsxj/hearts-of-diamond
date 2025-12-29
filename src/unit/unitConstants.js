@@ -168,8 +168,7 @@ const UNIT_STAT_AGGREGATORS = {
 
         // 2. 추가 방호력: 장갑과 기갑화율에 기반한 물리적 방호력입니다.
         const avgArmor = units.reduce((total, unit) => total + unit.armor, 0) / units.length;
-        const hardness = units.filter(unit => unit.armor > 0).length / units.length;
-        const armorBasedDefense = avgArmor * 20 * (1 + hardness);
+        const armorBasedDefense = avgArmor * 20;
 
         // 3. 기동력에 따른 회피 보너스 (곱연산)
         const avgMobility = units.reduce((total, unit) => total + unit.mobility, 0) / units.length;
