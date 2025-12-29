@@ -24,6 +24,7 @@ class Economy {
         // --- 산업 ---
         this.lightIndustry = 10; // 경공업 공장 수
         this.heavyIndustry = 5;  // 중공업 공장 수
+        this.consumerGoodsIndustry = 0; // 소비재 공장 수
 
         // --- 자원 ---
         this.economicUnits = 5000; // 경제 단위
@@ -79,12 +80,21 @@ class Economy {
     }
 
     /**
+     * 시간당 경제 단위 변화량을 계산합니다.
+     * 소비재 공장은 생산량을 늘리고, 산업 공장들은 유지비로 생산량을 감소시킵니다.
+     */
+    calculateHourlyEconomicChange() {
+        // 소비재: +5, 경공업: -1, 중공업: -3
+        return (this.consumerGoodsIndustry * 5.0) - (this.lightIndustry * 1.0) - (this.heavyIndustry * 3.0);
+    }
+
+    /**
      * 매일 한 번씩 호출되어 경제 단위의 변화를 계산합니다.
      */
     updateDailyEconomy() {
-        // 경제 단위는 경공업에 비례하여 증가하고, 중공업에 비례하여 소모됩니다.
-        // 하루(24시간) 분량을 한 번에 계산합니다.
-        this.economicUnits += (this.lightIndustry * 0.5 - this.heavyIndustry * 0.1) * 24;
+        // 시간당 변화량을 하루(24시간) 기준으로 적용합니다.
+        const hourlyChange = this.calculateHourlyEconomicChange();
+        this.economicUnits += hourlyChange * 24;
         this.economicUnits = Math.max(0, this.economicUnits);
 
         // 자원 생산량을 계산합니다. (비축하지 않음)
@@ -182,5 +192,30 @@ class Economy {
             light: this.lightIndustry - totalAssignedLight,
             heavy: this.heavyIndustry - totalAssignedHeavy,
         };
+    }
+
+    /**
+     * 공장을 건설합니다.
+     * @param {'light' | 'heavy' | 'consumer'} type 
+     * @returns {boolean} 성공 여부
+     */
+    constructFactory(type) {
+        const costs = {
+            'light': 500,
+            'heavy': 800,
+            'consumer': 300
+        };
+
+        const cost = costs[type];
+        if (!cost) return false;
+
+        if (this.economicUnits >= cost) {
+            this.economicUnits -= cost;
+            if (type === 'light') this.lightIndustry++;
+            else if (type === 'heavy') this.heavyIndustry++;
+            else if (type === 'consumer') this.consumerGoodsIndustry++;
+            return true;
+        }
+        return false;
     }
 }

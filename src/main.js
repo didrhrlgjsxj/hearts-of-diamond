@@ -43,6 +43,7 @@ let gameUI;
 let selectedProvince = null; // 현재 선택된 프로빈스를 저장할 변수
 
 let lastCameraState = { x: 0, y: 0, zoom: 1, width: 0, height: 0 }; // 맵 재그리기 판단용
+let gridPattern = null; // 그리드 패턴 캐싱용
 
 // 드래그 이동 명령을 위한 변수
 let isRightDragging = false;
@@ -409,34 +410,34 @@ function drawMapLayer() {
     const mapPixelWidth = mapGrid.width * mapGrid.tileSize;
     const mapPixelHeight = mapGrid.height * mapGrid.tileSize;
     
-    const drawStartX = Math.max(0, startCol * mapGrid.tileSize);
-    const drawStartY = Math.max(0, startRow * mapGrid.tileSize);
-    const drawEndX = Math.min(mapPixelWidth, endCol * mapGrid.tileSize);
-    const drawEndY = Math.min(mapPixelHeight, endRow * mapGrid.tileSize);
+    const drawStartX = Math.max(0, view.left);
+    const drawStartY = Math.max(0, view.top);
+    const drawEndX = Math.min(mapPixelWidth, view.right);
+    const drawEndY = Math.min(mapPixelHeight, view.bottom);
 
     // 기본 배경색 한 번에 채우기
     mapCtx.fillStyle = '#ccc';
     mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
 
-    // 그리드 선 그리기 (긴 선으로 한 번에)
-    mapCtx.beginPath();
-    mapCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-    mapCtx.lineWidth = 1;
-
-    // 수직선
-    const startGridX = Math.floor(drawStartX / mapGrid.subTileSize) * mapGrid.subTileSize;
-    for (let x = startGridX; x <= drawEndX; x += mapGrid.subTileSize) {
-        mapCtx.moveTo(x, drawStartY);
-        mapCtx.lineTo(x, drawEndY);
+    // 그리드 선 그리기 (패턴 사용 최적화)
+    if (!gridPattern) {
+        const patternCanvas = document.createElement('canvas');
+        patternCanvas.width = mapGrid.subTileSize;
+        patternCanvas.height = mapGrid.subTileSize;
+        const pCtx = patternCanvas.getContext('2d');
+        pCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        pCtx.lineWidth = 1;
+        pCtx.beginPath();
+        pCtx.moveTo(0, 0);
+        pCtx.lineTo(0, mapGrid.subTileSize);
+        pCtx.moveTo(0, 0);
+        pCtx.lineTo(mapGrid.subTileSize, 0);
+        pCtx.stroke();
+        gridPattern = mapCtx.createPattern(patternCanvas, 'repeat');
     }
 
-    // 수평선
-    const startGridY = Math.floor(drawStartY / mapGrid.subTileSize) * mapGrid.subTileSize;
-    for (let y = startGridY; y <= drawEndY; y += mapGrid.subTileSize) {
-        mapCtx.moveTo(drawStartX, y);
-        mapCtx.lineTo(drawEndX, y);
-    }
-    mapCtx.stroke();
+    mapCtx.fillStyle = gridPattern;
+    mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
 
     // --- 2. 프로빈스별 정보 그리기 (색상, 국경) ---
     mapCtx.lineWidth = 2;

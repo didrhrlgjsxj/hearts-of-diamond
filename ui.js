@@ -150,9 +150,24 @@ class GameUI {
         addLineButton.textContent = '생산 라인 추가';
         addLineButton.onclick = () => this.addProductionLine();
 
+        const constructionHeader = document.createElement('h3');
+        constructionHeader.textContent = '공장 건설';
+
+        const buildLightButton = document.createElement('button');
+        buildLightButton.textContent = '경공업 건설 (500)';
+        buildLightButton.onclick = () => this.constructFactory('light');
+
+        const buildHeavyButton = document.createElement('button');
+        buildHeavyButton.textContent = '중공업 건설 (800)';
+        buildHeavyButton.onclick = () => this.constructFactory('heavy');
+
+        const buildConsumerButton = document.createElement('button');
+        buildConsumerButton.textContent = '소비재 공장 건설 (300)';
+        buildConsumerButton.onclick = () => this.constructFactory('consumer');
+
         panel.append(productionHeader, teamSelect.label, teamSelect.select, equipmentSelect.label, equipmentSelect.select, 
                      lightFactoryLabel, lightFactoryInput, heavyFactoryLabel, heavyFactoryInput, 
-                     addLineButton);
+                     addLineButton, constructionHeader, buildLightButton, buildHeavyButton, buildConsumerButton);
         return panel;
     }
 
@@ -962,6 +977,18 @@ class GameUI {
         }
     }
 
+    constructFactory(type) {
+        const team = document.getElementById('team-select').value;
+        const nation = this.nations.get(team);
+        if (nation) {
+            if (nation.economy.constructFactory(type)) {
+                this.updateProductionPanel();
+            } else {
+                alert('경제 단위가 부족합니다.');
+            }
+        }
+    }
+
     /**
      * 선택된 유닛의 분대 구성 정보를 UI에 업데이트합니다.
      * @param {Unit | null} unit 선택된 유닛 또는 null
@@ -1117,10 +1144,17 @@ class GameUI {
         let html = ``;
         this.nations.forEach(nation => {
             const availableFactories = nation.economy.getAvailableFactories();
+            
+            // 경제 단위 변화량 계산 및 표시 준비
+            const hourlyChange = nation.economy.calculateHourlyEconomicChange();
+            const dailyChange = hourlyChange * 24;
+            const changeSign = dailyChange >= 0 ? '+' : '';
+            const changeColor = dailyChange >= 0 ? 'green' : 'red';
+
             html += `<h3>${nation.name} 현황</h3>`;
-            html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry})</div>`;
+            html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry} / 소: ${nation.economy.consumerGoodsIndustry})</div>`;
             html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
-            html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)}</div>`;
+            html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: ${changeColor}">(${changeSign}${Math.floor(dailyChange)}/일)</span></div>`;
 
             // 자원 수입량 및 비축량 표시
             html += `<h4>자원 생산량</h4>`;
