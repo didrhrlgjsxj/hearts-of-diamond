@@ -64,11 +64,18 @@ function initializeNations() {
     // 맵 좌상단 (0,0) 타일이 속한 프로빈스를 블루팀의 수도로 설정합니다.
     const blueCapitalProvinceId = mapGrid.provinceManager.provinceGrid[0][0];
     const blueNation = new Nation('blue', "블루 공화국", 'rgba(0, 128, 255, 0.3)', blueCapitalProvinceId);
+    blueNation.type = 'PLAYER';
     mapGrid.setProvinceOwner(blueCapitalProvinceId, blueNation);
 
     const redCapitalProvinceId = mapGrid.provinceManager.provinceGrid[15][15];
     const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', redCapitalProvinceId);
+    redNation.type = 'AI';
     mapGrid.setProvinceOwner(redCapitalProvinceId, redNation);
+
+    // 널 상태의 국가 (중립/무정부)
+    const nullNation = new Nation('neutral', "중립 지대", 'rgba(128, 128, 128, 0.1)');
+    nullNation.type = 'NONE';
+    nations.set('neutral', nullNation);
 
     // 외교 관계 설정 (서로 전쟁 상태)
     blueNation.setRelation('red', 'WAR');

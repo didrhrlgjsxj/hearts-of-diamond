@@ -23,6 +23,8 @@ class Nation {
         // 외교 관계. key: 다른 국가 ID, value: 'WAR', 'NEUTRAL', 'ALLIED'
         this.diplomacy = new Map();
         this.diplomacy.set(this.id, 'ALLIED'); // 자기 자신과는 항상 동맹
+
+        this.type = 'AI'; // 국가 타입: 'PLAYER', 'AI', 'NONE'
     }
 
     /**
@@ -59,5 +61,34 @@ class Nation {
         // 관계가 명시적으로 설정되지 않았다면 기본적으로 중립(적이 아님)으로 간주합니다.
         const relation = this.diplomacy.get(otherNationId);
         return relation === 'WAR';
+    }
+
+    /**
+     * 국가 체급(National Weight)을 계산합니다.
+     * AI 국가의 경제 시뮬레이션을 단순화하기 위한 지표로 사용됩니다.
+     */
+    calculateNationalWeight() {
+        // 1. 공장 가중치: 경공업 * 0.8 + 중공업 * 1.5 + 소비재 * 1
+        const factoryScore = (this.economy.lightIndustry * 0.8) + 
+                             (this.economy.heavyIndustry * 1.5) + 
+                             (this.economy.consumerGoodsIndustry * 1.0);
+
+        // 2. 영토 및 자원 가중치
+        let territoryScore = 0;
+        let resourceScore = 0;
+
+        if (typeof mapGrid !== 'undefined') {
+            this.territory.forEach(provinceId => {
+                const province = mapGrid.provinceManager.provinces.get(provinceId);
+                if (province) {
+                    territoryScore += province.tiles.length * 0.05; // 땅덩어리 크기 고려
+                    if (province.resources) {
+                        Object.values(province.resources).forEach(amount => resourceScore += amount); // 자원 양 고려
+                    }
+                }
+            });
+        }
+
+        return factoryScore + territoryScore + resourceScore;
     }
 }

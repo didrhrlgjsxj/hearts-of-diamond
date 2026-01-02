@@ -104,13 +104,29 @@ class Economy {
      * 매일 한 번씩 호출되어 경제 단위의 변화를 계산합니다.
      */
     updateDailyEconomy() {
-        // 시간당 변화량을 하루(24시간) 기준으로 적용합니다.
-        const hourlyChange = this.calculateHourlyEconomicChange();
-        this.economicUnits += hourlyChange * 24;
-        this.economicUnits = Math.max(0, this.economicUnits);
+        if (this.nation.type === 'PLAYER') {
+            // 시간당 변화량을 하루(24시간) 기준으로 적용합니다.
+            const hourlyChange = this.calculateHourlyEconomicChange();
+            this.economicUnits += hourlyChange * 24;
+            this.economicUnits = Math.max(0, this.economicUnits);
 
-        // 자원 생산량을 계산합니다. (비축하지 않음)
-        this.calculateResourceIncome();
+            // 자원 생산량을 계산합니다. (비축하지 않음)
+            this.calculateResourceIncome();
+        } else if (this.nation.type === 'AI') {
+            // AI 국가: 국가 체급에 기반한 간소화된 경제 시뮬레이션
+            const weight = this.nation.calculateNationalWeight();
+
+            // 1. 경제 단위 획득 (체급 * 20)
+            this.economicUnits += weight * 20;
+
+            // 2. 장비 자동 획득 (생산 라인 없이 자동 수급) (AI 국가용)
+            this.equipmentStockpile['Rifle'] = (this.equipmentStockpile['Rifle'] || 0) + Math.floor(weight * 0.5);
+            this.equipmentStockpile['Artillery'] = (this.equipmentStockpile['Artillery'] || 0) + Math.floor(weight * 0.1);
+            this.equipmentStockpile['Tank'] = (this.equipmentStockpile['Tank'] || 0) + Math.floor(weight * 0.05);
+
+            // 3. 자원 수입 계산 (정보 표시용)
+            this.calculateResourceIncome();
+        }
     }
 
     /**
@@ -119,6 +135,11 @@ class Economy {
      * @param {number} hoursPassed - 경과 시간 (시간 단위)
      */
     updateHourlyProduction(currentTick, hoursPassed) {
+        // 플레이어 국가만 상세 생산/건설 시뮬레이션을 수행합니다.
+        if (this.nation.type !== 'PLAYER') {
+            return;
+        }
+
         // 건설 프로세스 업데이트 (매 시간 진행)
         this.updateConstruction(hoursPassed);
 

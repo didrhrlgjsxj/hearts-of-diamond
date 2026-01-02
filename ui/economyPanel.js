@@ -271,36 +271,49 @@ class EconomyPanel {
 
         let html = ``;
         this.gameUI.nations.forEach(nation => {
-            const availableFactories = nation.economy.getAvailableFactories();
-            
-            const hourlyBaseChange = nation.economy.calculateHourlyEconomicChange();
-            const constructionStats = nation.economy.getHourlyConstructionStats();
-            
-            const netHourlyChange = hourlyBaseChange - constructionStats.cost;
-            const dailyChange = netHourlyChange * 24;
-            
-            const changeSign = dailyChange >= 0 ? '+' : '';
-            const changeColor = dailyChange >= 0 ? 'green' : 'red';
+            // 중립 국가는 패널에 표시하지 않음
+            if (nation.type === 'NONE') return;
 
-            html += `<h3>${nation.name} 현황</h3>`;
-            html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry} / 소: ${nation.economy.consumerGoodsIndustry})</div>`;
-            html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
-            html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: ${changeColor}">(${changeSign}${Math.floor(dailyChange)}/일)</span></div>`;
+            const isAI = nation.type === 'AI';
+            const typeLabel = isAI ? '<span style="color: red; font-weight: bold;">(AI)</span>' : '<span style="color: blue; font-weight: bold;">(PLAYER)</span>';
 
-            html += `<h4>건설 진행</h4>`;
-            const constr = nation.economy.construction;
-            const costs = nation.economy.factoryCosts;
-            
-            const renderBuildProgress = (type, name) => {
-                const progress = constr.progress[type];
-                const cost = costs[type];
-                const percent = Math.min(100, (progress / cost * 100)).toFixed(1);
-                return `<div>${name}: <progress value="${percent}" max="100"></progress> ${percent}% (${Math.floor(progress)}/${cost})</div>`;
-            };
+            html += `<h3>${nation.name} ${typeLabel}</h3>`;
 
-            html += renderBuildProgress('light', '경공업');
-            html += renderBuildProgress('heavy', '중공업');
-            html += renderBuildProgress('consumer', '소비재');
+            if (isAI) {
+                // AI 국가 전용 표시
+                const weight = nation.calculateNationalWeight();
+                const dailyIncome = weight * 20;
+                
+                html += `<div><strong>국가 체급: ${weight.toFixed(1)}</strong></div>`;
+                html += `<div>총 공장: ${nation.economy.lightIndustry + nation.economy.heavyIndustry + nation.economy.consumerGoodsIndustry} (경:${nation.economy.lightIndustry}/중:${nation.economy.heavyIndustry}/소:${nation.economy.consumerGoodsIndustry})</div>`;
+                html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: green">(+${Math.floor(dailyIncome)}/일)</span></div>`;
+            } else {
+                // 플레이어 국가 표시 (기존 로직)
+                const availableFactories = nation.economy.getAvailableFactories();
+                const hourlyBaseChange = nation.economy.calculateHourlyEconomicChange();
+                const constructionStats = nation.economy.getHourlyConstructionStats();
+                const netHourlyChange = hourlyBaseChange - constructionStats.cost;
+                const dailyChange = netHourlyChange * 24;
+                const changeSign = dailyChange >= 0 ? '+' : '';
+                const changeColor = dailyChange >= 0 ? 'green' : 'red';
+
+                html += `<div>총 공장: (경: ${nation.economy.lightIndustry} / 중: ${nation.economy.heavyIndustry} / 소: ${nation.economy.consumerGoodsIndustry})</div>`;
+                html += `<div>가용 공장: (경: ${availableFactories.light} / 중: ${availableFactories.heavy})</div>`;
+                html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: ${changeColor}">(${changeSign}${Math.floor(dailyChange)}/일)</span></div>`;
+
+                html += `<h4>건설 진행</h4>`;
+                const constr = nation.economy.construction;
+                const costs = nation.economy.factoryCosts;
+                const renderBuildProgress = (type, name) => {
+                    const progress = constr.progress[type];
+                    const cost = costs[type];
+                    const percent = Math.min(100, (progress / cost * 100)).toFixed(1);
+                    return `<div>${name}: <progress value="${percent}" max="100"></progress> ${percent}% (${Math.floor(progress)}/${cost})</div>`;
+                };
+                html += renderBuildProgress('light', '경공업');
+                html += renderBuildProgress('heavy', '중공업');
+                html += renderBuildProgress('consumer', '소비재');
+            }
 
             html += `<h4>자원 생산량</h4>`;
             const income = nation.economy.resourceIncome;
@@ -330,22 +343,24 @@ class EconomyPanel {
                 html += '<p>비축 장비 없음</p>';
             }
 
-            html += `<h4>생산 라인</h4>`;
-            if (nation.economy.productionLines.length > 0) {
-                html += '<ul>';
-                nation.economy.productionLines.forEach((line) => {
-                    const equipment = EQUIPMENT_TYPES[line.equipmentKey];
-                    const progressPercent = (line.progress / equipment.productionCost * 100).toFixed(1);
-                    const efficiencyPercent = (line.efficiency * 100).toFixed(1);
-                    html += `<li>
-                        ${equipment.name} (경: ${line.assignedLightFactories} / 중: ${line.assignedHeavyFactories})<br>
-                        <progress value="${progressPercent}" max="100"></progress> ${progressPercent}%<br>
-                        <small>효율: ${efficiencyPercent}%</small>
-                    </li>`;
-                });
-                html += '</ul>';
-            } else {
-                html += '<p>가동중인 생산 라인 없음</p>';
+            if (!isAI) {
+                html += `<h4>생산 라인</h4>`;
+                if (nation.economy.productionLines.length > 0) {
+                    html += '<ul>';
+                    nation.economy.productionLines.forEach((line) => {
+                        const equipment = EQUIPMENT_TYPES[line.equipmentKey];
+                        const progressPercent = (line.progress / equipment.productionCost * 100).toFixed(1);
+                        const efficiencyPercent = (line.efficiency * 100).toFixed(1);
+                        html += `<li>
+                            ${equipment.name} (경: ${line.assignedLightFactories} / 중: ${line.assignedHeavyFactories})<br>
+                            <progress value="${progressPercent}" max="100"></progress> ${progressPercent}%<br>
+                            <small>효율: ${efficiencyPercent}%</small>
+                        </li>`;
+                    });
+                    html += '</ul>';
+                } else {
+                    html += '<p>가동중인 생산 라인 없음</p>';
+                }
             }
         });
         this.productionPanel.innerHTML = html;
