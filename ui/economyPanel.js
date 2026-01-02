@@ -206,7 +206,7 @@ class EconomyPanel {
                 alloc[type]--;
             }
         } else if (change === 1) {
-            if (totalBlocks < 20) {
+            if (totalBlocks < 15) {
                 alloc[type]++;
             }
         }
@@ -234,7 +234,7 @@ class EconomyPanel {
             levelRow.container.appendChild(block);
         }
 
-        const totalBlocks = 20;
+        const totalBlocks = 15; // 할당 가능 블록 수를 15로 변경
         const usedBlocks = constr.allocation.light + constr.allocation.heavy + constr.allocation.consumer;
         const remainingBlocks = totalBlocks - usedBlocks;
 
@@ -287,6 +287,10 @@ class EconomyPanel {
                 html += `<div><strong>국가 체급: ${weight.toFixed(1)}</strong></div>`;
                 html += `<div>총 공장: ${nation.economy.lightIndustry + nation.economy.heavyIndustry + nation.economy.consumerGoodsIndustry} (경:${nation.economy.lightIndustry}/중:${nation.economy.heavyIndustry}/소:${nation.economy.consumerGoodsIndustry})</div>`;
                 html += `<div>경제 단위: ${Math.floor(nation.economy.economicUnits)} <span style="color: green">(+${Math.floor(dailyIncome)}/일)</span></div>`;
+                
+                const warPercent = Math.round(nation.economy.warFocusRatio * 100);
+                const ecoPercent = 100 - warPercent;
+                html += `<div>집중 비율: 경제 ${ecoPercent}% / 전쟁 ${warPercent}%</div>`;
             } else {
                 // 플레이어 국가 표시 (기존 로직)
                 const availableFactories = nation.economy.getAvailableFactories();
