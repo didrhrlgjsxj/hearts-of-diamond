@@ -38,7 +38,7 @@ class Economy {
         this.factoryCosts = {
             'light': 500,
             'heavy': 800,
-            'consumer': 300
+            'consumer': 600
         };
         this.construction = {
             level: 5, // 건설 산업 활성화 정도 (0 ~ 10 블록)
@@ -176,8 +176,9 @@ class Economy {
      * @returns {{cost: number, progress: number}}
      */
     getHourlyConstructionStats() {
-        const totalFactories = this.lightIndustry + this.heavyIndustry + this.consumerGoodsIndustry;
-        const baseCapacity = totalFactories * 10; // 공장당 시간당 10의 기본 건설력
+        // 건설력 계산: 경공업 제외, 중공업 1.5배, 소비재 1배 가중치 적용
+        const weightedCapacity = (this.heavyIndustry * 1.5) + this.consumerGoodsIndustry;
+        const baseCapacity = weightedCapacity * 5; // 가중치가 적용된 공장당 시간당 5의 기본 건설력
         const level = this.construction.level;
 
         // 요청사항 반영: 건설 활성화 레벨(1~10)에 따라 가중치를 적용하여 진행량(progress)을 계산합니다.
@@ -196,7 +197,7 @@ class Economy {
         // 기존의 utilization(level/10)을 사용하여 비효율성(비용)을 계산합니다.
         const utilization = level / 10; // 0 ~ 10 블록 -> 0.0 ~ 1.0
         const costMultiplier = 1.0 + (utilization * 0.5); 
-        const cost = progress * costMultiplier;
+        const cost = progress * costMultiplier * 0.7; // 경제 단위 소모 30% 감소
 
         return { cost, progress };
     }
