@@ -178,13 +178,23 @@ class Economy {
     getHourlyConstructionStats() {
         const totalFactories = this.lightIndustry + this.heavyIndustry + this.consumerGoodsIndustry;
         const baseCapacity = totalFactories * 10; // 공장당 시간당 10의 기본 건설력
-        const utilization = this.construction.level / 10; // 0 ~ 10 블록 -> 0.0 ~ 1.0
+        const level = this.construction.level;
 
-        // 진행량은 활성화 레벨에 정비례
-        const progress = baseCapacity * utilization;
+        // 요청사항 반영: 건설 활성화 레벨(1~10)에 따라 가중치를 적용하여 진행량(progress)을 계산합니다.
+        // 레벨 1일 때 가중치 5, 레벨 10일 때 가중치 20으로, 낮은 레벨에서 효율이 더 높도록 조정됩니다.
+        let progressMultiplier = 0;
+        if (level > 0) {
+            // W(L) = (5L + 10) / 3. W(1)=5, W(10)=20.
+            const weight = (5 * level + 10) / 3;
+            // 최대 가중치(20)로 정규화하여 0~1 사이의 값으로 만듭니다.
+            progressMultiplier = weight / 20;
+        }
+        
+        const progress = baseCapacity * progressMultiplier;
 
         // 비용은 활성화 레벨이 높을수록 할증 (과부하 비용)
-        // 예: 0% 가동 -> 효율 100%, 100% 가동 -> 효율 66% (비용 1.5배)
+        // 기존의 utilization(level/10)을 사용하여 비효율성(비용)을 계산합니다.
+        const utilization = level / 10; // 0 ~ 10 블록 -> 0.0 ~ 1.0
         const costMultiplier = 1.0 + (utilization * 0.5); 
         const cost = progress * costMultiplier;
 
