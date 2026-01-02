@@ -91,4 +91,11 @@ class Nation {
 
         return factoryScore + territoryScore + resourceScore;
     }
+
+    /**
+     * AI 국가의 일일 활동을 업데이트합니다.
+     */
+    updateDailyAI() {
+        // 추후 외교나 군사 관련 AI 로직 추가 가능
+    }
 }

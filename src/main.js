@@ -224,6 +224,7 @@ function update(currentTime) {
         if (Math.floor(lastHour / 24) < Math.floor(gameTime.totalHours / 24)) {
             nations.forEach((nation) => {
                 nation.economy.updateDailyEconomy();
+                nation.updateDailyAI();
             });
         }
 

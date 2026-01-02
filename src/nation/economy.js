@@ -126,6 +126,9 @@ class Economy {
 
             // 3. 자원 수입 계산 (정보 표시용)
             this.calculateResourceIncome();
+
+            // 4. AI 공장 건설
+            this.updateAIConstruction(weight);
         }
     }
 
@@ -266,6 +269,55 @@ class Economy {
                 console.log(`${this.nation.name}: ${type} 공장 건설 완료!`);
             }
         });
+    }
+
+    /**
+     * AI 국가의 공장 건설 로직을 처리합니다.
+     * @param {number} weight 국가 체급
+     */
+    updateAIConstruction(weight) {
+        // 1. 전쟁 상태 확인
+        let isAtWar = false;
+        for (const relation of this.nation.diplomacy.values()) {
+            if (relation === 'WAR') {
+                isAtWar = true;
+                break;
+            }
+        }
+
+        // 2. 경제 집중 vs 전쟁 집중 비율 설정
+        // 전쟁 중이면 전쟁 집중 비중을 높임 (예: 9:1), 평시에는 경제 집중 (예: 4:6)
+        const warFocusRatio = isAtWar ? 0.9 : 0.4;
+        const economyFocusRatio = 1.0 - warFocusRatio;
+
+        // 3. 건설 임계값 설정 (체급 * 200 정도의 비축량 유지)
+        const threshold = weight * 200;
+
+        // 4. 경제 단위가 임계값을 초과하는지 확인
+        if (this.economicUnits > threshold) {
+            // 5. 건설할 공장 타입 결정
+            const rand = Math.random();
+            let typeToBuild = 'consumer';
+
+            if (rand < economyFocusRatio) {
+                typeToBuild = 'consumer';
+            } else {
+                // 전쟁 집중 시 경공업/중공업 건설 (50:50)
+                typeToBuild = Math.random() < 0.5 ? 'light' : 'heavy';
+            }
+
+            // 6. 건설 비용 계산 (기본 가격의 5배)
+            const baseCost = this.factoryCosts[typeToBuild];
+            const aiCost = baseCost * 5;
+
+            // 7. 비용 지불 및 즉시 건설 (임계값 이상의 여유분으로 건설 가능한지 확인)
+            if (this.economicUnits >= threshold + aiCost) {
+                this.economicUnits -= aiCost;
+                if (typeToBuild === 'light') this.lightIndustry++;
+                else if (typeToBuild === 'heavy') this.heavyIndustry++;
+                else if (typeToBuild === 'consumer') this.consumerGoodsIndustry++;
+            }
+        }
     }
 
     /**
