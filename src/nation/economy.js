@@ -36,9 +36,9 @@ class Economy {
 
         // --- 건설 ---
         this.defaultFactoryCosts = {
-            'light': 5000,
-            'heavy': 8000,
-            'consumer': 6000
+            'light': 1500,
+            'heavy': 2000,
+            'consumer': 1700
         };
         this.factoryCosts = {
             'light': this.defaultFactoryCosts.light, // 건설 레벨 1 기준 비용 (경제 단위)
