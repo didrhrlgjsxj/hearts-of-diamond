@@ -35,10 +35,15 @@ class Economy {
         this.productionLines = [];    // 생산 라인 목록
 
         // --- 건설 ---
+        this.defaultFactoryCosts = {
+            'light': 5000,
+            'heavy': 8000,
+            'consumer': 6000
+        };
         this.factoryCosts = {
-            'light': 500, // 건설 레벨 1 기준 비용 (경제 단위)
-            'heavy': 800,
-            'consumer': 600
+            'light': this.defaultFactoryCosts.light, // 건설 레벨 1 기준 비용 (경제 단위)
+            'heavy': this.defaultFactoryCosts.heavy,
+            'consumer': this.defaultFactoryCosts.consumer,
         };
         this.construction = {
             level: 5, // 건설 산업 활성화 정도 (0 ~ 10 블록)
