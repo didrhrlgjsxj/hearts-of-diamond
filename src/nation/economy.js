@@ -46,7 +46,7 @@ class Economy {
             'consumer': this.defaultFactoryCosts.consumer,
         };
         this.construction = {
-            level: 5, // 건설 산업 활성화 정도 (0 ~ 10 블록)
+            level: 3, // 건설 산업 활성화 정도 (0 ~ 5 블록)
             allocation: { light: 5, heavy: 5, consumer: 5 }, // 투자 비중 (총 15블록)
             progress: { light: 0, heavy: 0, consumer: 0 } // 현재 진행도
         };
@@ -211,24 +211,24 @@ class Economy {
         const baseCapacity = weightedCapacity * 5; // 가중치가 적용된 공장당 시간당 5의 기본 건설력
         const level = this.construction.level;
 
-        // 요청사항 반영: 건설 활성화 레벨(1~10)에 따라 가중치를 적용하여 진행량(progress)을 계산합니다.
-        // 레벨 1일 때 가중치 5, 레벨 10일 때 가중치 20으로, 낮은 레벨에서 효율이 더 높도록 조정됩니다.
+        // 요청사항 반영: 건설 활성화 레벨(1~5)에 따라 가중치를 적용하여 진행량(progress)을 계산합니다.
+        // 레벨 1일 때 가중치 5, 레벨 5일 때 가중치 20으로, 낮은 레벨에서 효율이 더 높도록 조정됩니다.
         let progressMultiplier = 0;
         if (level > 0) {
-            // W(L) = (5L + 10) / 3. W(1)=5, W(10)=20.
-            const weight = (5 * level + 10) / 3;
+            // W(L) = 3.75 * L + 1.25. W(1)=5, W(5)=20.
+            const weight = 3.75 * level + 1.25;
             // 최대 가중치(20)로 정규화하여 0~1 사이의 값으로 만듭니다.
             progressMultiplier = weight / 20;
         }
         
-        const progress = baseCapacity * progressMultiplier;
+        const progress = baseCapacity * progressMultiplier * (2 / 3);
 
         // 비용은 활성화 레벨이 높을수록 할증 (과부하 비용)
         // 건설 활성화 레벨 1을 기준으로 가격(비용)을 정규화합니다.
         // 레벨 1일 때 Cost == Progress (1:1 비율)가 되도록 설정합니다.
-        const utilization = level / 10; // 0.1 ~ 1.0
-        const costMultiplier = 0.9 + utilization; // Level 1: 1.0, Level 10: 1.9
-        const cost = progress * costMultiplier;
+        const utilization = level / 5; // 0.2 ~ 1.0
+        const costMultiplier = 0.8 + utilization; // Level 1: 1.0, Level 5: 1.8
+        const cost = progress * costMultiplier * (2 / 3);
 
         return { cost, progress };
     }
@@ -319,7 +319,7 @@ class Economy {
 
             // 7. 비용 지불 및 즉시 건설 (임계값 이상의 여유분으로 건설 가능한지 확인)
             if (this.economicUnits >= threshold + aiCheckCost) {
-                this.economicUnits -= baseCost; // 실제 소모는 1배만
+                this.economicUnits -= baseCost * (2 / 3); // 실제 소모는 1배만 (플레이어와 동일하게 2/3 비용 적용)
                 if (typeToBuild === 'light') this.lightIndustry++;
                 else if (typeToBuild === 'heavy') this.heavyIndustry++;
                 else if (typeToBuild === 'consumer') this.consumerGoodsIndustry++;

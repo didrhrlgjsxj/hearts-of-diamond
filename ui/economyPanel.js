@@ -185,7 +185,7 @@ class EconomyPanel {
 
         let newLevel = nation.economy.construction.level + change;
         if (newLevel < 0) newLevel = 0;
-        if (newLevel > 10) newLevel = 10;
+        if (newLevel > 5) newLevel = 5;
         
         nation.economy.construction.level = newLevel;
         this.updateConstructionUI(nation);
@@ -220,7 +220,7 @@ class EconomyPanel {
         const levelRow = this.levelBlockRow;
         levelRow.count.textContent = constr.level;
         levelRow.container.innerHTML = '';
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 5; i++) {
             const block = document.createElement('div');
             block.style.flex = '1';
             block.style.height = '100%';

@@ -607,6 +607,13 @@ class Unit {
 
             if (this.playerDestination && this.arrivalDirection !== null) {
                 this._direction = this.arrivalDirection;
+            } else if (this.parent && !this.isInCombat && !this.isRetreating && !this.isRefitting) {
+                // 진형 이동(기본 진형 복귀 등) 완료 시 부모의 방향(진형 방향)을 바라보게 합니다.
+                // 이를 통해 대대들이 이동 후 제각각인 방향을 보는 문제를 해결합니다.
+                if (finalGoal.priority === MOVEMENT_PRIORITIES.DEFAULT_FORMATION || 
+                    finalGoal.priority === MOVEMENT_PRIORITIES.FORMATION_COHESION) {
+                    this._direction = this.parent.direction;
+                }
             }
 
             this._handleArrival();
