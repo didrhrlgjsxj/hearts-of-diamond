@@ -322,10 +322,10 @@ function draw() {
                 if (n.col < 0 || n.col >= mapGrid.width || n.row < 0 || n.row >= mapGrid.height ||
                     mapGrid.provinceManager.provinceGrid[n.col][n.row] !== selectedProvince.id) {
                     
-                    // Draw edge i
-                    // Edge i connects corner i and corner (i+1)%6
-                    const c1 = getHexCorner(center, i);
-                    const c2 = getHexCorner(center, (i + 1) % 6);
+                    // Neighbor direction index and Corner edge index are offset by 5 (or -1)
+                    const edgeIdx = (i + 5) % 6;
+                    const c1 = getHexCorner(center, edgeIdx);
+                    const c2 = getHexCorner(center, (edgeIdx + 1) % 6);
                     ctx.moveTo(c1.x, c1.y);
                     ctx.lineTo(c2.x, c2.y);
                 }
@@ -478,8 +478,9 @@ function drawMapLayer() {
                 // If neighbor is out of bounds or different province
                 if (n.col < 0 || n.col >= mapGrid.width || n.row < 0 || n.row >= mapGrid.height ||
                     mapGrid.provinceManager.provinceGrid[n.col][n.row] !== provinceId) {
-                    const c1 = getHexCorner(center, i);
-                    const c2 = getHexCorner(center, (i + 1) % 6);
+                    const edgeIdx = (i + 5) % 6;
+                    const c1 = getHexCorner(center, edgeIdx);
+                    const c2 = getHexCorner(center, (edgeIdx + 1) % 6);
                     mapCtx.moveTo(c1.x, c1.y);
                     mapCtx.lineTo(c2.x, c2.y);
                 }
