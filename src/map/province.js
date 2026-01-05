@@ -73,31 +73,56 @@ class ProvinceManager {
     generateProvinces() {
         // 1. 생성할 프로빈스의 개수를 결정합니다.
         const mapArea = this.mapWidth * this.mapHeight;
-        const numProvinces = Math.floor(mapArea / AVG_PROVINCE_SIZE);
+        const numProvinces = Math.floor(mapArea / AVG_PROVINCE_SIZE) * 2;
 
-        // 2. 프로빈스의 중심점(씨앗)을 무작위로 생성합니다.
-        const frontiers = Array(numProvinces).fill(null).map(() => new Set());
+        // 2. 프로빈스의 중심점(씨앗)을 생성합니다. (그리드 기반 지터링으로 고른 분포 유도)
+        // 기존의 완전 무작위 방식은 뭉침 현상으로 인해 크기 편차가 컸습니다.
+        const provinceData = []; // { id: number, frontier: Set }
 
-        for (let i = 0; i < numProvinces; i++) {
-            const provinceId = this.nextProvinceId++;
-            let startX, startY;
-            // 다른 씨앗과 겹치지 않는 위치를 찾습니다.
-            do {
-                startX = Math.floor(Math.random() * this.mapWidth);
-                startY = Math.floor(Math.random() * this.mapHeight);
-            } while (this.provinceGrid[startX][startY] !== null);
+        // 그리드 계산
+        const aspectRatio = this.mapWidth / this.mapHeight;
+        const cols = Math.round(Math.sqrt(numProvinces * aspectRatio));
+        const rows = Math.ceil(numProvinces / cols);
+        const cellWidth = this.mapWidth / cols;
+        const cellHeight = this.mapHeight / rows;
 
-            const province = new Province(provinceId);
-            this.provinces.set(provinceId, province);
+        let createdCount = 0;
 
-            this.provinceGrid[startX][startY] = provinceId;
-            province.addTile(startX, startY);
-            
-            // 씨앗의 이웃을 프론티어에 추가
-            const neighbors = getHexNeighbors(startX, startY);
-            for (const n of neighbors) {
-                if (n.col >= 0 && n.col < this.mapWidth && n.row >= 0 && n.row < this.mapHeight) {
-                    frontiers[i].add(`${n.col},${n.row}`);
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (createdCount >= numProvinces) break;
+
+                // 셀 내부에서 랜덤 위치 선정
+                const minX = Math.floor(c * cellWidth);
+                const maxX = Math.floor((c + 1) * cellWidth);
+                const minY = Math.floor(r * cellHeight);
+                const maxY = Math.floor((r + 1) * cellHeight);
+
+                // 유효한 좌표 범위 내에서 랜덤 선택
+                let startX = Math.floor(minX + Math.random() * (maxX - minX));
+                let startY = Math.floor(minY + Math.random() * (maxY - minY));
+                
+                // 맵 범위 보정
+                startX = Math.min(Math.max(0, startX), this.mapWidth - 1);
+                startY = Math.min(Math.max(0, startY), this.mapHeight - 1);
+
+                if (this.provinceGrid[startX][startY] === null) {
+                    const provinceId = this.nextProvinceId++;
+                    const province = new Province(provinceId);
+                    this.provinces.set(provinceId, province);
+
+                    this.provinceGrid[startX][startY] = provinceId;
+                    province.addTile(startX, startY);
+
+                    const frontier = new Set();
+                    const neighbors = getHexNeighbors(startX, startY);
+                    for (const n of neighbors) {
+                        if (n.col >= 0 && n.col < this.mapWidth && n.row >= 0 && n.row < this.mapHeight) {
+                            frontier.add(`${n.col},${n.row}`);
+                        }
+                    }
+                    provinceData.push({ id: provinceId, frontier });
+                    createdCount++;
                 }
             }
         }
@@ -107,16 +132,18 @@ class ProvinceManager {
         while (active) {
             active = false;
             
-            // 처리 순서를 섞어서 성장이 한쪽으로 치우치는 것을 방지합니다.
-            const indices = Array.from({ length: numProvinces }, (_, i) => i);
-            for (let i = indices.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [indices[i], indices[j]] = [indices[j], indices[i]];
-            }
+            // 처리 순서를 크기가 작은 순서대로 정렬하여 작은 프로빈스가 먼저 성장할 기회를 줍니다.
+            // 이를 통해 프로빈스 크기의 표준편차를 줄입니다.
+            provinceData.sort((a, b) => {
+                const provA = this.provinces.get(a.id);
+                const provB = this.provinces.get(b.id);
+                // 크기 오름차순 정렬 + 약간의 랜덤성(동일 크기일 때 뭉침 방지)
+                return (provA.tiles.length - provB.tiles.length) || (Math.random() - 0.5);
+            });
 
-            for (const i of indices) {
-                const provinceId = i + 1;
-                const frontier = frontiers[i];
+            for (const data of provinceData) {
+                const provinceId = data.id;
+                const frontier = data.frontier;
                 if (frontier.size === 0) continue;
 
                 const candidates = [];
