@@ -1,6 +1,6 @@
-const MAP_WIDTH = 200;
-const MAP_HEIGHT = 200;
-const HEX_RADIUS = 40;
+const MAP_WIDTH = 400;
+const MAP_HEIGHT = 400;
+const HEX_RADIUS = 20;
 const HEX_WIDTH = Math.sqrt(3) * HEX_RADIUS;
 const HEX_HEIGHT = 2 * HEX_RADIUS;
 const HEX_VERT_SPACING = 1.5 * HEX_RADIUS;

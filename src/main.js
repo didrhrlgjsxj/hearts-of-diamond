@@ -67,7 +67,7 @@ function initializeNations() {
     blueNation.type = 'PLAYER';
     mapGrid.setProvinceOwner(blueCapitalProvinceId, blueNation);
 
-    const redCapitalProvinceId = mapGrid.provinceManager.provinceGrid[15][15];
+    const redCapitalProvinceId = mapGrid.provinceManager.provinceGrid[30][30];
     const redNation = new Nation('red', "레드 왕국", 'rgba(255, 0, 0, 0.3)', redCapitalProvinceId);
     redNation.type = 'AI';
     mapGrid.setProvinceOwner(redCapitalProvinceId, redNation);
