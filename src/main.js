@@ -50,6 +50,15 @@ let isRightDragging = false;
 let rightDragStart = null; // {x, y} 월드 좌표
 let currentMouseWorld = { x: 0, y: 0 }; // 드래그 중 현재 마우스 월드 좌표
 
+// --- 맵 프리렌더링 설정 (최적화) ---
+const prerenderCanvas = document.createElement('canvas');
+const prerenderCtx = prerenderCanvas.getContext('2d', { alpha: false });
+// 맵 전체 크기 계산 (여유분 포함)
+const MAP_PIXEL_WIDTH = MAP_WIDTH * HEX_WIDTH + HEX_WIDTH;
+const MAP_PIXEL_HEIGHT = MAP_HEIGHT * HEX_VERT_SPACING + HEX_HEIGHT;
+prerenderCanvas.width = MAP_PIXEL_WIDTH;
+prerenderCanvas.height = MAP_PIXEL_HEIGHT;
+
 
 /**
  * 게임 속도를 설정합니다.
@@ -402,38 +411,108 @@ function draw() {
 }
 
 /**
+ * 맵 전체를 프리렌더링 캔버스에 그립니다. (비용이 큰 작업, 변경 시에만 호출)
+ */
+function renderStaticMap() {
+    console.time('MapRender');
+    // 배경 초기화
+    prerenderCtx.fillStyle = '#ccc';
+    prerenderCtx.fillRect(0, 0, prerenderCanvas.width, prerenderCanvas.height);
+
+    prerenderCtx.lineWidth = 1;
+    prerenderCtx.strokeStyle = 'rgba(0,0,0,0.05)'; // 아주 옅은 그리드 선
+
+    // 텍스트/라인 해상도 문제를 해결하기 위해, 프리렌더링에서는 '면(Fill)'만 처리하고
+    // '선(Stroke)'과 '아이콘'은 drawMapLayer에서 실시간으로 그립니다.
+    // 따라서 여기서는 fill 관련 로직만 남깁니다.
+
+    // 육각형 코너 미리 계산 (최적화)
+    const hexCorners = [];
+    for (let i = 0; i < 6; i++) {
+        hexCorners.push(getHexCorner({x:0, y:0}, i));
+    }
+
+    for (let y = 0; y < mapGrid.height; y++) {
+        for (let x = 0; x < mapGrid.width; x++) {
+            const center = hexToPixel(x, y);
+            const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
+            const province = mapGrid.provinceManager.provinces.get(provinceId);
+
+            // 1. 육각형 패스 생성
+            prerenderCtx.beginPath();
+            prerenderCtx.moveTo(center.x + hexCorners[0].x, center.y + hexCorners[0].y);
+            for (let i = 1; i < 6; i++) {
+                prerenderCtx.lineTo(center.x + hexCorners[i].x, center.y + hexCorners[i].y);
+            }
+            prerenderCtx.closePath();
+
+            // 2. 채우기
+            if (province && province.owner) {
+                prerenderCtx.fillStyle = province.owner.color;
+                prerenderCtx.fill();
+            }
+
+            // 그리드 선과 경계선 그리기는 제거 (실시간 렌더링으로 이동)
+            // 수도 별 그리기도 제거 (실시간 렌더링으로 이동)
+            
+            // 스타일 복구
+            prerenderCtx.lineWidth = 1;
+            prerenderCtx.strokeStyle = 'rgba(0,0,0,0.05)';
+        }
+    }
+    mapGrid.isDirty = false;
+    console.timeEnd('MapRender');
+}
+
+/**
  * 맵(타일, 국경)을 mapCanvas에 그립니다.
- * 이 함수는 카메라가 이동할 때만 호출됩니다.
+ * 프리렌더링된 이미지를 복사하여 사용하므로 매우 빠릅니다.
  */
 function drawMapLayer() {
+    // 맵 데이터가 변경되었다면 프리렌더링 다시 수행
+    if (mapGrid.isDirty) {
+        renderStaticMap();
+    }
+
     mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
     mapCtx.save();
     camera.applyTransform(mapCtx);
 
     const view = camera.getViewport();
+    const drawStartX = Math.max(0, view.left);
+    const drawStartY = Math.max(0, view.top);
+    const drawWidth = Math.min(prerenderCanvas.width, view.right) - drawStartX;
+    const drawHeight = Math.min(prerenderCanvas.height, view.bottom) - drawStartY;
+
+    if (drawWidth > 0 && drawHeight > 0) {
+        // 화면에 보이는 영역만 잘라서 그립니다.
+        mapCtx.drawImage(
+            prerenderCanvas,
+            drawStartX, drawStartY, drawWidth, drawHeight, // Source (프리렌더 캔버스)
+            drawStartX, drawStartY, drawWidth, drawHeight  // Destination (화면 캔버스)
+        );
+    }
+
+    // --- 동적 라인 렌더링 (해상도 품질 향상) ---
+    // 화면에 보이는 영역에 대해서만 그리드와 경계선을 직접 그립니다.
     const startCol = Math.floor(view.left / HEX_WIDTH) - 1;
     const endCol = Math.ceil(view.right / HEX_WIDTH) + 1;
     const startRow = Math.floor(view.top / HEX_VERT_SPACING) - 1;
     const endRow = Math.ceil(view.bottom / HEX_VERT_SPACING) + 1;
 
-    // --- 1. 배경 및 그리드 일괄 그리기 (최적화) ---
-    const mapPixelWidth = mapGrid.width * HEX_WIDTH;
-    const mapPixelHeight = mapGrid.height * HEX_VERT_SPACING;
-    
-    const drawStartX = Math.max(0, view.left);
-    const drawStartY = Math.max(0, view.top);
-    const drawEndX = Math.min(mapPixelWidth, view.right);
-    const drawEndY = Math.min(mapPixelHeight, view.bottom);
+    // 육각형 코너 미리 계산 (최적화)
+    const hexCorners = [];
+    for (let i = 0; i < 6; i++) {
+        hexCorners.push(getHexCorner({x:0, y:0}, i));
+    }
 
-    // 기본 배경색 한 번에 채우기
-    mapCtx.fillStyle = '#ccc';
-    mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
-
-    // Hex grid lines are drawn per hex below, pattern is harder for hexes
-
-    // --- 2. 프로빈스별 정보 그리기 (색상, 국경) ---
+    // 1. 그리드 선 (Batch Drawing)
     mapCtx.lineWidth = 1;
-    mapCtx.strokeStyle = 'rgba(0,0,0,0.05)'; // 아주 옅은 그리드 선 (거의 안 보이게)
+    mapCtx.strokeStyle = 'rgba(0,0,0,0.1)'; // 옅은 그리드
+    mapCtx.beginPath();
+    
+    // 2. 프로빈스 경계선 (Batch Drawing)
+    const borderPath = new Path2D();
 
     for (let y = startRow; y < endRow; y++) {
         for (let x = startCol; x < endCol; x++) {
@@ -441,57 +520,48 @@ function drawMapLayer() {
 
             const center = hexToPixel(x, y);
             const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
-            const province = mapGrid.provinceManager.provinces.get(provinceId);
 
-            // Draw Hexagon Path
-            mapCtx.beginPath();
-            for (let i = 0; i < 6; i++) {
-                const corner = getHexCorner(center, i);
-                if (i === 0) mapCtx.moveTo(corner.x, corner.y);
-                else mapCtx.lineTo(corner.x, corner.y);
+            // 그리드 선 경로 추가
+            mapCtx.moveTo(center.x + hexCorners[0].x, center.y + hexCorners[0].y);
+            for (let i = 1; i < 6; i++) {
+                mapCtx.lineTo(center.x + hexCorners[i].x, center.y + hexCorners[i].y);
             }
             mapCtx.closePath();
 
-            // 국가 영토 색상 칠하기
-            if (province && province.owner) {
-                mapCtx.fillStyle = province.owner.color;
-                mapCtx.fill();
-
-                // 수도 타일인지 확인하고 별 아이콘 그리기
-                if (province.owner.capitalProvinceId === provinceId) {
-                    // Use province center (pixel coords)
-                    drawStar(mapCtx, province.center.x, province.center.y, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
-                }
-            }
-
-            // 타일 내부 그리드 선 그리기
-            mapCtx.stroke();
-
-            // Draw Province Borders (Thicker lines)
-            // Check neighbors to draw borders
+            // 프로빈스 경계선 경로 추가
             const neighbors = getHexNeighbors(x, y);
-            mapCtx.lineWidth = 2.5; // 외곽선을 더 두껍게
-            mapCtx.strokeStyle = 'black';
-            mapCtx.beginPath();
             for (let i = 0; i < 6; i++) {
                 const n = neighbors[i];
-                // If neighbor is out of bounds or different province
                 if (n.col < 0 || n.col >= mapGrid.width || n.row < 0 || n.row >= mapGrid.height ||
                     mapGrid.provinceManager.provinceGrid[n.col][n.row] !== provinceId) {
                     const edgeIdx = (i + 5) % 6;
-                    const c1 = getHexCorner(center, edgeIdx);
-                    const c2 = getHexCorner(center, (edgeIdx + 1) % 6);
-                    mapCtx.moveTo(c1.x, c1.y);
-                    mapCtx.lineTo(c2.x, c2.y);
+                    const c1 = { x: center.x + hexCorners[edgeIdx].x, y: center.y + hexCorners[edgeIdx].y };
+                    const c2 = { x: center.x + hexCorners[(edgeIdx + 1) % 6].x, y: center.y + hexCorners[(edgeIdx + 1) % 6].y };
+                    borderPath.moveTo(c1.x, c1.y);
+                    borderPath.lineTo(c2.x, c2.y);
                 }
             }
-            mapCtx.stroke();
-            
-            // Reset for next hex fill/grid
-            mapCtx.lineWidth = 1;
-            mapCtx.strokeStyle = 'rgba(0,0,0,0.05)';
         }
     }
+    mapCtx.stroke(); // 그리드 선 일괄 그리기
+
+    // 프로빈스 경계선 그리기
+    mapCtx.lineWidth = 2.5;
+    mapCtx.strokeStyle = 'black';
+    mapCtx.stroke(borderPath);
+
+    // 수도 별 그리기 (그리드/경계선 위에)
+    for (const nation of nations.values()) {
+        if (nation.type === 'NONE' || !nation.capitalProvinceId) continue;
+        const p = mapGrid.provinceManager.provinces.get(nation.capitalProvinceId);
+        if (p) {
+            // 화면 내에 있는지 확인 (간단한 컬링)
+            if (p.center.x > view.left && p.center.x < view.right && p.center.y > view.top && p.center.y < view.bottom) {
+                drawStar(mapCtx, p.center.x, p.center.y, 5, 15, 7, nation.color.replace('0.3', '1.0'));
+            }
+        }
+    }
+
     mapCtx.restore();
 }
 
