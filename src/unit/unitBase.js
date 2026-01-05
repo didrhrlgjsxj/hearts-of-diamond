@@ -208,14 +208,16 @@ class Unit {
      */
     get snappedX() {
         if (typeof mapGrid !== 'undefined' && mapGrid) {
-            return Math.floor(this._x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+            const hex = pixelToHex(this._x, this._y);
+            return hexToPixel(hex.col, hex.row).x;
         }
         return this._x;
     }
 
     get snappedY() {
         if (typeof mapGrid !== 'undefined' && mapGrid) {
-            return Math.floor(this._y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2;
+            const hex = pixelToHex(this._x, this._y);
+            return hexToPixel(hex.col, hex.row).y;
         }
         return this._y;
     }
@@ -624,14 +626,14 @@ class Unit {
         // 이동 거리를 누적합니다.
         this.accumulatedMoveDistance += currentMoveSpeed * deltaTime;
 
-        // 세부 그리드 크기 (기본값 35)
-        const gridSize = mapGrid.subTileSize;
+        // 육각형 그리드에서는 HEX_RADIUS를 기준으로 이동 단위를 설정
+        const gridSize = HEX_RADIUS;
 
         // 누적 거리가 그리드 크기 이상이 되면 한 칸 이동합니다.
         if (this.accumulatedMoveDistance >= gridSize) {
             this.accumulatedMoveDistance -= gridSize; // 누적 거리 차감
 
-            // 남은 거리가 한 칸 이내라면 바로 도착 처리
+            // 남은 거리가 그리드 크기 이내라면 바로 도착 처리
             if (distance <= gridSize) {
                 this.x = finalDestination.x;
                 this.y = finalDestination.y;
@@ -790,10 +792,9 @@ class Unit {
      */
     _snapToGrid(x, y) {
         if (typeof mapGrid !== 'undefined' && mapGrid) {
-            return {
-                x: Math.floor(x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2,
-                y: Math.floor(y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2
-            };
+            const hex = pixelToHex(x, y);
+            const center = hexToPixel(hex.col, hex.row);
+            return { x: center.x, y: center.y };
         }
         return { x, y };
     }

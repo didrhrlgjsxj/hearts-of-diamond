@@ -176,7 +176,9 @@ class SymbolUnit extends Unit {
      */
     _calculateSnappedPosition(x, y) {
         if (typeof mapGrid !== 'undefined' && mapGrid) {
-            return { x: Math.floor(x / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2, y: Math.floor(y / mapGrid.subTileSize) * mapGrid.subTileSize + mapGrid.subTileSize / 2 };
+            const hex = pixelToHex(x, y);
+            const center = hexToPixel(hex.col, hex.row);
+            return { x: center.x, y: center.y };
         }
         return { x, y };
     }

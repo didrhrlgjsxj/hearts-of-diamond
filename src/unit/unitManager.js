@@ -262,8 +262,8 @@ function updateUnits(unitManager, scaledDeltaTime) {
 
     // --- 쿼드트리 구성 (공간 분할 최적화) ---
     // 맵 전체 크기를 커버하는 경계 생성 (중심 좌표, 반너비, 반높이)
-    const mapPixelWidth = MAP_WIDTH * TILE_SIZE;
-    const mapPixelHeight = MAP_HEIGHT * TILE_SIZE;
+    const mapPixelWidth = MAP_WIDTH * HEX_WIDTH;
+    const mapPixelHeight = MAP_HEIGHT * HEX_VERT_SPACING;
     const boundary = new Rectangle(mapPixelWidth / 2, mapPixelHeight / 2, mapPixelWidth / 2, mapPixelHeight / 2);
     const battalionQuadtree = new Quadtree(boundary, 4); // 노드당 4개 유닛 수용
 
@@ -586,9 +586,9 @@ function processFormationUpdate(unit) {
     if (unit.isDestroyed) return;
 
     // 유닛의 현재 프로빈스 ID 업데이트
-    const tileX = Math.floor(unit.snappedX / TILE_SIZE);
-    const tileY = Math.floor(unit.snappedY / TILE_SIZE);
-    unit.currentProvinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY] || null;
+    const hex = pixelToHex(unit.snappedX, unit.snappedY);
+    // 맵 범위 체크
+    unit.currentProvinceId = mapGrid.provinceManager.provinceGrid[hex.col]?.[hex.row] || null;
 
     if (unit instanceof SymbolUnit) {
         unit.updateCombatSubUnitPositions();

@@ -148,10 +148,9 @@ canvas.addEventListener('click', (e) => {
         gameUI.updateProvinceInfoPanel(null);
         selectedProvince = null; // 유닛 선택 시 프로빈스 선택 해제
     } else {
-        // 유닛이 선택되지 않으면, 프로빈스 정보를 표시합니다.
-        const tileX = Math.floor(worldCoords.x / TILE_SIZE);
-        const tileY = Math.floor(worldCoords.y / TILE_SIZE);
-        const provinceId = mapGrid.provinceManager.provinceGrid[tileX]?.[tileY];
+        // 유닛이 선택되지 않으면, 프로빈스 정보를 표시합니다. (Hexagon)
+        const hex = pixelToHex(worldCoords.x, worldCoords.y);
+        const provinceId = mapGrid.provinceManager.provinceGrid[hex.col]?.[hex.row];
         const clickedProvince = mapGrid.provinceManager.provinces.get(provinceId);
 
         // 이미 선택된 프로빈스를 다시 클릭하면 선택 해제합니다.
@@ -296,38 +295,40 @@ function draw() {
         const blinkAlpha = (Math.sin(Date.now() / 150) + 1) / 2 * 0.7 + 0.3;
         ctx.strokeStyle = `rgba(255, 255, 0, ${blinkAlpha})`; // 깜빡이는 노란색
         ctx.lineWidth = 4; // 강조를 위해 두꺼운 선 사용
+        ctx.lineJoin = 'round';
 
         // 선택된 프로빈스의 모든 타일을 순회하며 외곽선을 그립니다.
-        // 화면에 보이는 범위 내에서만 그리기 위해 view 정보를 활용할 수 있습니다.
-        const startCol = Math.floor(view.left / mapGrid.tileSize);
-        const endCol = Math.ceil(view.right / mapGrid.tileSize);
-        const startRow = Math.floor(view.top / mapGrid.tileSize);
-        const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
+        // Hexagon grid optimization: calculate visible range in hex coords
+        // Approximate range
+        const startCol = Math.floor(view.left / HEX_WIDTH) - 1;
+        const endCol = Math.ceil(view.right / HEX_WIDTH) + 1;
+        const startRow = Math.floor(view.top / HEX_VERT_SPACING) - 1;
+        const endRow = Math.ceil(view.bottom / HEX_VERT_SPACING) + 1;
 
         selectedProvince.tiles.forEach(tile => {
+            // tile.x is col, tile.y is row
             // 화면 밖 타일은 그리지 않습니다.
-            if (tile.x < startCol -1 || tile.x > endCol + 1 || tile.y < startRow -1 || tile.y > endRow + 1) return;
+            if (tile.x < startCol || tile.x > endCol || tile.y < startRow || tile.y > endRow) return;
 
-            const tileX = tile.x * mapGrid.tileSize;
-            const tileY = tile.y * mapGrid.tileSize;
+            const center = hexToPixel(tile.x, tile.y);
+            const neighbors = getHexNeighbors(tile.x, tile.y);
 
-            // 각 방향의 인접 타일이 다른 프로빈스에 속하는 경우에만 해당 방향의 테두리를 그립니다.
+            // Check all 6 neighbors
+            // If neighbor is different province, draw the shared edge
             ctx.beginPath();
-            // 위쪽
-            if (tile.y === 0 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y - 1] !== selectedProvince.id) {
-                ctx.moveTo(tileX, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY);
-            }
-            // 아래쪽
-            if (tile.y === mapGrid.height - 1 || mapGrid.provinceManager.provinceGrid[tile.x][tile.y + 1] !== selectedProvince.id) {
-                ctx.moveTo(tileX, tileY + mapGrid.tileSize); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize);
-            }
-            // 왼쪽
-            if (tile.x === 0 || mapGrid.provinceManager.provinceGrid[tile.x - 1][tile.y] !== selectedProvince.id) {
-                ctx.moveTo(tileX, tileY); ctx.lineTo(tileX, tileY + mapGrid.tileSize);
-            }
-            // 오른쪽
-            if (tile.x === mapGrid.width - 1 || mapGrid.provinceManager.provinceGrid[tile.x + 1][tile.y] !== selectedProvince.id) {
-                ctx.moveTo(tileX + mapGrid.tileSize, tileY); ctx.lineTo(tileX + mapGrid.tileSize, tileY + mapGrid.tileSize);
+            for (let i = 0; i < 6; i++) {
+                const n = neighbors[i];
+                // Check boundary or different province
+                if (n.col < 0 || n.col >= mapGrid.width || n.row < 0 || n.row >= mapGrid.height ||
+                    mapGrid.provinceManager.provinceGrid[n.col][n.row] !== selectedProvince.id) {
+                    
+                    // Draw edge i
+                    // Edge i connects corner i and corner (i+1)%6
+                    const c1 = getHexCorner(center, i);
+                    const c2 = getHexCorner(center, (i + 1) % 6);
+                    ctx.moveTo(c1.x, c1.y);
+                    ctx.lineTo(c2.x, c2.y);
+                }
             }
             ctx.stroke();
         });
@@ -340,8 +341,9 @@ function draw() {
         const province = mapGrid.provinceManager.provinces.get(provinceId);
         if (!province) return;
 
-        const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
-        const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
+        // province.center is already in pixel coordinates for hex grid
+        const centerX = province.center.x;
+        const centerY = province.center.y;
 
         // 프로빈스 중심이 화면에 보일 때만 그립니다.
         if (centerX > view.left && centerX < view.right && centerY > view.top && centerY < view.bottom) {
@@ -409,14 +411,14 @@ function drawMapLayer() {
     camera.applyTransform(mapCtx);
 
     const view = camera.getViewport();
-    const startCol = Math.floor(view.left / mapGrid.tileSize);
-    const endCol = Math.ceil(view.right / mapGrid.tileSize);
-    const startRow = Math.floor(view.top / mapGrid.tileSize);
-    const endRow = Math.ceil(view.bottom / mapGrid.tileSize);
+    const startCol = Math.floor(view.left / HEX_WIDTH) - 1;
+    const endCol = Math.ceil(view.right / HEX_WIDTH) + 1;
+    const startRow = Math.floor(view.top / HEX_VERT_SPACING) - 1;
+    const endRow = Math.ceil(view.bottom / HEX_VERT_SPACING) + 1;
 
     // --- 1. 배경 및 그리드 일괄 그리기 (최적화) ---
-    const mapPixelWidth = mapGrid.width * mapGrid.tileSize;
-    const mapPixelHeight = mapGrid.height * mapGrid.tileSize;
+    const mapPixelWidth = mapGrid.width * HEX_WIDTH;
+    const mapPixelHeight = mapGrid.height * HEX_VERT_SPACING;
     
     const drawStartX = Math.max(0, view.left);
     const drawStartY = Math.max(0, view.top);
@@ -427,68 +429,66 @@ function drawMapLayer() {
     mapCtx.fillStyle = '#ccc';
     mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
 
-    // 그리드 선 그리기 (패턴 사용 최적화)
-    if (!gridPattern) {
-        const patternCanvas = document.createElement('canvas');
-        patternCanvas.width = mapGrid.subTileSize;
-        patternCanvas.height = mapGrid.subTileSize;
-        const pCtx = patternCanvas.getContext('2d');
-        pCtx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-        pCtx.lineWidth = 1;
-        pCtx.beginPath();
-        pCtx.moveTo(0, 0);
-        pCtx.lineTo(0, mapGrid.subTileSize);
-        pCtx.moveTo(0, 0);
-        pCtx.lineTo(mapGrid.subTileSize, 0);
-        pCtx.stroke();
-        gridPattern = mapCtx.createPattern(patternCanvas, 'repeat');
-    }
-
-    mapCtx.fillStyle = gridPattern;
-    mapCtx.fillRect(drawStartX, drawStartY, drawEndX - drawStartX, drawEndY - drawStartY);
+    // Hex grid lines are drawn per hex below, pattern is harder for hexes
 
     // --- 2. 프로빈스별 정보 그리기 (색상, 국경) ---
-    mapCtx.lineWidth = 2;
+    mapCtx.lineWidth = 1;
+    mapCtx.strokeStyle = 'rgba(0,0,0,0.05)'; // 아주 옅은 그리드 선 (거의 안 보이게)
 
     for (let y = startRow; y < endRow; y++) {
         for (let x = startCol; x < endCol; x++) {
             if (x < 0 || x >= mapGrid.width || y < 0 || y >= mapGrid.height) continue;
 
-            const tileX = x * mapGrid.tileSize;
-            const tileY = y * mapGrid.tileSize;
+            const center = hexToPixel(x, y);
             const provinceId = mapGrid.provinceManager.provinceGrid[x][y];
             const province = mapGrid.provinceManager.provinces.get(provinceId);
+
+            // Draw Hexagon Path
+            mapCtx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const corner = getHexCorner(center, i);
+                if (i === 0) mapCtx.moveTo(corner.x, corner.y);
+                else mapCtx.lineTo(corner.x, corner.y);
+            }
+            mapCtx.closePath();
 
             // 국가 영토 색상 칠하기
             if (province && province.owner) {
                 mapCtx.fillStyle = province.owner.color;
-                mapCtx.fillRect(tileX, tileY, mapGrid.tileSize, mapGrid.tileSize);
+                mapCtx.fill();
 
                 // 수도 타일인지 확인하고 별 아이콘 그리기
                 if (province.owner.capitalProvinceId === provinceId) {
-                    const centerX = province.center.x * mapGrid.tileSize + mapGrid.tileSize / 2;
-                    const centerY = province.center.y * mapGrid.tileSize + mapGrid.tileSize / 2;
-                    drawStar(mapCtx, centerX, centerY, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
+                    // Use province center (pixel coords)
+                    drawStar(mapCtx, province.center.x, province.center.y, 5, 15, 7, province.owner.color.replace('0.3', '1.0'));
                 }
             }
 
-            // 국경 그리기 (drawStar가 strokeStyle을 변경했을 수 있으므로 재설정)
-            mapCtx.strokeStyle = 'black';
+            // 타일 내부 그리드 선 그리기
+            mapCtx.stroke();
 
-            // 위쪽 타일과 프로빈스가 다른 경우, 위쪽 경계선을 굵게 그립니다.
-            if (y === 0 || mapGrid.provinceManager.provinceGrid[x][y-1] !== provinceId) {
-                mapCtx.beginPath();
-                mapCtx.moveTo(tileX, tileY);
-                mapCtx.lineTo(tileX + mapGrid.tileSize, tileY);
-                mapCtx.stroke();
+            // Draw Province Borders (Thicker lines)
+            // Check neighbors to draw borders
+            const neighbors = getHexNeighbors(x, y);
+            mapCtx.lineWidth = 2.5; // 외곽선을 더 두껍게
+            mapCtx.strokeStyle = 'black';
+            mapCtx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const n = neighbors[i];
+                // If neighbor is out of bounds or different province
+                if (n.col < 0 || n.col >= mapGrid.width || n.row < 0 || n.row >= mapGrid.height ||
+                    mapGrid.provinceManager.provinceGrid[n.col][n.row] !== provinceId) {
+                    const c1 = getHexCorner(center, i);
+                    const c2 = getHexCorner(center, (i + 1) % 6);
+                    mapCtx.moveTo(c1.x, c1.y);
+                    mapCtx.lineTo(c2.x, c2.y);
+                }
             }
-            // 왼쪽 타일과 프로빈스가 다른 경우, 왼쪽 경계선을 굵게 그립니다.
-            if (x === 0 || mapGrid.provinceManager.provinceGrid[x-1][y] !== provinceId) {
-                mapCtx.beginPath();
-                mapCtx.moveTo(tileX, tileY);
-                mapCtx.lineTo(tileX, tileY + mapGrid.tileSize);
-                mapCtx.stroke();
-            }
+            mapCtx.stroke();
+            
+            // Reset for next hex fill/grid
+            mapCtx.lineWidth = 1;
+            mapCtx.strokeStyle = 'rgba(0,0,0,0.05)';
         }
     }
     mapCtx.restore();
